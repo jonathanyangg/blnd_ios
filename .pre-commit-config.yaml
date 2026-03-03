@@ -1,0 +1,21 @@
+repos:
+  - repo: local
+    hooks:
+      - id: swiftlint
+        name: swiftlint
+        entry: swiftlint lint --strict --quiet
+        language: system
+        types: [swift]
+
+      - id: swiftformat
+        name: swiftformat
+        entry: swiftformat --lint
+        language: system
+        types: [swift]
+
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.4.1
+    hooks:
+      - id: codespell
+        additional_dependencies:
+          - tomli
