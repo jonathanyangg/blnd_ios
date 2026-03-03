@@ -19,50 +19,62 @@ SwiftUI iOS app for blnd — movie taste syncing with AI recommendations.
 ## Project Structure
 
 ```
-blnd/
+blnd_frontend/
 ├── App/
-│   └── blndApp.swift
+│   └── blndApp.swift          (BlndApp entry point, injects AuthState into environment)
 ├── Config/
-│   ├── APIConfig.swift
-│   └── KeychainManager.swift
+│   ├── APIConfig.swift         ✅ base URL constant
+│   └── KeychainManager.swift   ✅ save/read/delete tokens via Security framework
 ├── Models/
-│   ├── AuthModels.swift
-│   ├── MovieModels.swift
-│   ├── UserModels.swift
-│   └── GroupModels.swift
+│   ├── AuthModels.swift        ✅ SignupRequest, LoginRequest, LoginResponse, UserResponse
+│   ├── MovieModels.swift       (planned)
+│   ├── UserModels.swift        (planned)
+│   └── GroupModels.swift       (planned)
 ├── Networking/
-│   ├── APIClient.swift
-│   ├── AuthAPI.swift
-│   ├── MoviesAPI.swift
-│   └── GroupsAPI.swift
+│   ├── APIClient.swift         ✅ singleton, generic request(), Bearer token injection
+│   ├── AuthAPI.swift           ✅ signup(), login(), me()
+│   ├── MoviesAPI.swift         (planned)
+│   └── GroupsAPI.swift         (planned)
 ├── State/
-│   └── AuthState.swift
+│   └── AuthState.swift         ✅ @Observable, signup/login/logout/fetchCurrentUser
+├── Theme/
+│   └── AppTheme.swift
 ├── Views/
+│   ├── ContentView.swift       ✅ gates on authState.isAuthenticated
+│   ├── MainTabView.swift
 │   ├── Auth/
 │   │   ├── WelcomeView.swift
-│   │   ├── LoginView.swift
-│   │   ├── SignUpView.swift
-│   │   └── OnboardingView.swift
+│   │   ├── OnboardingView.swift
+│   │   ├── SignUpView.swift    ✅ wired to authState.signup()
+│   │   ├── LoginView.swift     ✅ wired to authState.login()
+│   │   ├── PickGenresView.swift
+│   │   ├── RateMoviesView.swift
+│   │   └── OnboardingCompleteView.swift  ✅ sets authState.isAuthenticated = true
 │   ├── Home/
 │   │   ├── HomeView.swift
+│   │   ├── SearchResultsView.swift
 │   │   ├── MovieDetailView.swift
-│   │   └── Components/
+│   │   └── RateMovieSheet.swift
 │   ├── Friends/
 │   │   ├── FriendsListView.swift
 │   │   ├── FriendProfileView.swift
-│   │   └── Components/
+│   │   └── AddFriendView.swift
 │   ├── Groups/
 │   │   ├── GroupsListView.swift
 │   │   ├── GroupDetailView.swift
-│   │   └── Components/
+│   │   └── CreateGroupView.swift
 │   ├── Profile/
 │   │   ├── ProfileView.swift
-│   │   ├── SettingsView.swift
+│   │   ├── SettingsView.swift  ✅ logout wired
 │   │   └── Components/
 │   └── Shared/
-│       ├── AppButton.swift
+│       ├── AppButton.swift     (isLoading prop with spinner)
 │       ├── MovieCard.swift
-│       └── SearchBar.swift
+│       ├── SearchBar.swift
+│       ├── AvatarView.swift
+│       ├── GenrePill.swift
+│       ├── TasteMatchBadge.swift
+│       └── OnboardingProgressBar.swift
 └── Extensions/
 ```
 
@@ -98,18 +110,30 @@ blnd/
 - **Profile (2)**: Profile, Settings
 - **Shared (1)**: Rate Movie bottom sheet
 
+## Completed
+
+1. ~~Convert Figma Make JSX exports to SwiftUI views~~ — all 16 screens built
+2. ~~Build foundation: `APIConfig`, `KeychainManager`, `APIClient`, `AuthModels`~~
+3. ~~Build auth flow: `AuthState`, onboarding views, `ContentView` auth gate~~
+4. ~~Build tab structure: `MainTabView` (Home, Friends, Groups, Profile)~~
+
 ## Next Steps
 
-1. Convert Figma Make JSX exports to SwiftUI views
-2. Build foundation: `APIConfig`, `KeychainManager`, `APIClient`, `AuthModels`
-3. Build auth flow: `AuthState`, onboarding views, `ContentView` auth gate
-4. Build tab structure: `MainTabView` (Home, Friends, Groups, Profile)
 5. Build movie features: `MovieModels`, `MoviesAPI`, `HomeView`, `MovieDetailView`
 6. Build social: `FriendsListView`, `GroupsListView`, `GroupDetailView`
 7. Build profile: `ProfileView` with user info + logout
 8. Build recommendations: wire `RecommendationsAPI` into Home + Groups
 9. Polish: empty states, error handling, search debounce
 
+## Linting
+
+- Pre-commit hooks: swiftlint + swiftformat + codespell
+- Config: `.swiftformat` at repo root (maxwidth 120, trailing commas, `before-first` wrapping)
+- swiftlint: type_name (uppercase start), cyclomatic_complexity (max 10), line_length (max 120)
+- Use `case let .foo(bar)` not `case .foo(let bar)` (hoistPatternLet)
+- Use `///` doc comments for API declarations
+- Use spaces around range operators (`200 ..< 300`)
+
 ## Last Updated
 
-2026-03-02
+2026-03-03
