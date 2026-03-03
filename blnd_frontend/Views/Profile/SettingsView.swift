@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct SettingsView: View {
+    @Environment(AuthState.self) var authState
     private let settingsItems = ["Account", "Notifications", "Privacy", "About"]
 
     var body: some View {
@@ -33,7 +34,7 @@ struct SettingsView: View {
                     .clipShape(RoundedRectangle(cornerRadius: AppTheme.cornerRadiusLarge))
 
                     // Log Out
-                    Button {} label: {
+                    Button { authState.logout() } label: {
                         Text("Log Out")
                             .font(.system(size: 16, weight: .medium))
                             .foregroundStyle(AppTheme.destructive)

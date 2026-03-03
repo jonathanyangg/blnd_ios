@@ -1,10 +1,13 @@
 import SwiftUI
 
 @main
-struct blndApp: App {
+struct BlndApp: App {
+    @State private var authState = AuthState()
+
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environment(authState)
         }
     }
 }

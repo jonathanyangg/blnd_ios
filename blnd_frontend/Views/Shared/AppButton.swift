@@ -3,6 +3,7 @@ import SwiftUI
 struct AppButton: View {
     let label: String
     var style: Style = .primary
+    var isLoading: Bool = false
     var isDisabled: Bool = false
     var isSmall: Bool = false
     var action: () -> Void = {}
@@ -14,16 +15,23 @@ struct AppButton: View {
 
     var body: some View {
         Button(action: action) {
-            Text(label)
-                .font(.system(size: isSmall ? 13 : 16, weight: .semibold))
-                .frame(maxWidth: isSmall ? nil : .infinity)
-                .padding(.vertical, isSmall ? 10 : 16)
-                .padding(.horizontal, isSmall ? 18 : 0)
-                .background(backgroundColor)
-                .foregroundStyle(foregroundColor)
-                .clipShape(RoundedRectangle(cornerRadius: AppTheme.cornerRadiusLarge))
+            Group {
+                if isLoading {
+                    ProgressView()
+                        .tint(foregroundColor)
+                } else {
+                    Text(label)
+                }
+            }
+            .font(.system(size: isSmall ? 13 : 16, weight: .semibold))
+            .frame(maxWidth: isSmall ? nil : .infinity)
+            .padding(.vertical, isSmall ? 10 : 16)
+            .padding(.horizontal, isSmall ? 18 : 0)
+            .background(backgroundColor)
+            .foregroundStyle(foregroundColor)
+            .clipShape(RoundedRectangle(cornerRadius: AppTheme.cornerRadiusLarge))
         }
-        .disabled(isDisabled)
+        .disabled(isDisabled || isLoading)
     }
 
     private var backgroundColor: Color {

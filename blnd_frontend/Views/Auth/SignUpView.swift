@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct SignUpView: View {
+    @Environment(AuthState.self) var authState
     @State private var name = ""
     @State private var email = ""
     @State private var password = ""
@@ -26,10 +27,31 @@ struct SignUpView: View {
                         .textInputAutocapitalization(.never)
                     AppTextField(placeholder: "Password", text: $password, isSecure: true)
 
+                    if let error = authState.error {
+                        Text(error)
+                            .font(.system(size: 13))
+                            .foregroundStyle(AppTheme.destructive)
+                            .padding(.bottom, 8)
+                    }
+
                     Spacer().frame(height: 20)
 
-                    AppButton(label: "Continue") {
-                        navigateToGenres = true
+                    AppButton(
+                        label: "Continue",
+                        isLoading: authState.isLoading,
+                        isDisabled: name.isEmpty || email.isEmpty || password.isEmpty
+                    ) {
+                        Task {
+                            await authState.signup(
+                                email: email,
+                                password: password,
+                                username: email.components(separatedBy: "@").first ?? email,
+                                displayName: name
+                            )
+                            if authState.error == nil {
+                                navigateToGenres = true
+                            }
+                        }
                     }
 
                     HStack(spacing: 4) {
@@ -86,5 +108,6 @@ struct AppTextField: View {
 #Preview {
     NavigationStack {
         SignUpView()
+            .environment(AuthState())
     }
 }

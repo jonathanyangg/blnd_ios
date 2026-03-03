@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct OnboardingCompleteView: View {
+    @Environment(AuthState.self) var authState
+
     var body: some View {
         VStack(spacing: 0) {
             OnboardingProgressBar(step: 4, total: 4)
@@ -35,7 +37,7 @@ struct OnboardingCompleteView: View {
             Spacer()
 
             AppButton(label: "Let's go") {
-                // Will set AuthState.isOnboarded = true and transition to MainTabView
+                authState.isAuthenticated = true
             }
             .padding(.horizontal, 24)
             .padding(.bottom, 60)
@@ -49,5 +51,6 @@ struct OnboardingCompleteView: View {
 #Preview {
     NavigationStack {
         OnboardingCompleteView()
+            .environment(AuthState())
     }
 }

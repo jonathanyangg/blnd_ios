@@ -3,12 +3,11 @@ import SwiftUI
 /// Root view that gates on authentication status.
 /// Shows onboarding flow for unauthenticated users, main tab view for authenticated users.
 struct ContentView: View {
-    // Will be replaced with @Environment(AuthState.self) when AuthState is wired up
-    @State private var isAuthenticated = true // Set to true for UI preview; false for onboarding flow
+    @Environment(AuthState.self) var authState
 
     var body: some View {
         Group {
-            if isAuthenticated {
+            if authState.isAuthenticated {
                 MainTabView()
             } else {
                 OnboardingView()
@@ -20,8 +19,12 @@ struct ContentView: View {
 
 #Preview("Authenticated") {
     ContentView()
+        .environment(AuthState())
 }
 
 #Preview("Onboarding") {
+    let state = AuthState()
     ContentView()
+        .environment(state)
+        .onAppear { state.isAuthenticated = false }
 }

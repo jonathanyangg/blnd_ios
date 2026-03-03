@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct LoginView: View {
+    @Environment(AuthState.self) var authState
     @State private var email = ""
     @State private var password = ""
 
@@ -20,10 +21,19 @@ struct LoginView: View {
                         .textInputAutocapitalization(.never)
                     AppTextField(placeholder: "Password", text: $password, isSecure: true)
 
+                    if let error = authState.error {
+                        Text(error)
+                            .font(.system(size: 13))
+                            .foregroundStyle(AppTheme.destructive)
+                            .padding(.bottom, 8)
+                    }
+
                     Spacer().frame(height: 20)
 
-                    AppButton(label: "Sign In") {
-                        // Will wire to AuthState later
+                    AppButton(label: "Sign In", isLoading: authState.isLoading) {
+                        Task {
+                            await authState.login(email: email, password: password)
+                        }
                     }
 
                     HStack(spacing: 4) {
@@ -68,5 +78,6 @@ struct BackButton: View {
 #Preview {
     NavigationStack {
         LoginView()
+            .environment(AuthState())
     }
 }
