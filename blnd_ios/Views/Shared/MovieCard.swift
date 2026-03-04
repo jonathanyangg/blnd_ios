@@ -3,6 +3,7 @@ import SwiftUI
 struct MovieCard: View {
     var title: String?
     var year: String?
+    var posterPath: String?
     var width: CGFloat = 90
     var height: CGFloat = 130
     var glow: Bool = false
@@ -11,10 +12,23 @@ struct MovieCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             ZStack(alignment: .bottom) {
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(AppTheme.posterGradient(angle: gradientAngle))
-                    .frame(width: width, height: height)
-                    .shadow(color: glow ? .white.opacity(0.13) : .clear, radius: glow ? 12 : 0)
+                if let posterPath, let url = posterURL(posterPath) {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case let .success(image):
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                                .frame(width: width, height: height)
+                                .clipped()
+                                .clipShape(RoundedRectangle(cornerRadius: 10))
+                        default:
+                            placeholder
+                        }
+                    }
+                } else {
+                    placeholder
+                }
 
                 // Bottom gradient overlay
                 LinearGradient(
@@ -25,6 +39,7 @@ struct MovieCard: View {
                 .clipShape(RoundedRectangle(cornerRadius: 10))
                 .frame(width: width, height: height)
             }
+            .shadow(color: glow ? .white.opacity(0.13) : .clear, radius: glow ? 12 : 0)
 
             if let title {
                 Text(title)
@@ -40,6 +55,16 @@ struct MovieCard: View {
                     .foregroundStyle(AppTheme.textMuted)
             }
         }
+    }
+
+    private var placeholder: some View {
+        RoundedRectangle(cornerRadius: 10)
+            .fill(AppTheme.posterGradient(angle: gradientAngle))
+            .frame(width: width, height: height)
+    }
+
+    private func posterURL(_ path: String) -> URL? {
+        URL(string: "https://image.tmdb.org/t/p/w300\(path)")
     }
 }
 
