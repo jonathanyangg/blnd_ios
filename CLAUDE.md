@@ -14,7 +14,7 @@ SwiftUI iOS app for blnd — movie taste syncing with AI recommendations.
 - **MVVM-ish**: Views own local state, shared state via `@Observable` + `.environment()`
 - **Networking**: `APIClient` singleton → domain-specific static API enums (`AuthAPI`, `MoviesAPI`, etc.)
 - **Auth**: JWT stored in Keychain, injected as Bearer token by `APIClient`
-- **Onboarding nav**: `WelcomeView` owns a `NavigationStack(path:)` with `AuthRoute` enum; child views take `@Binding var path`. Signup API call happens on OnboardingCompleteView ("Let's go"), not on SignUpView.
+- **Onboarding nav**: `WelcomeView` owns a `NavigationStack(path:)` with `AuthRoute` enum; child views take `@Binding var path`. Signup API call happens on SignUpView (step 3), credentials collected last so duplicate email errors show immediately.
 - **Onboarding state**: `OnboardingState` caches credentials + genres + ratings so back-navigation preserves selections. Genre/rating endpoints not yet wired (backend needs profile update endpoint).
 - **Models**: Codable structs matching backend Pydantic schemas (snake_case → camelCase via CodingKeys)
 
@@ -106,7 +106,7 @@ blnd_frontend/
 
 ## Screens (16 total)
 
-- **Onboarding (4)**: Create Account → Pick Genres → Rate Movies (swipe cards) → You're In
+- **Onboarding (4)**: Pick Genres → Rate Movies (swipe cards) → Create Account (signup API call) → You're In
 - **Home (3)**: Home Feed, Search Results, Movie Detail
 - **Friends (3)**: Friends List, Friend Profile, Add Friend
 - **Groups (3)**: Groups List, Group Detail, Create Group

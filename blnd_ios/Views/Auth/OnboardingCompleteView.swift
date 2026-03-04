@@ -37,28 +37,9 @@ struct OnboardingCompleteView: View {
 
             Spacer()
 
-            if let error = authState.error {
-                Text(error)
-                    .font(.system(size: 13))
-                    .foregroundStyle(AppTheme.destructive)
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 8)
-            }
-
-            AppButton(label: "Let's go", isLoading: authState.isLoading) {
-                Task {
-                    let state = onboardingState
-                    await authState.signup(
-                        email: state.email,
-                        password: state.password,
-                        username: state.email.components(separatedBy: "@").first ?? state.email,
-                        displayName: state.name
-                    )
-                    if authState.error == nil {
-                        authState.isAuthenticated = true
-                        onboardingState.reset()
-                    }
-                }
+            AppButton(label: "Let's go") {
+                onboardingState.reset()
+                authState.isAuthenticated = true
             }
             .padding(.horizontal, 24)
             .padding(.bottom, 60)
@@ -66,11 +47,6 @@ struct OnboardingCompleteView: View {
         .frame(maxWidth: .infinity)
         .background(AppTheme.background)
         .navigationBarBackButtonHidden()
-        .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                BackButton()
-            }
-        }
     }
 }
 
@@ -78,5 +54,6 @@ struct OnboardingCompleteView: View {
     NavigationStack {
         OnboardingCompleteView()
             .environment(AuthState())
+            .environment(OnboardingState())
     }
 }

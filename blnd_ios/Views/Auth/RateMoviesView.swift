@@ -26,7 +26,7 @@ struct RateMoviesView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            OnboardingProgressBar(step: 3, total: 4)
+            OnboardingProgressBar(step: 2, total: 4)
                 .padding(.top, 12)
 
             VStack(alignment: .leading, spacing: 0) {
@@ -154,7 +154,7 @@ struct RateMoviesView: View {
         if currentIndex < movies.count - 1 {
             currentIndex += 1
         } else {
-            path.append(AuthRoute.onboardingComplete)
+            path.append(AuthRoute.createAccount)
         }
     }
 }

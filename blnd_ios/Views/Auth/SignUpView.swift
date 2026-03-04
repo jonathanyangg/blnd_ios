@@ -1,13 +1,14 @@
 import SwiftUI
 
 struct SignUpView: View {
+    @Environment(AuthState.self) var authState
     @Environment(OnboardingState.self) var onboardingState
     @Binding var path: NavigationPath
     @State private var emailError: String?
 
     var body: some View {
         VStack(spacing: 0) {
-            OnboardingProgressBar(step: 1, total: 4)
+            OnboardingProgressBar(step: 3, total: 4)
                 .padding(.top, 12)
 
             ScrollView {
@@ -34,22 +35,39 @@ struct SignUpView: View {
                             .padding(.bottom, 8)
                     }
 
+                    if let error = authState.error {
+                        Text(error)
+                            .font(.system(size: 13))
+                            .foregroundStyle(AppTheme.destructive)
+                            .padding(.bottom, 8)
+                    }
+
                     Spacer().frame(height: 20)
 
                     AppButton(
-                        label: "Continue",
+                        label: "Sign Up",
+                        isLoading: authState.isLoading,
                         isDisabled: state.name.isEmpty || state.email.isEmpty || state.password.isEmpty
                     ) {
-                        if isValidEmail(state.email) {
-                            emailError = nil
-                            path.append(AuthRoute.pickGenres)
-                        } else {
+                        guard isValidEmail(state.email) else {
                             emailError = "Please enter a valid email address"
+                            return
+                        }
+                        emailError = nil
+                        Task {
+                            await authState.signup(
+                                email: state.email,
+                                password: state.password,
+                                username: state.email.components(separatedBy: "@").first ?? state.email,
+                                displayName: state.name
+                            )
+                            if authState.error == nil {
+                                path.append(AuthRoute.onboardingComplete)
+                            }
                         }
                     }
 
                     Button {
-                        // Pop to root, then push login
                         path.removeLast(path.count)
                         path.append(AuthRoute.login)
                     } label: {
