@@ -219,43 +219,95 @@ struct HomeView: View {
     // MARK: - Data Loading
 
     private func loadForYou() async {
-        guard recommendations.isEmpty else { return }
+        guard recommendations.isEmpty else {
+            print("[HomeView] loadForYou: skipped, already have \(recommendations.count) items")
+            return
+        }
+        print("[HomeView] loadForYou: starting fetch")
         isLoadingFYP = true
         fypError = nil
         do {
             let response = try await RecommendationsAPI.getRecommendations()
             recommendations = response.results
-        } catch is CancellationError {
-            // Ignore task cancellation (e.g. from pull-to-refresh)
+            print("[HomeView] loadForYou: got \(response.results.count) results")
         } catch {
-            fypError = error.localizedDescription
+            if Task.isCancelled || (error as? URLError)?.code == .cancelled {
+                print("[HomeView] loadForYou: cancelled, ignoring")
+            } else {
+                print("[HomeView] loadForYou: error — \(error)")
+                fypError = error.localizedDescription
+            }
         }
         isLoadingFYP = false
     }
 
     private func loadTrending() async {
-        guard trendingMovies.isEmpty else { return }
+        guard trendingMovies.isEmpty else {
+            print("[HomeView] loadTrending: skipped, already have \(trendingMovies.count) items")
+            return
+        }
+        print("[HomeView] loadTrending: starting fetch")
         isLoadingTrending = true
         trendingError = nil
         do {
             let response = try await MoviesAPI.trending()
             trendingMovies = response.results
-        } catch is CancellationError {
-            // Ignore task cancellation
+            print("[HomeView] loadTrending: got \(response.results.count) results")
         } catch {
-            trendingError = error.localizedDescription
+            if Task.isCancelled || (error as? URLError)?.code == .cancelled {
+                print("[HomeView] loadTrending: cancelled, ignoring")
+            } else {
+                print("[HomeView] loadTrending: error — \(error)")
+                trendingError = error.localizedDescription
+            }
         }
         isLoadingTrending = false
     }
 
+    @MainActor
     private func refreshCurrentTab() async {
+        print("[HomeView] refreshCurrentTab: \(selectedTab.rawValue)")
         switch selectedTab {
         case .forYou:
             recommendations = []
-            await loadForYou()
+            fypError = nil
+            isLoadingFYP = true
+            Task.detached {
+                do {
+                    let response = try await RecommendationsAPI.getRecommendations()
+                    await MainActor.run {
+                        recommendations = response.results
+                        isLoadingFYP = false
+                        print("[HomeView] refresh FYP: got \(response.results.count) results")
+                    }
+                } catch {
+                    await MainActor.run {
+                        print("[HomeView] refresh FYP error: \(error)")
+                        fypError = error.localizedDescription
+                        isLoadingFYP = false
+                    }
+                }
+            }
         case .trending:
             trendingMovies = []
-            await loadTrending()
+            trendingError = nil
+            isLoadingTrending = true
+            Task.detached {
+                do {
+                    let response = try await MoviesAPI.trending()
+                    await MainActor.run {
+                        trendingMovies = response.results
+                        isLoadingTrending = false
+                        print("[HomeView] refresh trending: got \(response.results.count) results")
+                    }
+                } catch {
+                    await MainActor.run {
+                        print("[HomeView] refresh trending error: \(error)")
+                        trendingError = error.localizedDescription
+                        isLoadingTrending = false
+                    }
+                }
+            }
         }
     }
 }

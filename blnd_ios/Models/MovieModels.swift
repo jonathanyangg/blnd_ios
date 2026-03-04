@@ -4,7 +4,7 @@ import Foundation
 
 struct Genre: Codable, Identifiable {
     let id: Int?
-    let name: String
+    let name: String?
 }
 
 struct CastMember: Codable, Identifiable {

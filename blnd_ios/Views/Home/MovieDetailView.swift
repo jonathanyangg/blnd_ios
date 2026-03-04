@@ -143,8 +143,8 @@ struct MovieDetailView: View {
         if !movie.genres.isEmpty {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 6) {
-                    ForEach(movie.genres) { genre in
-                        GenrePill(label: genre.name, isSmall: true)
+                    ForEach(movie.genres.filter { $0.name != nil }) { genre in
+                        GenrePill(label: genre.name ?? "", isSmall: true)
                     }
                 }
             }

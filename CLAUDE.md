@@ -25,38 +25,38 @@ blnd_frontend/
 ├── App/
 │   └── blndApp.swift          (BlndApp entry point, injects AuthState + OnboardingState into environment)
 ├── Config/
-│   ├── APIConfig.swift         ✅ base URL constant
-│   └── KeychainManager.swift   ✅ save/read/delete tokens via Security framework
+│   ├── APIConfig.swift         done base URL constant
+│   └── KeychainManager.swift   done save/read/delete tokens via Security framework
 ├── Models/
-│   ├── AuthModels.swift        ✅ SignupRequest, LoginRequest, LoginResponse, UserResponse
-│   ├── MovieModels.swift       (planned)
+│   ├── AuthModels.swift        done SignupRequest, LoginRequest, LoginResponse, UserResponse
+│   ├── MovieModels.swift       done Genre, CastMember, MovieResponse, MovieSearchResult, RecommendedMovieResponse, RecommendationsResponse
 │   ├── UserModels.swift        (planned)
 │   └── GroupModels.swift       (planned)
 ├── Networking/
-│   ├── APIClient.swift         ✅ singleton, generic request(), Bearer token injection
-│   ├── AuthAPI.swift           ✅ signup(), login(), me()
-│   ├── MoviesAPI.swift         (planned)
+│   ├── APIClient.swift         done singleton, generic request(), Bearer token injection, debug logging
+│   ├── AuthAPI.swift           done signup(), login(), me()
+│   ├── MoviesAPI.swift         done search(), trending(), getMovie() + RecommendationsAPI
 │   └── GroupsAPI.swift         (planned)
 ├── State/
-│   ├── AuthState.swift         ✅ @Observable, signup/login/logout/fetchCurrentUser
+│   ├── AuthState.swift         done @Observable, signup/login/logout/fetchCurrentUser
 │   └── OnboardingState.swift   caches name/email/password/genres/ratings during onboarding
 ├── Theme/
 │   └── AppTheme.swift
 ├── Views/
-│   ├── ContentView.swift       ✅ gates on authState.isAuthenticated
+│   ├── ContentView.swift       done gates on authState.isAuthenticated
 │   ├── MainTabView.swift
 │   ├── Auth/
 │   │   ├── WelcomeView.swift
 │   │   ├── OnboardingView.swift
 │   │   ├── SignUpView.swift    step 3: collects credentials, calls signup API, has email validation
-│   │   ├── LoginView.swift     ✅ wired to authState.login()
+│   │   ├── LoginView.swift     done wired to authState.login()
 │   │   ├── PickGenresView.swift
 │   │   ├── RateMoviesView.swift
-│   │   └── OnboardingCompleteView.swift  ✅ sets authState.isAuthenticated = true
+│   │   └── OnboardingCompleteView.swift  done sets authState.isAuthenticated = true
 │   ├── Home/
-│   │   ├── HomeView.swift
-│   │   ├── SearchResultsView.swift
-│   │   ├── MovieDetailView.swift
+│   │   ├── HomeView.swift      done FYP + Trending tabs, pull-to-refresh, real data
+│   │   ├── SearchResultsView.swift  done full-page SearchView with live debounced search
+│   │   ├── MovieDetailView.swift    done fetches by tmdbId, AsyncImage posters, cast
 │   │   └── RateMovieSheet.swift
 │   ├── Friends/
 │   │   ├── FriendsListView.swift
@@ -68,11 +68,11 @@ blnd_frontend/
 │   │   └── CreateGroupView.swift
 │   ├── Profile/
 │   │   ├── ProfileView.swift
-│   │   ├── SettingsView.swift  ✅ logout wired
+│   │   ├── SettingsView.swift  done logout wired
 │   │   └── Components/
 │   └── Shared/
 │       ├── AppButton.swift     (isLoading prop with spinner)
-│       ├── MovieCard.swift
+│       ├── MovieCard.swift     done AsyncImage poster support via posterPath prop
 │       ├── SearchBar.swift
 │       ├── AvatarView.swift
 │       ├── GenrePill.swift
@@ -94,7 +94,8 @@ blnd_frontend/
 
 - Runs at `http://localhost:8000` (dev)
 - Start with: `cd ../blnd_backend && python -m uvicorn main:app --reload`
-- Auth endpoints are live; other domains return stubs
+- Auth, movies, recommendations endpoints are live
+- For device testing: change APIConfig.baseURL to Mac's local IP, run backend with --host 0.0.0.0
 
 ## Design
 
@@ -115,23 +116,27 @@ blnd_frontend/
 
 ## Completed
 
-1. ~~Convert Figma Make JSX exports to SwiftUI views~~ — all 16 screens built
-2. ~~Build foundation: `APIConfig`, `KeychainManager`, `APIClient`, `AuthModels`~~
-3. ~~Build auth flow: `AuthState`, onboarding views, `ContentView` auth gate~~
-4. ~~Build tab structure: `MainTabView` (Home, Friends, Groups, Profile)~~
-5. ~~Fix onboarding nav: `NavigationPath`-based routing, back buttons, Sign in/Create one links pop-and-push to avoid infinite loop~~
-6. ~~Onboarding state caching: `OnboardingState` preserves genres/ratings across back-navigation~~
-7. ~~Reorder onboarding: Pick Genres → Rate Movies → Create Account (signup API) → You're In~~
-8. ~~Email validation + password eye toggle on AppTextField~~
+1. Convert Figma Make JSX exports to SwiftUI views -- all 16 screens built
+2. Build foundation: APIConfig, KeychainManager, APIClient, AuthModels
+3. Build auth flow: AuthState, onboarding views, ContentView auth gate
+4. Build tab structure: MainTabView (Home, Friends, Groups, Profile)
+5. Fix onboarding nav: NavigationPath-based routing, back buttons
+6. Onboarding state caching: OnboardingState preserves genres/ratings across back-navigation
+7. Reorder onboarding: Pick Genres -> Rate Movies -> Create Account (signup API) -> You're In
+8. Email validation + password eye toggle on AppTextField
+9. Movie models + networking: MovieModels, MoviesAPI, RecommendationsAPI
+10. Home page: FYP + Trending tabs with real data, pull-to-refresh
+11. Full-page search: SearchView with live debounced search (350ms), auto-focus
+12. Movie detail: fetches by tmdbId, AsyncImage posters/backdrops, cast photos
+13. MovieCard: AsyncImage poster support with gradient fallback
 
 ## Next Steps
 
-9. Wire onboarding genre/rating submission (needs backend profile update endpoint + POST /tracking per movie)
-10. Build movie features: `MovieModels`, `MoviesAPI`, `HomeView`, `MovieDetailView`
-11. Build social: `FriendsListView`, `GroupsListView`, `GroupDetailView`
-12. Build profile: `ProfileView` with user info + logout
-13. Build recommendations: wire `RecommendationsAPI` into Home + Groups
-14. Polish: empty states, error handling, search debounce
+14. Wire onboarding genre/rating submission (needs backend profile update endpoint + POST /tracking per movie)
+15. Build social: FriendsListView, GroupsListView, GroupDetailView
+16. Build profile: ProfileView with user info + logout
+17. Build recommendations in Groups
+18. Polish: empty states, error handling
 
 ## Linting
 
@@ -144,4 +149,4 @@ blnd_frontend/
 
 ## Last Updated
 
-2026-03-03
+2026-03-04
