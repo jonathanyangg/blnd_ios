@@ -1,12 +1,12 @@
 import SwiftUI
 
 struct CreateGroupView: View {
+    var onCreated: (() async -> Void)?
+
     @Environment(\.dismiss) private var dismiss
     @State private var groupName = ""
-    @State private var searchText = ""
-    @State private var selectedMembers: Set<String> = ["Alex", "Maria"]
-
-    private let allFriends = ["Alex", "Maria", "Jordan", "Sam"]
+    @State private var isCreating = false
+    @State private var errorMessage: String?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -25,112 +25,76 @@ struct CreateGroupView: View {
                 Spacer()
 
                 Button("Create") {
-                    dismiss()
+                    Task { await createGroup() }
                 }
-                .foregroundStyle(.white)
+                .foregroundStyle(
+                    canCreate ? .white : AppTheme.textDim
+                )
                 .font(.system(size: 16, weight: .semibold))
+                .disabled(!canCreate)
             }
             .padding(.top, 20)
             .padding(.horizontal, 24)
             .padding(.bottom, 24)
 
-            ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    // Group name input
-                    AppTextField(placeholder: "Group name...", text: $groupName)
-                        .padding(.horizontal, 24)
-                        .padding(.bottom, 8)
+            VStack(alignment: .leading, spacing: 16) {
+                AppTextField(
+                    placeholder: "Group name...",
+                    text: $groupName
+                )
 
-                    // Add Members section
-                    Text("Add Members")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 24)
-                        .padding(.bottom, 12)
-
-                    SearchBar(text: $searchText, placeholder: "Search friends...")
-                        .padding(.horizontal, 24)
-                        .padding(.bottom, 16)
-
-                    // Selected member chips
-                    if !selectedMembers.isEmpty {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 8) {
-                                ForEach(Array(selectedMembers.sorted()), id: \.self) { name in
-                                    HStack(spacing: 6) {
-                                        AvatarView(size: 20)
-                                        Text(name)
-                                            .font(.system(size: 13))
-                                            .foregroundStyle(.white)
-                                        Button {
-                                            selectedMembers.remove(name)
-                                        } label: {
-                                            Image(systemName: "xmark")
-                                                .font(.system(size: 10))
-                                                .foregroundStyle(AppTheme.textMuted)
-                                        }
-                                    }
-                                    .padding(.vertical, 6)
-                                    .padding(.horizontal, 12)
-                                    .background(AppTheme.card)
-                                    .clipShape(Capsule())
-                                }
-                            }
-                            .padding(.horizontal, 24)
-                        }
-                        .padding(.bottom, 16)
-                    }
-
-                    // Friend list with checkboxes
-                    ForEach(allFriends, id: \.self) { name in
-                        Button {
-                            if selectedMembers.contains(name) {
-                                selectedMembers.remove(name)
-                            } else {
-                                selectedMembers.insert(name)
-                            }
-                        } label: {
-                            HStack(spacing: 12) {
-                                // Checkbox
-                                RoundedRectangle(cornerRadius: 4)
-                                    .fill(selectedMembers.contains(name) ? .white : AppTheme.card)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 4)
-                                            .stroke(
-                                                selectedMembers.contains(name) ? .white : AppTheme.border,
-                                                lineWidth: 1.5
-                                            )
-                                    )
-                                    .frame(width: 20, height: 20)
-                                    .overlay {
-                                        if selectedMembers.contains(name) {
-                                            Image(systemName: "checkmark")
-                                                .font(.system(size: 11, weight: .bold))
-                                                .foregroundStyle(.black)
-                                        }
-                                    }
-
-                                AvatarView(size: 36)
-
-                                Text(name)
-                                    .font(.system(size: 16))
-                                    .foregroundStyle(.white)
-
-                                Spacer()
-                            }
-                        }
-                        .buttonStyle(.plain)
-                        .padding(.vertical, 12)
-                        .padding(.horizontal, 24)
-
-                        Divider()
-                            .background(AppTheme.cardSecondary)
-                            .padding(.horizontal, 24)
+                if isCreating {
+                    HStack {
+                        ProgressView()
+                            .tint(.white)
+                            .scaleEffect(0.8)
+                        Text("Creating group...")
+                            .font(.system(size: 14))
+                            .foregroundStyle(AppTheme.textMuted)
                     }
                 }
+
+                if let errorMessage {
+                    Text(errorMessage)
+                        .font(.system(size: 13))
+                        .foregroundStyle(.red)
+                }
+
+                Text("You can add members after creating the group.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(AppTheme.textDim)
             }
+            .padding(.horizontal, 24)
+
+            Spacer()
         }
         .background(AppTheme.background)
+    }
+
+    private var canCreate: Bool {
+        !trimmedName.isEmpty && !isCreating
+    }
+
+    private var trimmedName: String {
+        groupName.trimmingCharacters(in: .whitespaces)
+    }
+
+    private func createGroup() async {
+        guard canCreate else { return }
+        isCreating = true
+        errorMessage = nil
+
+        do {
+            _ = try await GroupsAPI.createGroup(name: trimmedName)
+            await onCreated?()
+            dismiss()
+        } catch let APIError.badRequest(message) {
+            errorMessage = message
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+
+        isCreating = false
     }
 }
 
