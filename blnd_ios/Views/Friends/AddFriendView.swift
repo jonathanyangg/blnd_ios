@@ -2,13 +2,10 @@ import SwiftUI
 
 struct AddFriendView: View {
     @Environment(\.dismiss) private var dismiss
-    @State private var searchText = ""
-
-    private let suggestions: [(name: String, username: String)] = [
-        ("Taylor", "@taylor_w"),
-        ("Chris", "@chris_m"),
-        ("Jordan", "@jordan_r"),
-    ]
+    @State private var username = ""
+    @State private var isLoading = false
+    @State private var errorMessage: String?
+    @State private var successMessage: String?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -30,41 +27,107 @@ struct AddFriendView: View {
             .padding(.horizontal, 24)
             .padding(.bottom, 24)
 
-            // Search
-            SearchBar(text: $searchText, placeholder: "Search by username...")
-                .padding(.horizontal, 24)
-                .padding(.bottom, 20)
+            // Username input
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Enter a username to send a friend request")
+                    .font(.system(size: 14))
+                    .foregroundStyle(AppTheme.textMuted)
 
-            // Results
-            ForEach(suggestions, id: \.username) { user in
                 HStack(spacing: 12) {
-                    AvatarView()
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(user.name)
+                    HStack(spacing: 8) {
+                        Text("@")
                             .font(.system(size: 16, weight: .medium))
+                            .foregroundStyle(AppTheme.textDim)
+                        TextField("username", text: $username)
+                            .font(.system(size: 16))
                             .foregroundStyle(.white)
-                        Text(user.username)
-                            .font(.system(size: 13))
-                            .foregroundStyle(AppTheme.textMuted)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
                     }
+                    .padding(14)
+                    .background(AppTheme.card)
+                    .clipShape(
+                        RoundedRectangle(
+                            cornerRadius: AppTheme.cornerRadiusMedium
+                        )
+                    )
 
-                    Spacer()
-
-                    GenrePill(label: "Add", isSmall: true) {}
+                    Button {
+                        Task { await sendRequest() }
+                    } label: {
+                        if isLoading {
+                            ProgressView()
+                                .tint(.black)
+                                .frame(width: 20, height: 20)
+                        } else {
+                            Image(systemName: "paperplane.fill")
+                                .font(.system(size: 15))
+                        }
+                    }
+                    .foregroundStyle(.black)
+                    .frame(width: 48, height: 48)
+                    .background(
+                        username.trimmingCharacters(
+                            in: .whitespaces
+                        ).isEmpty
+                            ? AppTheme.cardSecondary
+                            : .white
+                    )
+                    .clipShape(
+                        RoundedRectangle(
+                            cornerRadius: AppTheme.cornerRadiusMedium
+                        )
+                    )
+                    .disabled(
+                        username.trimmingCharacters(
+                            in: .whitespaces
+                        ).isEmpty || isLoading
+                    )
                 }
-                .padding(.vertical, 14)
-                .padding(.horizontal, 24)
 
-                Divider()
-                    .background(AppTheme.cardSecondary)
-                    .padding(.horizontal, 24)
+                if let errorMessage {
+                    Text(errorMessage)
+                        .font(.system(size: 13))
+                        .foregroundStyle(.red)
+                }
+
+                if let successMessage {
+                    HStack(spacing: 6) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 14))
+                        Text(successMessage)
+                            .font(.system(size: 13))
+                    }
+                    .foregroundStyle(.green)
+                }
             }
+            .padding(.horizontal, 24)
 
             Spacer()
         }
         .background(AppTheme.background)
         .navigationBarHidden(true)
+    }
+
+    private func sendRequest() async {
+        let trimmed = username.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+
+        isLoading = true
+        errorMessage = nil
+        successMessage = nil
+
+        do {
+            _ = try await FriendsAPI.sendRequest(username: trimmed)
+            successMessage = "Request sent to @\(trimmed)"
+            username = ""
+        } catch let APIError.badRequest(message) {
+            errorMessage = message
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+
+        isLoading = false
     }
 }
 
