@@ -97,6 +97,14 @@ blnd_frontend/
 - Auth, movies, recommendations endpoints are live
 - For device testing: change APIConfig.baseURL to Mac's local IP, run backend with --host 0.0.0.0
 
+## Backend Context
+
+- Backend repo: ../blnd_backend/ (sibling directory)
+- Backend CLAUDE.md: ../blnd_backend/CLAUDE.md (read for architecture/status)
+- OpenAPI spec: curl http://localhost:8000/openapi.json (when backend is running)
+- Endpoint source: ../blnd_backend/app/{domain}/views.py for route signatures
+- Schemas: ../blnd_backend/app/{domain}/schemas.py for request/response models
+
 ## Design
 
 - **Theme**: Dark monochrome, Cal.com/X aesthetic
