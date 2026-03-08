@@ -39,6 +39,15 @@ enum AuthAPI {
         )
     }
 
+    /// GET /auth/users/search?q= — search users by username prefix
+    static func searchUsers(query: String) async throws -> UserSearchResponse {
+        let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query
+        return try await APIClient.shared.request(
+            endpoint: "/auth/users/search?q=\(encoded)",
+            authenticated: true
+        )
+    }
+
     /// PATCH /auth/profile — update profile fields
     static func updateProfile(
         displayName: String? = nil,

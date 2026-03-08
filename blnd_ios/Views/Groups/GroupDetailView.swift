@@ -8,12 +8,33 @@ struct GroupDetailView: View {
     @State private var watchlist: [WatchlistMovieResponse] = []
     @State private var isLoading = true
     @State private var showAddMember = false
-    @State private var addUsername = ""
-    @State private var addError: String?
-    @State private var isAdding = false
+    @State private var showEditName = false
+    @State private var editName = ""
+    @State private var isSavingName = false
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
+        content
+            .background(AppTheme.background)
+            .navigationBarBackButtonHidden()
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    BackButton()
+                }
+            }
+            .task { await loadAll() }
+            .refreshable { await loadAll() }
+            .sheet(isPresented: $showAddMember) {
+                addMemberSheet
+            }
+            .alert("Rename Group", isPresented: $showEditName) {
+                TextField("Group name", text: $editName)
+                Button("Cancel", role: .cancel) {}
+                Button("Save") { Task { await saveGroupName() } }
+            }
+    }
+
+    private var content: some View {
         ScrollView {
             if isLoading {
                 ProgressView()
@@ -30,82 +51,72 @@ struct GroupDetailView: View {
                 .padding(.bottom, 32)
             }
         }
-        .background(AppTheme.background)
-        .navigationBarBackButtonHidden()
-        .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                BackButton()
-            }
+    }
+
+    private var addMemberSheet: some View {
+        AddGroupMemberSheet(groupId: groupId) { updated in
+            group = updated
         }
-        .task { await loadAll() }
-        .refreshable { await loadAll() }
-        .alert("Add Member", isPresented: $showAddMember) {
-            TextField("Username", text: $addUsername)
-                .textInputAutocapitalization(.never)
-            Button("Cancel", role: .cancel) {
-                addUsername = ""
-                addError = nil
-            }
-            Button("Add") {
-                Task { await addMember() }
-            }
-        } message: {
-            if let addError {
-                Text(addError)
-            } else {
-                Text("Enter a username to add to this group.")
-            }
-        }
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+        .presentationBackground(AppTheme.background)
     }
 
     // MARK: - Header
 
-    private func groupHeader(
-        _ group: GroupDetailResponse
-    ) -> some View {
+    private func groupHeader(_ group: GroupDetailResponse) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(group.name)
-                .font(.system(size: 22, weight: .bold))
-                .foregroundStyle(.white)
-                .padding(.top, 20)
-                .padding(.bottom, 8)
-
-            HStack(spacing: 8) {
-                HStack(spacing: 0) {
-                    ForEach(
-                        Array(
-                            group.members.prefix(3).enumerated()
-                        ),
-                        id: \.element.id
-                    ) { index, _ in
-                        AvatarView(size: 28, overlap: index > 0)
-                    }
-
-                    if group.members.count > 3 {
-                        ZStack {
-                            Circle()
-                                .fill(AppTheme.card)
-                                .frame(width: 28, height: 28)
-                                .overlay(
-                                    Circle().stroke(
-                                        AppTheme.background,
-                                        lineWidth: 2
-                                    )
-                                )
-                            Text("+\(group.members.count - 3)")
-                                .font(.system(size: 10))
-                                .foregroundStyle(.white)
-                        }
-                        .padding(.leading, -10)
+            HStack(alignment: .center) {
+                Text(group.name)
+                    .font(.system(size: 22, weight: .bold))
+                    .foregroundStyle(.white)
+                if group.createdBy == currentUserId {
+                    Button {
+                        editName = group.name
+                        showEditName = true
+                    } label: {
+                        Image(systemName: "pencil")
+                            .font(.system(size: 13))
+                            .foregroundStyle(AppTheme.textMuted)
                     }
                 }
-
-                Text("\(group.members.count) members")
-                    .font(.system(size: 13))
-                    .foregroundStyle(AppTheme.textMuted)
+                Spacer()
             }
-            .padding(.bottom, 20)
+            .padding(.top, 20)
+            .padding(.bottom, 8)
+
+            memberAvatarsRow(group)
         }
+    }
+
+    private func memberAvatarsRow(_ group: GroupDetailResponse) -> some View {
+        HStack(spacing: 8) {
+            HStack(spacing: 0) {
+                ForEach(Array(group.members.prefix(3).enumerated()), id: \.element.id) { index, _ in
+                    AvatarView(size: 28, overlap: index > 0)
+                }
+                if group.members.count > 3 {
+                    ZStack {
+                        Circle()
+                            .fill(AppTheme.card)
+                            .frame(width: 28, height: 28)
+                            .overlay(Circle().stroke(AppTheme.background, lineWidth: 2))
+                        Text("+\(group.members.count - 3)")
+                            .font(.system(size: 10))
+                            .foregroundStyle(.white)
+                    }
+                    .padding(.leading, -10)
+                }
+            }
+            Text("\(group.members.count) members")
+                .font(.system(size: 13))
+                .foregroundStyle(AppTheme.textMuted)
+        }
+        .padding(.bottom, 20)
+    }
+
+    private var currentUserId: String {
+        KeychainManager.readString(key: "userId") ?? ""
     }
 
     // MARK: - Blend Picks
@@ -279,30 +290,17 @@ struct GroupDetailView: View {
         isLoading = false
     }
 
-    private func addMember() async {
-        let trimmed = addUsername.trimmingCharacters(
-            in: .whitespaces
-        )
+    private func saveGroupName() async {
+        let trimmed = editName.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { return }
-        isAdding = true
-
         do {
-            group = try await GroupsAPI.addMember(
+            group = try await GroupsAPI.updateGroup(
                 groupId: groupId,
-                username: trimmed
+                name: trimmed
             )
-            addUsername = ""
-            addError = nil
-            showAddMember = false
-        } catch let APIError.badRequest(message) {
-            addError = message
-            showAddMember = true
         } catch {
-            addError = error.localizedDescription
-            showAddMember = true
+            print("[GroupDetailView] Rename failed: \(error)")
         }
-
-        isAdding = false
     }
 }
 

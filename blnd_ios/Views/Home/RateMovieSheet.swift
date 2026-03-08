@@ -35,20 +35,8 @@ struct RateMovieSheet: View {
             .padding(.bottom, 20)
 
             // Star rating
-            HStack(spacing: 12) {
-                ForEach(0 ..< 5, id: \.self) { index in
-                    Button {
-                        rating = Double(index + 1)
-                    } label: {
-                        Image(systemName: "star.fill")
-                            .font(.system(size: 28))
-                            .foregroundStyle(
-                                Double(index) < rating ? .white : AppTheme.border
-                            )
-                    }
-                }
-            }
-            .padding(.bottom, 16)
+            StarRatingInput(rating: $rating)
+                .padding(.bottom, 16)
 
             // Note field
             TextField("Add a note...", text: $note, axis: .vertical)

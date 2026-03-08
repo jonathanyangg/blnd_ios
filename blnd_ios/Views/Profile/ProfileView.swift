@@ -246,7 +246,9 @@ struct ProfileView: View {
                 HStack(spacing: 2) {
                     Image(systemName: "star.fill")
                         .font(.system(size: 8))
-                    Text(String(format: "%.0f", rating))
+                    Text(rating.truncatingRemainder(dividingBy: 1) == 0
+                        ? String(format: "%.0f", rating)
+                        : String(format: "%.1f", rating))
                         .font(.system(size: 10, weight: .bold))
                 }
                 .foregroundStyle(.white)

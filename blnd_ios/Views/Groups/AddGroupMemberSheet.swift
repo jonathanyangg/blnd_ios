@@ -1,18 +1,27 @@
 import SwiftUI
 
-struct AddFriendView: View {
-    @Environment(\.dismiss) private var dismiss
-    @State private var query = ""
-    @State private var results: [UserSearchResult] = []
-    @State private var isSearching = false
-    @State private var searchTask: Task<Void, Never>?
+struct AddGroupMemberSheet: View {
+    let groupId: Int
+    let onMemberAdded: (GroupDetailResponse) -> Void
 
-    // Request state
-    @State private var sendingTo: String?
-    @State private var sentTo: Set<String> = []
+    @Environment(\.dismiss) private var dismiss
+    @State private var friends: [FriendResponse] = []
+    @State private var isLoadingFriends = true
+    @State private var query = ""
+    @State private var addingId: String?
+    @State private var addedIds: Set<String> = []
     @State private var errorMessage: String?
 
     @FocusState private var isFieldFocused: Bool
+
+    private var filteredFriends: [FriendResponse] {
+        let trimmed = query.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !trimmed.isEmpty else { return friends }
+        return friends.filter {
+            $0.username.lowercased().contains(trimmed)
+                || ($0.displayName?.lowercased().contains(trimmed) ?? false)
+        }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -29,64 +38,66 @@ struct AddFriendView: View {
                     .padding(.bottom, 8)
             }
 
-            ScrollView {
-                LazyVStack(spacing: 0) {
-                    ForEach(results) { user in
-                        userRow(user)
+            if isLoadingFriends {
+                ProgressView()
+                    .tint(.white)
+                    .padding(.top, 40)
+                Spacer()
+            } else if friends.isEmpty {
+                Text("Add some friends first to invite them")
+                    .font(.system(size: 14))
+                    .foregroundStyle(AppTheme.textMuted)
+                    .padding(.top, 40)
+                Spacer()
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        ForEach(filteredFriends) { friend in
+                            friendRow(friend)
+                        }
                     }
                 }
             }
         }
-        .background(AppTheme.background)
-        .navigationBarHidden(true)
-        .onAppear { isFieldFocused = true }
+        .task {
+            await loadFriends()
+            isFieldFocused = true
+        }
     }
 
-    // MARK: - Header
-
     private var header: some View {
-        HStack(spacing: 12) {
+        HStack {
             Button { dismiss() } label: {
-                Image(systemName: "chevron.left")
-                    .foregroundStyle(.white)
-                    .font(.system(size: 16, weight: .medium))
+                Text("Cancel")
+                    .font(.system(size: 15))
+                    .foregroundStyle(AppTheme.textMuted)
             }
-
-            Text("Add Friend")
-                .font(.system(size: 22, weight: .bold))
-                .foregroundStyle(.white)
-
             Spacer()
+            Text("Add Member")
+                .font(.system(size: 17, weight: .bold))
+                .foregroundStyle(.white)
+            Spacer()
+            Text("Cancel").font(.system(size: 15)).opacity(0)
         }
         .padding(.top, 20)
         .padding(.horizontal, 24)
-        .padding(.bottom, 24)
+        .padding(.bottom, 16)
     }
-
-    // MARK: - Search Field
 
     private var searchField: some View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 14))
                 .foregroundStyle(AppTheme.textDim)
-            TextField("Search by username...", text: $query)
+            TextField("Search friends...", text: $query)
                 .font(.system(size: 16))
                 .foregroundStyle(.white)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .focused($isFieldFocused)
-                .onChange(of: query) { _, newValue in
-                    debounceSearch(newValue)
-                }
-            if isSearching {
-                ProgressView()
-                    .tint(AppTheme.textMuted)
-                    .controlSize(.small)
-            } else if !query.isEmpty {
+            if !query.isEmpty {
                 Button {
                     query = ""
-                    results = []
                 } label: {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 14))
@@ -99,25 +110,23 @@ struct AddFriendView: View {
         .clipShape(RoundedRectangle(cornerRadius: AppTheme.cornerRadiusMedium))
     }
 
-    // MARK: - User Row
-
-    private func userRow(_ user: UserSearchResult) -> some View {
+    private func friendRow(_ friend: FriendResponse) -> some View {
         HStack(spacing: 12) {
             AvatarView(size: 44)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(user.displayName ?? user.username)
+                Text(friend.displayName ?? friend.username)
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(.white)
-                Text("@\(user.username)")
+                Text("@\(friend.username)")
                     .font(.system(size: 13))
                     .foregroundStyle(AppTheme.textMuted)
             }
 
             Spacer()
 
-            if sentTo.contains(user.id) {
-                Text("Sent")
+            if addedIds.contains(friend.id) {
+                Text("Added")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(AppTheme.textMuted)
                     .padding(.horizontal, 14)
@@ -126,9 +135,9 @@ struct AddFriendView: View {
                     .clipShape(Capsule())
             } else {
                 Button {
-                    Task { await sendRequest(to: user) }
+                    Task { await addFriend(friend) }
                 } label: {
-                    if sendingTo == user.id {
+                    if addingId == friend.id {
                         ProgressView()
                             .tint(.black)
                             .controlSize(.small)
@@ -143,58 +152,38 @@ struct AddFriendView: View {
                 .padding(.vertical, 7)
                 .background(.white)
                 .clipShape(Capsule())
-                .disabled(sendingTo != nil)
+                .disabled(addingId != nil)
             }
         }
         .padding(.horizontal, 24)
         .padding(.vertical, 10)
     }
 
-    // MARK: - Search Logic
-
-    private func debounceSearch(_ value: String) {
-        searchTask?.cancel()
-        let trimmed = value.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty else {
-            results = []
-            isSearching = false
-            return
+    private func loadFriends() async {
+        do {
+            let response = try await FriendsAPI.listFriends()
+            friends = response.friends
+        } catch {
+            print("[AddGroupMemberSheet] Failed to load friends: \(error)")
         }
-        isSearching = true
-        searchTask = Task {
-            try? await Task.sleep(for: .milliseconds(300))
-            guard !Task.isCancelled else { return }
-            do {
-                let response = try await AuthAPI.searchUsers(query: trimmed)
-                if !Task.isCancelled {
-                    results = response.results
-                }
-            } catch {
-                if !Task.isCancelled {
-                    results = []
-                }
-            }
-            isSearching = false
-        }
+        isLoadingFriends = false
     }
 
-    private func sendRequest(to user: UserSearchResult) async {
-        sendingTo = user.id
+    private func addFriend(_ friend: FriendResponse) async {
+        addingId = friend.id
         errorMessage = nil
         do {
-            _ = try await FriendsAPI.sendRequest(username: user.username)
-            sentTo.insert(user.id)
+            let updated = try await GroupsAPI.addMember(
+                groupId: groupId,
+                username: friend.username
+            )
+            addedIds.insert(friend.id)
+            onMemberAdded(updated)
         } catch let APIError.badRequest(message) {
             errorMessage = message
         } catch {
             errorMessage = error.localizedDescription
         }
-        sendingTo = nil
-    }
-}
-
-#Preview {
-    NavigationStack {
-        AddFriendView()
+        addingId = nil
     }
 }

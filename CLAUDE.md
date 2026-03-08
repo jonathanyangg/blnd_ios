@@ -28,18 +28,18 @@ blnd_frontend/
 │   ├── APIConfig.swift         done base URL constant
 │   └── KeychainManager.swift   done save/read/delete tokens via Security framework
 ├── Models/
-│   ├── AuthModels.swift        done SignupRequest, LoginRequest, UpdateProfileRequest, LoginResponse, UserResponse
+│   ├── AuthModels.swift        done SignupRequest, LoginRequest, UpdateProfileRequest, LoginResponse, UserResponse, UserSearchResult, UserSearchResponse
 │   ├── MovieModels.swift       done Genre, CastMember, MovieResponse (incl matchScore, trailerUrl), MovieSearchResult, RecommendedMovieResponse, RecommendationsResponse
 │   ├── TrackingModels.swift    done TrackMovieRequest, WatchedMovieResponse, WatchlistMovieResponse, etc.
 │   ├── FriendModels.swift      done SendFriendRequestRequest, FriendResponse, FriendRequestResponse, FriendListResponse, PendingRequestsResponse
-│   └── GroupModels.swift       done CreateGroupRequest, AddMemberRequest, GroupResponse, GroupDetailResponse, GroupMemberResponse, GroupRecMovieResponse, etc.
+│   └── GroupModels.swift       done CreateGroupRequest, AddMemberRequest, UpdateGroupRequest, GroupResponse, GroupDetailResponse, GroupMemberResponse, GroupRecMovieResponse, etc.
 ├── Networking/
 │   ├── APIClient.swift         done singleton, request(), requestVoid(), Bearer token, notFound error
-│   ├── AuthAPI.swift           done signup(), login(), me(), updateProfile()
+│   ├── AuthAPI.swift           done signup(), login(), me(), updateProfile(), searchUsers()
 │   ├── MoviesAPI.swift         done search(), trending(), getMovie() + RecommendationsAPI
-│   ├── TrackingAPI.swift       done trackMovie, getWatchHistory, getWatchedMovie, addToWatchlist, removeFromWatchlist, getWatchlist
+│   ├── TrackingAPI.swift       done trackMovie, getWatchHistory, getWatchedMovie, deleteWatchedMovie, addToWatchlist, removeFromWatchlist, getWatchlist
 │   ├── FriendsAPI.swift        done listFriends, sendRequest, getPendingRequests, acceptRequest, rejectRequest, removeFriend
-│   └── GroupsAPI.swift         done listGroups, createGroup, getGroup, deleteGroup, addMember, kickMember, leaveGroup, getRecommendations, getWatchlist, addToWatchlist, removeFromWatchlist
+│   └── GroupsAPI.swift         done listGroups, createGroup, getGroup, updateGroup, deleteGroup, addMember, kickMember, leaveGroup, getRecommendations, getWatchlist, addToWatchlist, removeFromWatchlist
 ├── State/
 │   ├── AuthState.swift         done @Observable, signup/login/logout/fetchCurrentUser
 │   └── OnboardingState.swift   caches name/email/password/genres/ratings (tmdbId→liked) during onboarding
@@ -59,15 +59,15 @@ blnd_frontend/
 │   ├── Home/
 │   │   ├── HomeView.swift      done FYP + Trending tabs, match % badges on trending, pull-to-refresh
 │   │   ├── SearchResultsView.swift  done fullscreen SearchView with live debounced search, auto-focus
-│   │   ├── MovieDetailView.swift    done fetches by tmdbId, match score badge, tappable trailer, watched/watchlist
-│   │   └── RateMovieSheet.swift     done wired to POST /tracking/, AsyncImage poster, loading state
+│   │   ├── MovieDetailView.swift    done fetches by tmdbId, match score badge, tappable trailer, watched/unwatch/watchlist picker
+│   │   └── RateMovieSheet.swift     done wired to POST /tracking/, half-star rating input, AsyncImage poster
 │   ├── Friends/
 │   │   ├── FriendsListView.swift    done real data, Friends/Requests tabs, accept/reject, pull-to-refresh
 │   │   ├── FriendProfileView.swift  done real friend data, remove friend with confirmation
-│   │   └── AddFriendView.swift      done send friend request by username, success/error feedback
+│   │   └── AddFriendView.swift      done Instagram-style live user search, send request inline
 │   ├── Groups/
 │   │   ├── GroupsListView.swift     done real data, member count + avatars, pull-to-refresh
-│   │   ├── GroupDetailView.swift    done blend picks, group watchlist, members list, add member
+│   │   ├── GroupDetailView.swift    done blend picks, group watchlist, members list, add member (friends picker sheet), edit group name
 │   │   └── CreateGroupView.swift    done creates group via API, loading/error states
 │   ├── Profile/
 │   │   ├── ProfileView.swift   done real user data, watched/watchlist tabs with poster grids
@@ -80,6 +80,8 @@ blnd_frontend/
 │       ├── AvatarView.swift
 │       ├── GenrePill.swift
 │       ├── TasteMatchBadge.swift
+│       ├── StarRatingInput.swift   done interactive half-star rating + StarRatingDisplay read-only
+│       ├── WatchlistPickerSheet.swift  done Spotify-style add to personal/group watchlists
 │       └── OnboardingProgressBar.swift
 └── Extensions/
 ```
@@ -151,15 +153,23 @@ blnd_frontend/
 22. Onboarding wiring: genres submitted via PATCH /auth/profile, movie ratings via POST /tracking/ per movie, RateMoviesView uses real TMDB IDs, OnboardingCompleteView submits before setting authenticated
 23. MovieResponse: added matchScore field, match % badge on trending cards + movie detail, tappable trailer button via Link
 24. AuthAPI: added updateProfile() for PATCH /auth/profile (display_name, taste_bio, favorite_genres)
+25. Half-star ratings: StarRatingInput (interactive, 0.5 step) + StarRatingDisplay (read-only) components, RateMovieSheet updated
+26. TMDB rating moved to meta row (year · runtime · ★ 4.4), backend already scales 0-10 → 0-5
+27. Unwatch movie: DELETE /tracking/{tmdb_id}, confirmation dialog on MovieDetailView
+28. Profile watched grid: half-star rating display (4.5 shows correctly)
+29. Trending page: rank # top-left, match % top-right (separated)
+30. Recommendations refresh: pull-to-refresh calls ?refresh=true to recalculate
+31. AddFriendView: Instagram-style live user search (GET /auth/users/search?q=), debounced, inline "Add" buttons
+32. GroupDetailView: edit group name (PATCH /groups/{id}, owner only), add member via friends picker sheet
+33. WatchlistPickerSheet: Spotify-style "Add to Watchlist" — personal + all groups, checkbox toggles, batch save
+34. GroupsAPI: updateGroup() for PATCH /groups/{id}, TrackingAPI: deleteWatchedMovie()
 
 ## Next Steps
 
-25. Profile edit UI (display name, taste bio — backend already wired)
-26. Re-rate a movie (PATCH /tracking/{tmdb_id})
-27. Delete a watched movie (DELETE /tracking/{tmdb_id})
-28. Fix recommendations refresh (POST /recommendations/me/refresh)
-29. Letterboxd import (POST /import/letterboxd — file upload in settings)
-30. Polish: empty states, error handling
+35. Profile edit UI (display name, taste bio — backend already wired)
+36. Re-rate a movie (PATCH /tracking/{tmdb_id})
+37. Letterboxd import (POST /import/letterboxd — file upload in settings)
+38. Polish: empty states, error handling
 
 ## Linting
 
@@ -175,4 +185,4 @@ blnd_frontend/
 
 ## Last Updated
 
-2026-03-05
+2026-03-07

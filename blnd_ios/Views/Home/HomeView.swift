@@ -179,27 +179,26 @@ struct HomeView: View {
                                 height: cardHeight
                             )
                             .overlay(alignment: .topLeading) {
-                                HStack(spacing: 4) {
-                                    Text("#\(index + 1)")
+                                Text("#\(index + 1)")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 3)
+                                    .background(.black.opacity(0.7))
+                                    .clipShape(Capsule())
+                                    .padding(6)
+                            }
+                            .overlay(alignment: .topTrailing) {
+                                if let pct = movie.matchPercent {
+                                    Text("\(pct)%")
                                         .font(.system(size: 10, weight: .bold))
+                                        .foregroundStyle(.white)
                                         .padding(.horizontal, 6)
                                         .padding(.vertical, 3)
                                         .background(.black.opacity(0.7))
                                         .clipShape(Capsule())
-                                    if let pct = movie.matchPercent {
-                                        Text("\(pct)%")
-                                            .font(.system(
-                                                size: 10,
-                                                weight: .bold
-                                            ))
-                                            .padding(.horizontal, 6)
-                                            .padding(.vertical, 3)
-                                            .background(.black.opacity(0.7))
-                                            .clipShape(Capsule())
-                                    }
+                                        .padding(6)
                                 }
-                                .foregroundStyle(.white)
-                                .padding(6)
                             }
                         }
                         .buttonStyle(.plain)
@@ -280,9 +279,17 @@ struct HomeView: View {
     private func refreshCurrentTab() async {
         switch selectedTab {
         case .forYou:
-            recommendations = []
+            isLoadingFYP = true
             fypError = nil
-            await loadForYou()
+            do {
+                let response = try await RecommendationsAPI.refresh()
+                recommendations = response.results
+            } catch {
+                if !Task.isCancelled {
+                    fypError = error.localizedDescription
+                }
+            }
+            isLoadingFYP = false
         case .trending:
             trendingMovies = []
             trendingError = nil

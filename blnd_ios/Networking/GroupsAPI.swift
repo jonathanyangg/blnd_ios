@@ -29,6 +29,20 @@ enum GroupsAPI {
         )
     }
 
+    /// PATCH /groups/{id} — update group (owner only)
+    static func updateGroup(
+        groupId: Int,
+        name: String
+    ) async throws -> GroupDetailResponse {
+        let body = UpdateGroupRequest(name: name)
+        return try await APIClient.shared.request(
+            endpoint: "/groups/\(groupId)",
+            method: "PATCH",
+            body: body,
+            authenticated: true
+        )
+    }
+
     /// DELETE /groups/{id} — delete a group (owner only)
     static func deleteGroup(groupId: Int) async throws {
         try await APIClient.shared.requestVoid(

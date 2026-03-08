@@ -10,6 +10,10 @@ struct AddMemberRequest: Encodable {
     let username: String
 }
 
+struct UpdateGroupRequest: Encodable {
+    let name: String?
+}
+
 // MARK: - Responses
 
 struct GroupResponse: Decodable, Identifiable {

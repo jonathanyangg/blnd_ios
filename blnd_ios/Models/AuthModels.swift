@@ -45,6 +45,27 @@ struct LoginResponse: Decodable {
     }
 }
 
+struct UserSearchResult: Decodable, Identifiable {
+    let id: String
+    let username: String
+    let displayName: String?
+    let avatarUrl: String?
+    let tasteBio: String?
+    let favoriteGenres: [String]
+
+    enum CodingKeys: String, CodingKey {
+        case id, username
+        case displayName = "display_name"
+        case avatarUrl = "avatar_url"
+        case tasteBio = "taste_bio"
+        case favoriteGenres = "favorite_genres"
+    }
+}
+
+struct UserSearchResponse: Decodable {
+    let results: [UserSearchResult]
+}
+
 struct UserResponse: Decodable {
     let id: String
     let username: String

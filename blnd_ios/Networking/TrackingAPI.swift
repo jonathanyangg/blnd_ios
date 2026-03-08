@@ -42,6 +42,15 @@ enum TrackingAPI {
         }
     }
 
+    /// DELETE /tracking/{tmdb_id} — remove a watched movie
+    static func deleteWatchedMovie(tmdbId: Int) async throws {
+        try await APIClient.shared.requestVoid(
+            endpoint: "/tracking/\(tmdbId)",
+            method: "DELETE",
+            authenticated: true
+        )
+    }
+
     /// POST /watchlist/ — add a movie to watchlist
     static func addToWatchlist(tmdbId: Int) async throws -> WatchlistMovieResponse {
         let body = AddToWatchlistRequest(tmdbId: tmdbId)
