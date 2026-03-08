@@ -31,6 +31,11 @@ struct SignUpView: View {
                         .textInputAutocapitalization(.never)
                     AppTextField(placeholder: "Password", text: $state.password, isSecure: true)
 
+                    if !state.password.isEmpty {
+                        PasswordRequirements(password: state.password)
+                            .padding(.bottom, 8)
+                    }
+
                     if let emailError {
                         Text(emailError)
                             .font(.system(size: 13))
@@ -51,7 +56,7 @@ struct SignUpView: View {
                         label: "Sign Up",
                         isLoading: authState.isLoading,
                         isDisabled: state.name.isEmpty || state.username.isEmpty
-                            || state.email.isEmpty || state.password.isEmpty
+                            || state.email.isEmpty || !isValidPassword(state.password)
                     ) {
                         guard isValidEmail(state.email) else {
                             emailError = "Please enter a valid email address"
@@ -101,6 +106,45 @@ struct SignUpView: View {
     private func isValidEmail(_ email: String) -> Bool {
         let pattern = #"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$"#
         return email.range(of: pattern, options: .regularExpression) != nil
+    }
+
+    private func isValidPassword(_ password: String) -> Bool {
+        password.count >= 8 && password.contains(where: \.isUppercase)
+    }
+}
+
+// MARK: - Password Requirements
+
+private struct PasswordRequirements: View {
+    let password: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            RequirementRow(
+                label: "At least 8 characters",
+                isMet: password.count >= 8
+            )
+            RequirementRow(
+                label: "One uppercase letter",
+                isMet: password.contains(where: \.isUppercase)
+            )
+        }
+    }
+}
+
+private struct RequirementRow: View {
+    let label: String
+    let isMet: Bool
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: isMet ? "checkmark.circle.fill" : "circle")
+                .font(.system(size: 12))
+                .foregroundStyle(isMet ? .green : AppTheme.textDim)
+            Text(label)
+                .font(.system(size: 12))
+                .foregroundStyle(isMet ? AppTheme.textDim : AppTheme.textDim)
+        }
     }
 }
 

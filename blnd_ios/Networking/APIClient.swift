@@ -1,10 +1,20 @@
 import Foundation
 
+/// Pydantic 422 validation error shape
+private struct ValidationErrorDetail: Decodable {
+    let msg: String
+}
+
+private struct ValidationErrorResponse: Decodable {
+    let detail: [ValidationErrorDetail]
+}
+
 enum APIError: LocalizedError {
     case invalidURL
     case unauthorized
     case badRequest(String)
     case notFound
+    case rateLimited
     case serverError(Int)
     case decodingError
     case networkError(Error)
@@ -15,6 +25,7 @@ enum APIError: LocalizedError {
         case .unauthorized: return "Invalid credentials"
         case let .badRequest(message): return message
         case .notFound: return "Not found"
+        case .rateLimited: return "Too many requests, try again later"
         case let .serverError(code): return "Server error (\(code))"
         case .decodingError: return "Unexpected response format"
         case let .networkError(error): return error.localizedDescription
@@ -100,15 +111,8 @@ final class APIClient {
         switch http.statusCode {
         case 200 ..< 300:
             return
-        case 401:
-            throw APIError.unauthorized
-        case 404:
-            throw APIError.notFound
-        case 400 ..< 500:
-            let detail = (try? decoder.decode([String: String].self, from: data))?["detail"]
-            throw APIError.badRequest(detail ?? "Request failed")
         default:
-            throw APIError.serverError(http.statusCode)
+            throw mapError(status: http.statusCode, data: data)
         }
     }
 
@@ -124,15 +128,43 @@ final class APIClient {
                 }
                 throw APIError.decodingError
             }
-        case 401:
-            throw APIError.unauthorized
-        case 404:
-            throw APIError.notFound
-        case 400 ..< 500:
-            let detail = (try? decoder.decode([String: String].self, from: data))?["detail"]
-            throw APIError.badRequest(detail ?? "Request failed")
         default:
-            throw APIError.serverError(http.statusCode)
+            throw mapError(status: http.statusCode, data: data)
         }
+    }
+
+    /// Maps HTTP status + response body to an APIError.
+    /// Handles all FastAPI error shapes:
+    ///   - 400/409: {"detail": "string"}
+    ///   - 422:     {"detail": [{"msg": "string", ...}]}
+    ///   - 429:     plain text (rate limit)
+    private func mapError(status: Int, data: Data) -> APIError {
+        switch status {
+        case 401:
+            return .unauthorized
+        case 404:
+            return .notFound
+        case 429:
+            return .rateLimited
+        case 400 ..< 500:
+            return .badRequest(parseDetail(from: data))
+        default:
+            return .serverError(status)
+        }
+    }
+
+    /// Parses error detail from FastAPI response body.
+    /// Tries {"detail": "string"} first, then {"detail": [{"msg": ...}]}.
+    private func parseDetail(from data: Data) -> String {
+        // Shape 1: {"detail": "Username already taken"}
+        if let obj = try? decoder.decode([String: String].self, from: data), let detail = obj["detail"] {
+            return detail
+        }
+        // Shape 2: {"detail": [{"msg": "String should have at most 250 characters", ...}]}
+        if let obj = try? decoder.decode(ValidationErrorResponse.self, from: data) {
+            let messages = obj.detail.map(\.msg)
+            return messages.joined(separator: ". ")
+        }
+        return "Request failed"
     }
 }
