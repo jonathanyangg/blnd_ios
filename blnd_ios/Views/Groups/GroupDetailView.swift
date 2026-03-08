@@ -46,6 +46,7 @@ struct GroupDetailView: View {
                 if isLoading {
                     ProgressView()
                         .tint(.white)
+                        .frame(maxWidth: .infinity)
                         .padding(.top, 60)
                 } else if let group {
                     VStack(spacing: 0) {
@@ -249,7 +250,8 @@ struct GroupDetailView: View {
                                 title: item.title,
                                 posterPath: item.posterPath,
                                 width: cardWidth,
-                                height: cardHeight
+                                height: cardHeight,
+                                scorePercent: item.matchPercent
                             )
                         }
                         .buttonStyle(.plain)

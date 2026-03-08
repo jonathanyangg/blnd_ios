@@ -56,6 +56,12 @@ struct WatchlistMovieResponse: Decodable, Identifiable {
     let addedBy: String?
     let addedDate: String?
     let createdAt: String
+    let matchScore: Double?
+
+    var matchPercent: Int? {
+        guard let matchScore else { return nil }
+        return Int(matchScore * 100)
+    }
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -65,6 +71,7 @@ struct WatchlistMovieResponse: Decodable, Identifiable {
         case addedBy = "added_by"
         case addedDate = "added_date"
         case createdAt = "created_at"
+        case matchScore = "match_score"
     }
 }
 

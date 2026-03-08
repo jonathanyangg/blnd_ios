@@ -17,6 +17,8 @@ struct ProfileView: View {
     @State private var watchlistTotal = 0
     @State private var isLoadingWatched = false
     @State private var isLoadingWatchlist = false
+    @State private var friendsCount = 0
+    @State private var groupsCount = 0
 
     private let posterColumns = [
         GridItem(.flexible(), spacing: 8),
@@ -49,8 +51,10 @@ struct ProfileView: View {
             }
             .task {
                 await authState.fetchCurrentUser()
-                await loadWatched()
-                await loadWatchlist()
+                async let watched: () = loadWatched()
+                async let watchlist: () = loadWatchlist()
+                async let counts: () = loadCounts()
+                _ = await (watched, watchlist, counts)
             }
         }
     }
@@ -97,8 +101,8 @@ struct ProfileView: View {
         let stats: [(value: String, label: String)] = [
             ("\(watchedTotal)", "Watched"),
             ("\(watchlistTotal)", "Watchlist"),
-            ("0", "Friends"),
-            ("0", "Groups"),
+            ("\(friendsCount)", "Friends"),
+            ("\(groupsCount)", "Groups"),
         ]
         return HStack {
             ForEach(stats, id: \.label) { stat in
@@ -284,6 +288,20 @@ struct ProfileView: View {
             print("[ProfileView] loadWatched error: \(error)")
         }
         isLoadingWatched = false
+    }
+
+    private func loadCounts() async {
+        do {
+            async let friends = FriendsAPI.listFriends()
+            async let groups = GroupsAPI.listGroups()
+            let (friendsResult, groupsResult) = try await (friends, groups)
+            friendsCount = friendsResult.friends.count
+            groupsCount = groupsResult.groups.count
+        } catch is CancellationError {
+            return
+        } catch {
+            print("[ProfileView] loadCounts error: \(error)")
+        }
     }
 
     private func loadWatchlist() async {

@@ -8,7 +8,7 @@ struct RateMoviesView: View {
     @State private var offset: CGSize = .zero
     @State private var isLoading = true
 
-    private let movieCount = 10
+    private let movieCount = 7
 
     private var currentMovie: MovieResponse? {
         guard currentIndex < movies.count else { return nil }
