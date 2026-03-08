@@ -14,6 +14,7 @@ struct MovieDetailView: View {
     @State private var isWatchlistLoading = false
     @State private var showUnwatchConfirm = false
     @State private var showWatchlistSheet = false
+    @State private var friendsWhoWatched: [FriendWatchedResponse] = []
 
     private var displayTitle: String {
         movie?.title ?? title
@@ -69,7 +70,9 @@ struct MovieDetailView: View {
         }
         .task {
             await fetchMovie()
-            await checkWatchedStatus()
+            async let watched: () = checkWatchedStatus()
+            async let friends: () = loadFriendsWhoWatched()
+            _ = await (watched, friends)
         }
     }
 
@@ -133,6 +136,7 @@ struct MovieDetailView: View {
             ratingSection(movie)
             overviewSection(movie)
             actionButtons
+            FriendsWhoWatchedSection(friends: friendsWhoWatched)
             CastSectionView(cast: movie.cast)
         }
         .padding(.horizontal, 24)
@@ -338,6 +342,15 @@ extension MovieDetailView {
             userRating = nil
         } catch {
             print("[MovieDetailView] unwatch error: \(error)")
+        }
+    }
+
+    func loadFriendsWhoWatched() async {
+        do {
+            let response = try await TrackingAPI.friendsWhoWatched(tmdbId: tmdbId)
+            friendsWhoWatched = response.results
+        } catch {
+            print("[MovieDetailView] friends who watched error: \(error)")
         }
     }
 

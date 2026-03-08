@@ -79,3 +79,31 @@ struct WatchlistResponse: Decodable {
     let results: [WatchlistMovieResponse]
     let total: Int
 }
+
+struct FriendWatchedResponse: Decodable, Identifiable {
+    let userId: String
+    let username: String
+    let displayName: String?
+    let avatarUrl: String?
+    let rating: Double?
+    let review: String?
+    let watchedDate: String?
+
+    var id: String {
+        userId
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case userId = "user_id"
+        case username
+        case displayName = "display_name"
+        case avatarUrl = "avatar_url"
+        case rating, review
+        case watchedDate = "watched_date"
+    }
+}
+
+struct FriendsWhoWatchedResponse: Decodable {
+    let results: [FriendWatchedResponse]
+    let total: Int
+}

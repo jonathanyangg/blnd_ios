@@ -51,6 +51,14 @@ enum TrackingAPI {
         )
     }
 
+    /// GET /tracking/{tmdb_id}/friends — friends who watched this movie
+    static func friendsWhoWatched(tmdbId: Int) async throws -> FriendsWhoWatchedResponse {
+        try await APIClient.shared.request(
+            endpoint: "/tracking/\(tmdbId)/friends",
+            authenticated: true
+        )
+    }
+
     /// POST /watchlist/ — add a movie to watchlist
     static func addToWatchlist(tmdbId: Int) async throws -> WatchlistMovieResponse {
         let body = AddToWatchlistRequest(tmdbId: tmdbId)
