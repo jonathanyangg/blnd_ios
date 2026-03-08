@@ -74,6 +74,14 @@ struct GroupRecMovieResponse: Decodable, Identifiable {
         tmdbId
     }
 
+    var yearString: String {
+        year.map { String($0) } ?? ""
+    }
+
+    var scorePercent: Int {
+        Int(score * 100)
+    }
+
     enum CodingKeys: String, CodingKey {
         case tmdbId = "tmdb_id"
         case title, year, overview

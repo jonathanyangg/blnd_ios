@@ -135,18 +135,9 @@ struct HomeView: View {
                                 year: movie.yearString,
                                 posterPath: movie.posterPath,
                                 width: cardWidth,
-                                height: cardHeight
+                                height: cardHeight,
+                                scorePercent: movie.scorePercent
                             )
-                            .overlay(alignment: .topTrailing) {
-                                Text("\(movie.similarityPercent)%")
-                                    .font(.system(size: 10, weight: .bold))
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 3)
-                                    .background(.black.opacity(0.7))
-                                    .clipShape(Capsule())
-                                    .foregroundStyle(.white)
-                                    .padding(6)
-                            }
                         }
                         .buttonStyle(.plain)
                     }
@@ -176,7 +167,8 @@ struct HomeView: View {
                                 year: movie.yearString,
                                 posterPath: movie.posterPath,
                                 width: cardWidth,
-                                height: cardHeight
+                                height: cardHeight,
+                                scorePercent: movie.matchPercent
                             )
                             .overlay(alignment: .topLeading) {
                                 Text("#\(index + 1)")
@@ -187,18 +179,6 @@ struct HomeView: View {
                                     .background(.black.opacity(0.7))
                                     .clipShape(Capsule())
                                     .padding(6)
-                            }
-                            .overlay(alignment: .topTrailing) {
-                                if let pct = movie.matchPercent {
-                                    Text("\(pct)%")
-                                        .font(.system(size: 10, weight: .bold))
-                                        .foregroundStyle(.white)
-                                        .padding(.horizontal, 6)
-                                        .padding(.vertical, 3)
-                                        .background(.black.opacity(0.7))
-                                        .clipShape(Capsule())
-                                        .padding(6)
-                                }
                             }
                         }
                         .buttonStyle(.plain)

@@ -22,7 +22,7 @@ struct MainTabView: View {
             GroupsListView()
                 .tabItem {
                     Image(systemName: "circle.grid.2x2")
-                    Text("Groups")
+                    Text("Blends")
                 }
                 .tag(2)
 

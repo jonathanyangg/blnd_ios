@@ -11,7 +11,7 @@ struct GroupsListView: View {
                 VStack(spacing: 0) {
                     // Header
                     HStack {
-                        Text("Groups")
+                        Text("Blends")
                             .font(.system(size: 32, weight: .bold))
                             .foregroundStyle(.white)
                         Spacer()

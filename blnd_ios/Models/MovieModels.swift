@@ -99,6 +99,7 @@ struct RecommendedMovieResponse: Codable, Identifiable {
     let genres: [Genre]
     let director: String?
     let similarity: Double
+    let score: Double
 
     var id: Int {
         tmdbId
@@ -108,15 +109,15 @@ struct RecommendedMovieResponse: Codable, Identifiable {
         year.map(String.init) ?? ""
     }
 
-    var similarityPercent: Int {
-        Int(similarity * 100)
+    var scorePercent: Int {
+        Int(score * 100)
     }
 
     enum CodingKeys: String, CodingKey {
         case tmdbId = "tmdb_id"
         case title, year, overview
         case posterPath = "poster_path"
-        case genres, director, similarity
+        case genres, director, similarity, score
     }
 }
 

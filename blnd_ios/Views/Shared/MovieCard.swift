@@ -8,6 +8,7 @@ struct MovieCard: View {
     var height: CGFloat = 130
     var glow: Bool = false
     var gradientAngle: Int = 135
+    var scorePercent: Int?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -38,6 +39,18 @@ struct MovieCard: View {
                 )
                 .clipShape(RoundedRectangle(cornerRadius: 10))
                 .frame(width: width, height: height)
+            }
+            .overlay(alignment: .topTrailing) {
+                if let scorePercent {
+                    Text("\(scorePercent)%")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(.black.opacity(0.7))
+                        .clipShape(Capsule())
+                        .padding(6)
+                }
             }
             .shadow(color: glow ? .white.opacity(0.13) : .clear, radius: glow ? 12 : 0)
 

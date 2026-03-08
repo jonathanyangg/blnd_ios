@@ -1,5 +1,10 @@
 import SwiftUI
 
+private enum GroupTab: String, CaseIterable {
+    case blendPicks = "Blend Picks"
+    case watchlist = "Watchlist"
+}
+
 struct GroupDetailView: View {
     let groupId: Int
 
@@ -7,10 +12,11 @@ struct GroupDetailView: View {
     @State private var recommendations: [GroupRecMovieResponse] = []
     @State private var watchlist: [WatchlistMovieResponse] = []
     @State private var isLoading = true
-    @State private var showAddMember = false
+    @State private var showMembers = false
     @State private var showEditName = false
     @State private var editName = ""
-    @State private var isSavingName = false
+    @State private var selectedTab: GroupTab = .blendPicks
+    @Namespace private var tabNamespace
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -24,8 +30,8 @@ struct GroupDetailView: View {
             }
             .task { await loadAll() }
             .refreshable { await loadAll() }
-            .sheet(isPresented: $showAddMember) {
-                addMemberSheet
+            .sheet(isPresented: $showMembers) {
+                membersSheet
             }
             .alert("Rename Group", isPresented: $showEditName) {
                 TextField("Group name", text: $editName)
@@ -35,36 +41,46 @@ struct GroupDetailView: View {
     }
 
     private var content: some View {
-        ScrollView {
-            if isLoading {
-                ProgressView()
-                    .tint(.white)
-                    .padding(.top, 60)
-            } else if let group {
-                VStack(alignment: .leading, spacing: 0) {
-                    groupHeader(group)
-                    blendPicksSection
-                    watchlistSection
-                    membersSection(group)
+        GeometryReader { geo in
+            ScrollView {
+                if isLoading {
+                    ProgressView()
+                        .tint(.white)
+                        .padding(.top, 60)
+                } else if let group {
+                    VStack(spacing: 0) {
+                        groupHeader(group)
+                        tabPicker
+                            .padding(.horizontal, 24)
+                            .padding(.bottom, 20)
+
+                        let cardWidth = (geo.size.width - 24 * 2 - 12) / 2
+                        let cardHeight = cardWidth * 1.5
+
+                        switch selectedTab {
+                        case .blendPicks:
+                            blendPicksGrid(
+                                cardWidth: cardWidth,
+                                cardHeight: cardHeight
+                            )
+                        case .watchlist:
+                            watchlistGrid(
+                                cardWidth: cardWidth,
+                                cardHeight: cardHeight
+                            )
+                        }
+                    }
+                    .padding(.bottom, 32)
                 }
-                .padding(.horizontal, 24)
-                .padding(.bottom, 32)
             }
         }
     }
 
-    private var addMemberSheet: some View {
-        AddGroupMemberSheet(groupId: groupId) { updated in
-            group = updated
-        }
-        .presentationDetents([.large])
-        .presentationDragIndicator(.visible)
-        .presentationBackground(AppTheme.background)
-    }
-
     // MARK: - Header
 
-    private func groupHeader(_ group: GroupDetailResponse) -> some View {
+    private func groupHeader(
+        _ group: GroupDetailResponse
+    ) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .center) {
                 Text(group.name)
@@ -83,16 +99,26 @@ struct GroupDetailView: View {
                 Spacer()
             }
             .padding(.top, 20)
+            .padding(.horizontal, 24)
             .padding(.bottom, 8)
 
-            memberAvatarsRow(group)
+            Button { showMembers = true } label: {
+                memberAvatarsRow(group)
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 24)
         }
     }
 
-    private func memberAvatarsRow(_ group: GroupDetailResponse) -> some View {
+    private func memberAvatarsRow(
+        _ group: GroupDetailResponse
+    ) -> some View {
         HStack(spacing: 8) {
             HStack(spacing: 0) {
-                ForEach(Array(group.members.prefix(3).enumerated()), id: \.element.id) { index, _ in
+                ForEach(
+                    Array(group.members.prefix(3).enumerated()),
+                    id: \.element.id
+                ) { index, _ in
                     AvatarView(size: 28, overlap: index > 0)
                 }
                 if group.members.count > 3 {
@@ -100,7 +126,13 @@ struct GroupDetailView: View {
                         Circle()
                             .fill(AppTheme.card)
                             .frame(width: 28, height: 28)
-                            .overlay(Circle().stroke(AppTheme.background, lineWidth: 2))
+                            .overlay(
+                                Circle()
+                                    .stroke(
+                                        AppTheme.background,
+                                        lineWidth: 2
+                                    )
+                            )
                         Text("+\(group.members.count - 3)")
                             .font(.system(size: 10))
                             .foregroundStyle(.white)
@@ -111,6 +143,9 @@ struct GroupDetailView: View {
             Text("\(group.members.count) members")
                 .font(.system(size: 13))
                 .foregroundStyle(AppTheme.textMuted)
+            Image(systemName: "chevron.right")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(AppTheme.textDim)
         }
         .padding(.bottom, 20)
     }
@@ -119,149 +154,145 @@ struct GroupDetailView: View {
         KeychainManager.readString(key: "userId") ?? ""
     }
 
-    // MARK: - Blend Picks
+    // MARK: - Tab Picker
 
-    @ViewBuilder
-    private var blendPicksSection: some View {
-        Text("Blend Picks")
-            .font(.system(size: 15, weight: .bold))
-            .foregroundStyle(.white)
-            .padding(.bottom, 4)
-
-        Text("Recommended for your group")
-            .font(.system(size: 12))
-            .foregroundStyle(AppTheme.textMuted)
-            .padding(.bottom, 12)
-
-        if recommendations.isEmpty {
-            Text("Rate more movies to get group picks")
-                .font(.system(size: 13))
-                .foregroundStyle(AppTheme.textDim)
-                .padding(.vertical, 20)
-        } else {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
-                    ForEach(recommendations) { movie in
-                        NavigationLink {
-                            MovieDetailView(tmdbId: movie.tmdbId)
-                        } label: {
-                            MovieCard(
-                                posterPath: movie.posterPath,
-                                width: 90,
-                                height: 130
+    private var tabPicker: some View {
+        HStack(spacing: 24) {
+            ForEach(GroupTab.allCases, id: \.self) { tab in
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        selectedTab = tab
+                    }
+                } label: {
+                    VStack(spacing: 6) {
+                        Text(tab.rawValue)
+                            .font(.system(
+                                size: 15,
+                                weight: selectedTab == tab
+                                    ? .bold : .medium
+                            ))
+                            .foregroundStyle(
+                                selectedTab == tab
+                                    ? .white : AppTheme.textMuted
                             )
+
+                        if selectedTab == tab {
+                            Rectangle()
+                                .fill(.white)
+                                .frame(height: 2)
+                                .matchedGeometryEffect(
+                                    id: "groupUnderline",
+                                    in: tabNamespace
+                                )
+                        } else {
+                            Rectangle()
+                                .fill(.clear)
+                                .frame(height: 2)
                         }
                     }
                 }
             }
         }
-
-        Spacer().frame(height: 20)
+        .frame(maxWidth: .infinity)
     }
 
-    // MARK: - Watchlist
+    // MARK: - Blend Picks Grid
 
-    @ViewBuilder
-    private var watchlistSection: some View {
-        HStack {
-            Text("Watchlist")
-                .font(.system(size: 15, weight: .bold))
-                .foregroundStyle(.white)
-            Spacer()
-        }
-        .padding(.bottom, 12)
-
-        if watchlist.isEmpty {
-            Text("No movies in the group watchlist yet")
-                .font(.system(size: 13))
-                .foregroundStyle(AppTheme.textDim)
-                .padding(.bottom, 20)
-        } else {
-            ForEach(watchlist) { item in
-                NavigationLink {
-                    MovieDetailView(tmdbId: item.tmdbId)
-                } label: {
-                    watchlistRow(item)
-                }
-                .buttonStyle(.plain)
-
-                Divider()
-                    .background(AppTheme.cardSecondary)
-            }
-            .padding(.bottom, 8)
-        }
-
-        Spacer().frame(height: 12)
-    }
-
-    private func watchlistRow(
-        _ item: WatchlistMovieResponse
+    private func blendPicksGrid(
+        cardWidth: CGFloat,
+        cardHeight: CGFloat
     ) -> some View {
-        HStack(spacing: 12) {
-            MovieCard(
-                posterPath: item.posterPath,
-                width: 40,
-                height: 56
-            )
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(item.title)
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(.white)
-                if let addedBy = item.addedBy {
-                    Text("added by \(addedBy)")
-                        .font(.system(size: 11))
-                        .foregroundStyle(AppTheme.textDim)
-                }
-            }
-
-            Spacer()
-        }
-        .padding(.vertical, 12)
-    }
-
-    // MARK: - Members
-
-    private func membersSection(
-        _ group: GroupDetailResponse
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Members")
-                    .font(.system(size: 15, weight: .bold))
-                    .foregroundStyle(.white)
-                Spacer()
-                Button {
-                    showAddMember = true
-                } label: {
-                    Image(systemName: "plus")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(AppTheme.textMuted)
-                }
-            }
-
-            ForEach(group.members) { member in
-                HStack(spacing: 12) {
-                    AvatarView(size: 32)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(
-                            member.displayName ?? member.username
-                        )
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundStyle(.white)
-                        Text("@\(member.username)")
-                            .font(.system(size: 12))
-                            .foregroundStyle(AppTheme.textMuted)
-                    }
-                    Spacer()
-                    if member.id == group.createdBy {
-                        Text("Owner")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(AppTheme.textDim)
+        Group {
+            if recommendations.isEmpty {
+                emptyState("Rate more movies to get group picks")
+            } else {
+                movieGrid {
+                    ForEach(recommendations) { movie in
+                        NavigationLink {
+                            MovieDetailView(
+                                tmdbId: movie.tmdbId,
+                                title: movie.title
+                            )
+                        } label: {
+                            MovieCard(
+                                title: movie.title,
+                                year: movie.yearString,
+                                posterPath: movie.posterPath,
+                                width: cardWidth,
+                                height: cardHeight,
+                                scorePercent: movie.scorePercent
+                            )
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
             }
         }
+    }
+
+    // MARK: - Watchlist Grid
+
+    private func watchlistGrid(
+        cardWidth: CGFloat,
+        cardHeight: CGFloat
+    ) -> some View {
+        Group {
+            if watchlist.isEmpty {
+                emptyState("No movies in the group watchlist yet")
+            } else {
+                movieGrid {
+                    ForEach(watchlist) { item in
+                        NavigationLink {
+                            MovieDetailView(tmdbId: item.tmdbId)
+                        } label: {
+                            MovieCard(
+                                title: item.title,
+                                posterPath: item.posterPath,
+                                width: cardWidth,
+                                height: cardHeight
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Shared
+
+    private func movieGrid(
+        @ViewBuilder content: () -> some View
+    ) -> some View {
+        let columns = [
+            GridItem(.flexible(), spacing: 12),
+            GridItem(.flexible(), spacing: 12),
+        ]
+        return LazyVGrid(columns: columns, spacing: 16) {
+            content()
+        }
+        .padding(.horizontal, 24)
+    }
+
+    private func emptyState(_ message: String) -> some View {
+        Text(message)
+            .font(.system(size: 13))
+            .foregroundStyle(AppTheme.textDim)
+            .frame(maxWidth: .infinity)
+            .padding(.top, 40)
+    }
+
+    // MARK: - Members Sheet
+
+    private var membersSheet: some View {
+        GroupMembersSheet(
+            groupId: groupId,
+            group: $group,
+            isOwner: group?.createdBy == currentUserId
+        )
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+        .presentationBackground(AppTheme.background)
     }
 
     // MARK: - Data Loading
@@ -291,7 +322,9 @@ struct GroupDetailView: View {
     }
 
     private func saveGroupName() async {
-        let trimmed = editName.trimmingCharacters(in: .whitespaces)
+        let trimmed = editName.trimmingCharacters(
+            in: .whitespaces
+        )
         guard !trimmed.isEmpty else { return }
         do {
             group = try await GroupsAPI.updateGroup(
