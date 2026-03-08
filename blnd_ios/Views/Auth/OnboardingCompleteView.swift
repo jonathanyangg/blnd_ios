@@ -23,32 +23,22 @@ struct OnboardingCompleteView: View {
                     .padding(.top, 6)
                     .padding(.bottom, 32)
 
-                // Fanned movie posters
+                // Fanned movie posters from liked movies
+                let liked = Array(onboardingState.likedMovies.prefix(3))
                 HStack(spacing: -8) {
-                    MovieCard(
-                        title: "Parasite",
-                        year: "2019",
-                        width: 90,
-                        height: 130
-                    )
-                    .offset(y: 8)
-
-                    MovieCard(
-                        title: "Oppenheimer",
-                        year: "2023",
-                        width: 100,
-                        height: 148,
-                        glow: true
-                    )
-                    .zIndex(1)
-
-                    MovieCard(
-                        title: "Mad Max",
-                        year: "2015",
-                        width: 90,
-                        height: 130
-                    )
-                    .offset(y: 8)
+                    ForEach(Array(liked.enumerated()), id: \.element.tmdbId) { index, movie in
+                        let isCenter = liked.count > 1 && index == liked.count / 2
+                        MovieCard(
+                            title: movie.title,
+                            year: movie.year.map { String($0) } ?? "",
+                            posterPath: movie.posterPath,
+                            width: isCenter ? 100 : 90,
+                            height: isCenter ? 148 : 130,
+                            glow: isCenter
+                        )
+                        .offset(y: isCenter ? 0 : 8)
+                        .zIndex(isCenter ? 1 : 0)
+                    }
                 }
             }
 

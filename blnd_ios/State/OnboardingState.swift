@@ -1,5 +1,13 @@
 import Foundation
 
+struct RatedMovie {
+    let tmdbId: Int
+    let title: String
+    let year: Int?
+    let posterPath: String?
+    let liked: Bool
+}
+
 /// Caches onboarding data so navigating back preserves state.
 @Observable
 class OnboardingState {
@@ -10,6 +18,11 @@ class OnboardingState {
 
     var selectedGenres: Set<String> = []
     var movieRatings: [Int: Bool] = [:]
+    var ratedMovies: [RatedMovie] = []
+
+    var likedMovies: [RatedMovie] {
+        ratedMovies.filter(\.liked)
+    }
 
     func reset() {
         name = ""
@@ -18,5 +31,6 @@ class OnboardingState {
         password = ""
         selectedGenres = []
         movieRatings = [:]
+        ratedMovies = []
     }
 }

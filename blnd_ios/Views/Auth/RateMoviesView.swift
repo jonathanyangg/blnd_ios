@@ -167,6 +167,13 @@ struct RateMoviesView: View {
     private func swipe(liked: Bool) {
         guard let movie = currentMovie else { return }
         onboardingState.movieRatings[movie.tmdbId] = liked
+        onboardingState.ratedMovies.append(RatedMovie(
+            tmdbId: movie.tmdbId,
+            title: movie.title,
+            year: movie.year,
+            posterPath: movie.posterPath,
+            liked: liked
+        ))
         withAnimation(.easeOut(duration: 0.3)) {
             offset = CGSize(width: liked ? 300 : -300, height: 0)
         }
