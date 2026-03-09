@@ -5,6 +5,7 @@ struct RateMovieSheet: View {
     let year: String
     let tmdbId: Int
     var posterPath: String?
+    var existingRating: Double?
     var onSaved: ((Double) -> Void)?
 
     @Environment(\.dismiss) private var dismiss
@@ -12,9 +13,12 @@ struct RateMovieSheet: View {
     @State private var isSaving = false
     @State private var saveError: String?
 
+    private var isRerating: Bool {
+        existingRating != nil
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Movie info row
             HStack(spacing: 14) {
                 posterThumbnail
                     .frame(width: 44, height: 62)
@@ -33,7 +37,6 @@ struct RateMovieSheet: View {
             }
             .padding(.bottom, 20)
 
-            // Star rating
             StarRatingInput(rating: $rating)
                 .padding(.bottom, 16)
 
@@ -44,18 +47,26 @@ struct RateMovieSheet: View {
                     .padding(.bottom, 8)
             }
 
-            AppButton(label: "Save", isLoading: isSaving) {
+            AppButton(
+                label: isRerating ? "Update Rating" : "Save",
+                isLoading: isSaving
+            ) {
                 Task { await save() }
             }
         }
         .padding(.horizontal, 20)
         .padding(.top, 20)
         .padding(.bottom, 32)
+        .onAppear {
+            if let existingRating {
+                rating = existingRating
+            }
+        }
     }
 
     @ViewBuilder
     private var posterThumbnail: some View {
-        if let path = posterPath, let url = URL(string: "https://image.tmdb.org/t/p/w154\(path)") {
+        if let url = posterPath.flatMap({ URL(string: "https://image.tmdb.org/t/p/w154\($0)") }) {
             AsyncImage(url: url) { phase in
                 switch phase {
                 case let .success(image):
@@ -75,11 +86,11 @@ struct RateMovieSheet: View {
         isSaving = true
         saveError = nil
         do {
-            _ = try await TrackingAPI.trackMovie(
-                tmdbId: tmdbId,
-                rating: rating,
-                review: nil
-            )
+            if isRerating {
+                _ = try await TrackingAPI.updateRating(tmdbId: tmdbId, rating: rating)
+            } else {
+                _ = try await TrackingAPI.trackMovie(tmdbId: tmdbId, rating: rating, review: nil)
+            }
             onSaved?(rating)
             dismiss()
         } catch {

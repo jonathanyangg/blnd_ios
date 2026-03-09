@@ -13,6 +13,14 @@ struct TrackMovieRequest: Encodable {
     }
 }
 
+struct UpdateTrackingRequest: Encodable {
+    let rating: Double?
+
+    enum CodingKeys: String, CodingKey {
+        case rating
+    }
+}
+
 struct AddToWatchlistRequest: Encodable {
     let tmdbId: Int
 

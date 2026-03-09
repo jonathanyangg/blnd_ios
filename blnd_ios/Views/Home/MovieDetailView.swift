@@ -63,6 +63,7 @@ struct MovieDetailView: View {
                 year: displayYear,
                 tmdbId: tmdbId,
                 posterPath: movie?.posterPath,
+                existingRating: isWatched ? userRating : nil,
                 onSaved: { savedRating in
                     isWatched = true
                     userRating = savedRating

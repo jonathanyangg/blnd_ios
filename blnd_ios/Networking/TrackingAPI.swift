@@ -42,6 +42,20 @@ enum TrackingAPI {
         }
     }
 
+    /// PATCH /tracking/{tmdb_id} — update rating for a watched movie
+    static func updateRating(
+        tmdbId: Int,
+        rating: Double
+    ) async throws -> WatchedMovieResponse {
+        let body = UpdateTrackingRequest(rating: rating)
+        return try await APIClient.shared.request(
+            endpoint: "/tracking/\(tmdbId)",
+            method: "PATCH",
+            body: body,
+            authenticated: true
+        )
+    }
+
     /// DELETE /tracking/{tmdb_id} — remove a watched movie
     static func deleteWatchedMovie(tmdbId: Int) async throws {
         try await APIClient.shared.requestVoid(
