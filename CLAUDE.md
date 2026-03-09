@@ -14,8 +14,9 @@ SwiftUI iOS app for blnd — movie taste syncing with AI recommendations.
 - **MVVM-ish**: Views own local state, shared state via `@Observable` + `.environment()`
 - **Networking**: `APIClient` singleton → domain-specific static API enums (`AuthAPI`, `MoviesAPI`, `FriendsAPI`, `GroupsAPI`, etc.)
 - **Auth**: JWT stored in Keychain, injected as Bearer token by `APIClient` and Supabase Storage uploads
-- **Avatars**: Upload JPEG to Supabase Storage (`avatars/{user_id}/avatar.jpg`), get public URL, save via `PATCH /auth/profile { avatar_url }`
-- **Tab navigation**: `TabState` (@Observable) injected from `MainTabView`, allows any child view to switch tabs
+- **Avatars**: Upload JPEG to Supabase Storage (`avatars/{user_id}/avatar.jpg`), get public URL with cache-bust param (`?v=<timestamp>`), save via `PATCH /auth/profile { avatar_url }`. `AvatarView` renders actual image via `AsyncImage` when URL is present, gradient fallback otherwise.
+- **Tab navigation**: `TabState` (@Observable) injected from `MainTabView`, allows any child view to switch tabs (e.g. ProfileView stats → Friends/Groups tab)
+- **Swipe-back**: `SwipeBackGestureModifier` re-enables iOS edge-swipe dismiss on views that hide the navigation back button
 - **Onboarding nav**: `WelcomeView` owns a `NavigationStack(path:)` with `AuthRoute` enum; child views take `@Binding var path`. Signup API call happens on SignUpView (step 3), credentials collected last so duplicate email errors show immediately.
 - **Onboarding state**: `OnboardingState` caches credentials + genres + ratings so back-navigation preserves selections. Genres submitted via `PATCH /auth/profile`, ratings via `POST /tracking/` per movie — both fire on OnboardingCompleteView "Let's go" tap.
 - **Models**: Codable structs matching backend Pydantic schemas (snake_case → camelCase via CodingKeys)
@@ -23,77 +24,80 @@ SwiftUI iOS app for blnd — movie taste syncing with AI recommendations.
 ## Project Structure
 
 ```
-blnd_frontend/
+blnd_ios/blnd_ios/
 ├── App/
-│   └── blndApp.swift          (BlndApp entry point, injects AuthState + OnboardingState into environment)
+│   └── blndApp.swift              BlndApp entry point, injects AuthState + OnboardingState into environment
 ├── Config/
-│   ├── APIConfig.swift         done base URL constant
-│   ├── SupabaseConfig.swift    done Supabase project URL + storage bucket name
-│   └── KeychainManager.swift   done save/read/delete tokens via Security framework
+│   ├── APIConfig.swift            base URL constant (change to local IP for device testing)
+│   ├── SupabaseConfig.swift       Supabase project URL + storage bucket name
+│   └── KeychainManager.swift      save/read/delete tokens via Security framework
 ├── Models/
-│   ├── AuthModels.swift        done SignupRequest, LoginRequest, UpdateProfileRequest (incl username, avatarUrl), LoginResponse, UserResponse, UserSearchResult, UserSearchResponse
-│   ├── MovieModels.swift       done Genre, CastMember, MovieResponse (incl matchScore, trailerUrl), MovieSearchResult, RecommendedMovieResponse, RecommendationsResponse
-│   ├── TrackingModels.swift    done TrackMovieRequest, WatchedMovieResponse, WatchlistMovieResponse, etc.
-│   ├── FriendModels.swift      done SendFriendRequestRequest, FriendResponse, FriendRequestResponse, FriendListResponse, PendingRequestsResponse
-│   └── GroupModels.swift       done CreateGroupRequest, AddMemberRequest, UpdateGroupRequest, GroupResponse, GroupDetailResponse, GroupMemberResponse, GroupRecMovieResponse, etc.
+│   ├── AuthModels.swift           SignupRequest, LoginRequest, UpdateProfileRequest (username, displayName, tasteBio, favoriteGenres, avatarUrl), LoginResponse, UserResponse, UserSearchResult, UserSearchResponse
+│   ├── MovieModels.swift          Genre, CastMember, MovieResponse (incl matchScore, trailerUrl), MovieSearchResult, RecommendedMovieResponse, RecommendationsResponse
+│   ├── TrackingModels.swift       TrackMovieRequest, WatchedMovieResponse, WatchlistMovieResponse, FriendWatchedResponse, etc.
+│   ├── FriendModels.swift         SendFriendRequestRequest, FriendResponse (incl avatarUrl), FriendRequestResponse, FriendListResponse, PendingRequestsResponse
+│   └── GroupModels.swift          CreateGroupRequest, AddMemberRequest, UpdateGroupRequest, GroupResponse, GroupDetailResponse, GroupMemberResponse, GroupRecMovieResponse, etc.
 ├── Networking/
-│   ├── APIClient.swift         done singleton, request(), requestVoid(), Bearer token, notFound error
-│   ├── AuthAPI.swift           done signup(), login(), me(), updateProfile(username/displayName/tasteBio/favoriteGenres/avatarUrl), searchUsers()
-│   ├── AvatarUploader.swift    done uploads UIImage JPEG to Supabase Storage, returns public URL
-│   ├── MoviesAPI.swift         done discover(), search(), trending(), getMovie() + RecommendationsAPI
-│   ├── TrackingAPI.swift       done trackMovie, getWatchHistory, getWatchedMovie, deleteWatchedMovie, addToWatchlist, removeFromWatchlist, getWatchlist
-│   ├── FriendsAPI.swift        done listFriends, sendRequest, getPendingRequests, acceptRequest, rejectRequest, removeFriend
-│   └── GroupsAPI.swift         done listGroups, createGroup, getGroup, updateGroup, deleteGroup, addMember, kickMember, leaveGroup, getRecommendations, getWatchlist, addToWatchlist, removeFromWatchlist
+│   ├── APIClient.swift            singleton, request(), requestVoid(), Bearer token, notFound error
+│   ├── AuthAPI.swift              signup(), login(), me(), updateProfile(username/displayName/tasteBio/favoriteGenres/avatarUrl), searchUsers()
+│   ├── AvatarUploader.swift       uploads UIImage JPEG to Supabase Storage, returns public URL with cache-bust
+│   ├── MoviesAPI.swift            discover(), search(), trending(), getMovie() + RecommendationsAPI
+│   ├── TrackingAPI.swift          trackMovie, getWatchHistory, getWatchedMovie, deleteWatchedMovie, addToWatchlist, removeFromWatchlist, getWatchlist, friendsWhoWatched
+│   ├── FriendsAPI.swift           listFriends, sendRequest, getPendingRequests, acceptRequest, rejectRequest, removeFriend
+│   └── GroupsAPI.swift            listGroups, createGroup, getGroup, updateGroup, deleteGroup, addMember, kickMember, leaveGroup, getRecommendations, getWatchlist, addToWatchlist, removeFromWatchlist
 ├── State/
-│   ├── AuthState.swift         done @Observable, signup/login/logout/fetchCurrentUser
-│   ├── TabState.swift          done @Observable, selectedTab — shared between MainTabView and child views
-│   └── OnboardingState.swift   caches name/username/email/password/genres/ratings (tmdbId→liked) during onboarding
+│   ├── AuthState.swift            @Observable, signup/login/logout/fetchCurrentUser
+│   ├── TabState.swift             @Observable, selectedTab — shared between MainTabView and child views
+│   └── OnboardingState.swift      caches name/username/email/password/genres/ratings (tmdbId→liked) during onboarding
 ├── Theme/
-│   └── AppTheme.swift
+│   └── AppTheme.swift             colors, corner radii, spacing, gradients (dark monochrome theme)
 ├── Views/
-│   ├── ContentView.swift       done gates on authState.isAuthenticated
-│   ├── MainTabView.swift
+│   ├── ContentView.swift          gates on authState.isAuthenticated
+│   ├── MainTabView.swift          4-tab layout (Home, Friends, Blends, Profile), injects TabState
 │   ├── Auth/
-│   │   ├── WelcomeView.swift
-│   │   ├── OnboardingView.swift
-│   │   ├── SignUpView.swift    step 3: collects name/username/email/password, calls signup API, has email validation
-│   │   ├── LoginView.swift     done wired to authState.login()
-│   │   ├── PickGenresView.swift  done genre selection cached in OnboardingState
-│   │   ├── RateMoviesView.swift  done fetches genre-based movies from discover API, swipe cards with posters, ratings cached in OnboardingState
-│   │   └── OnboardingCompleteView.swift  done submits genres + ratings to API, then sets authenticated
+│   │   ├── WelcomeView.swift      landing page with login/signup buttons
+│   │   ├── OnboardingView.swift   NavigationStack wrapper with AuthRoute enum
+│   │   ├── SignUpView.swift       step 3: collects name/username/email/password, calls signup API, email validation
+│   │   ├── LoginView.swift        wired to authState.login(), also defines BackButton component
+│   │   ├── PickGenresView.swift   genre selection cached in OnboardingState
+│   │   ├── RateMoviesView.swift   fetches genre-based movies from discover API, swipe cards with posters
+│   │   └── OnboardingCompleteView.swift  submits genres + ratings to API, then sets authenticated
 │   ├── Home/
-│   │   ├── HomeView.swift      done FYP + Trending tabs, match % badges on trending, pull-to-refresh
-│   │   ├── SearchResultsView.swift  done fullscreen SearchView with live debounced search, auto-focus
-│   │   ├── MovieDetailView.swift    done fetches by tmdbId, match score badge, tappable trailer, watched/unwatch/watchlist picker
-│   │   └── RateMovieSheet.swift     done wired to POST /tracking/, half-star rating input, AsyncImage poster
+│   │   ├── HomeView.swift         FYP + Trending tabs, TikTok-style underline picker, match % badges, pull-to-refresh
+│   │   ├── SearchResultsView.swift  fullscreen SearchView with live debounced search (350ms), auto-focus
+│   │   ├── MovieDetailView.swift  fetches by tmdbId, match score badge, tappable trailer, watched/unwatch/watchlist picker, cast, friends who watched
+│   │   ├── RateMovieSheet.swift   half-sheet, half-star rating input, wired to POST /tracking/
+│   │   ├── FriendsWhoWatchedSection.swift  shows friends who watched a movie with avatars + ratings
+│   │   └── DiscoverSectionView.swift  discover section component
 │   ├── Friends/
-│   │   ├── FriendsListView.swift    done real data, Friends/Requests tabs, accept/reject, pull-to-refresh
-│   │   ├── FriendProfileView.swift  done real friend data, remove friend with confirmation
-│   │   └── AddFriendView.swift      done Instagram-style live user search, send request inline
+│   │   ├── FriendsListView.swift  Friends/Requests tabs, accept/reject, pull-to-refresh, avatar support
+│   │   ├── FriendProfileView.swift  friend data with avatar, remove friend with confirmation
+│   │   └── AddFriendView.swift    Instagram-style live user search, send request inline, avatars
 │   ├── Groups/
-│   │   ├── GroupsListView.swift     done real data, member count + avatars, pull-to-refresh
-│   │   ├── GroupDetailView.swift    done blend picks, group watchlist, members list, add member (friends picker sheet), edit group name
-│   │   └── CreateGroupView.swift    done creates group via API, loading/error states
+│   │   ├── GroupsListView.swift   real data, member count + avatar stack, pull-to-refresh
+│   │   ├── GroupDetailView.swift  blend picks, group watchlist, members list, add member (friends picker sheet), edit group name
+│   │   ├── CreateGroupView.swift  creates group via API, loading/error states
+│   │   ├── GroupMembersSheet.swift  member list with kick/leave actions
+│   │   └── AddGroupMemberSheet.swift  friends picker to add members, avatars
 │   ├── Profile/
-│   │   ├── ProfileView.swift   done real user data, watched/watchlist tabs with poster grids, tappable friends/groups stats
-│   │   ├── SettingsView.swift  done navigates to Account/Notifications/Privacy/About, logout
-│   │   ├── AccountSettingsView.swift    done edit display name, username, avatar upload/remove via Supabase
-│   │   ├── NotificationsSettingsView.swift  done placeholder toggles (coming soon)
-│   │   ├── PrivacySettingsView.swift    done placeholder toggles (coming soon)
-│   │   ├── AboutSettingsView.swift      done app version, branding
-│   │   └── Components/
+│   │   ├── ProfileView.swift      real user data + avatar, watched/watchlist poster grids, tappable friends/groups stats switch tab
+│   │   ├── SettingsView.swift     navigates to Account/Notifications/Privacy/About with icons, logout
+│   │   ├── AccountSettingsView.swift  edit display name, username, avatar upload (PhotosPicker) / remove via Supabase
+│   │   ├── NotificationsSettingsView.swift  Apple-style green toggles (coming soon placeholder)
+│   │   ├── PrivacySettingsView.swift  Apple-style green toggles (coming soon placeholder)
+│   │   └── AboutSettingsView.swift  app version, branding
 │   └── Shared/
-│       ├── AppButton.swift     (isLoading prop with spinner)
-│       ├── MovieCard.swift     done AsyncImage poster support via posterPath prop
-│       ├── SearchBar.swift
-│       ├── AvatarView.swift
-│       ├── GenrePill.swift
-│       ├── TasteMatchBadge.swift
-│       ├── StarRatingInput.swift   done interactive half-star rating + StarRatingDisplay read-only
-│       ├── WatchlistPickerSheet.swift  done Spotify-style add to personal/group watchlists
-│       ├── SwipeBackGesture.swift     done edge-swipe dismiss modifier for views with hidden back button
-│       └── OnboardingProgressBar.swift
-└── Extensions/
+│       ├── AppButton.swift        isLoading prop with spinner
+│       ├── MovieCard.swift        AsyncImage poster support via posterPath prop
+│       ├── SearchBar.swift        reusable search bar component
+│       ├── AvatarView.swift       accepts optional url param, AsyncImage with gradient circle fallback
+│       ├── CastSectionView.swift  horizontal cast list with avatars (uses array index for ForEach id)
+│       ├── GenrePill.swift        genre tag capsule
+│       ├── TasteMatchBadge.swift  match % badge
+│       ├── StarRatingInput.swift  interactive half-star rating + StarRatingDisplay read-only
+│       ├── WatchlistPickerSheet.swift  Spotify-style add to personal/group watchlists
+│       ├── SwipeBackGesture.swift  edge-swipe dismiss modifier for views with hidden back button
+│       └── OnboardingProgressBar.swift  step indicator for onboarding flow
 ```
 
 ## Conventions
@@ -104,6 +108,7 @@ blnd_frontend/
 - Use Security framework for Keychain (not third-party)
 - All API calls go through `APIClient.shared`
 - Models use `CodingKeys` to map backend `snake_case` to Swift `camelCase`
+- `AvatarView(url:size:overlap:)` for all avatar displays — pass `avatarUrl` from models
 
 ## Backend
 
@@ -120,13 +125,22 @@ blnd_frontend/
 - Endpoint source: ../blnd_backend/app/{domain}/views.py for route signatures
 - Schemas: ../blnd_backend/app/{domain}/schemas.py for request/response models
 
+## Supabase
+
+- Project URL: `https://wtnbecnjsougjjcplhqf.supabase.co`
+- Storage bucket: `avatars` (public read, authenticated write)
+- Avatar path: `avatars/{user_id}/avatar.jpg`
+- Auth: uses same JWT from backend (Bearer token) for storage uploads
+- Cache busting: append `?v=<timestamp>` to public URL on upload so AsyncImage doesn't serve stale cache
+
 ## Design
 
 - **Theme**: Dark monochrome, Cal.com/X aesthetic
 - **Colors**: Black bg (#000), cards (#1A1A1A), borders (#2A2A2A), text (#FFF / #999 / #666)
 - **No accent color** — movie posters provide all color
 - **Typography-driven**: Big bold titles, whitespace, thin dividers
-- **4 tabs**: Home (with search), Friends, Groups, Profile
+- **4 tabs**: Home (with search), Friends, Blends (groups), Profile
+- **Settings toggles**: Apple default style with green tint
 
 ## Screens (20 total)
 
@@ -162,7 +176,7 @@ blnd_frontend/
 21. Groups feature: GroupModels, GroupsAPI (11 endpoints), GroupsListView (real data), GroupDetailView (blend picks + watchlist + members + add member), CreateGroupView (API wired)
 22. Onboarding wiring: genres submitted via PATCH /auth/profile, movie ratings via POST /tracking/ per movie, RateMoviesView uses real TMDB IDs, OnboardingCompleteView submits before setting authenticated
 23. MovieResponse: added matchScore field, match % badge on trending cards + movie detail, tappable trailer button via Link
-24. AuthAPI: added updateProfile() for PATCH /auth/profile (display_name, taste_bio, favorite_genres)
+24. AuthAPI: added updateProfile() for PATCH /auth/profile (username, display_name, taste_bio, favorite_genres, avatar_url)
 25. Half-star ratings: StarRatingInput (interactive, 0.5 step) + StarRatingDisplay (read-only) components, RateMovieSheet updated
 26. TMDB rating moved to meta row (year · runtime · ★ 4.4), backend already scales 0-10 → 0-5
 27. Unwatch movie: DELETE /tracking/{tmdb_id}, confirmation dialog on MovieDetailView
@@ -178,29 +192,34 @@ blnd_frontend/
 37. Onboarding ratings: liked → 4.0, disliked → 2.0 (haven't seen = skip)
 38. Swipe-back gesture: SwipeBackGestureModifier re-enables edge swipe on views with hidden back button (MovieDetail, FriendProfile, Settings, GroupDetail)
 39. Tab navigation from profile: TabState @Observable, ProfileView friends/groups stats tap switches tab
-40. Settings sub-pages: SettingsView navigates to Account, Notifications, Privacy, About
-41. Account settings: edit display name + username via PATCH /auth/profile, avatar upload to Supabase Storage + remove
-42. Avatar upload pipeline: PhotosPicker → UIImage → JPEG compress → Supabase Storage PUT → public URL → PATCH /auth/profile
+40. Settings sub-pages: SettingsView with icons navigates to Account, Notifications, Privacy, About
+41. Account settings: edit display name + username via PATCH /auth/profile, avatar upload/remove via Supabase Storage
+42. Avatar upload pipeline: PhotosPicker → UIImage → JPEG compress → Supabase Storage POST (x-upsert) → public URL with cache-bust → PATCH /auth/profile
 43. RateMovieSheet: removed note/review field, ratings only
+44. AvatarView: accepts optional url param, shows actual avatar via AsyncImage everywhere (ProfileView, FriendProfileView, FriendsListView, AddFriendView, FriendsWhoWatchedSection, AddGroupMemberSheet)
+45. CastSectionView: fixed ForEach nil ID crash by using array index
+46. Settings toggle style: Apple default with green tint (.tint(.green))
 
 ## Next Steps
 
-44. Re-rate a movie (PATCH /tracking/{tmdb_id})
-45. Letterboxd import (POST /import/letterboxd — file upload in settings)
-46. Polish: empty states, error handling
-47. AvatarView: show actual avatar from avatarUrl (currently gradient placeholder everywhere)
+47. Re-rate a movie (PATCH /tracking/{tmdb_id})
+48. Letterboxd import (POST /import/letterboxd — file upload in settings)
+49. Add avatar_url to backend GroupMemberResponse so group member avatars show
+50. Profile edit UI (taste bio — backend already wired)
+51. Polish: empty states, error handling
 
 ## Linting
 
 - Pre-commit hooks: swiftlint + swiftformat + codespell
 - Config: `.swiftformat` at repo root (maxwidth 120, trailing commas, `before-first` wrapping)
-- swiftlint: type_name (uppercase start), cyclomatic_complexity (max 10), line_length (max 120), type_body_length (max 300)
+- swiftlint: type_name (uppercase start), cyclomatic_complexity (max 10), line_length (max 120), type_body_length (max 300), identifier_name (min 3 chars)
 - Use `case let .foo(bar)` not `case .foo(let bar)` (hoistPatternLet)
 - Use `///` doc comments for API declarations, `//` for inline/property comments
 - Use spaces around range operators (`200 ..< 300`)
 - Number literals: 6+ digits need underscore grouping (e.g. `872_585`), 5 or fewer don't (e.g. `76341`)
 - Computed properties: use multi-line bodies (swiftformat `wrapPropertyBodies` rule)
 - Avoid multiline `if let` with brace on new line (swiftlint `opening_brace` conflicts); keep on single line when possible
+- swiftformat `redundantProperty`: don't assign to a local variable then immediately return it — return the expression directly
 
 ## Last Updated
 
