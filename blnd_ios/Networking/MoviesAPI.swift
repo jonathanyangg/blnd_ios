@@ -7,7 +7,8 @@ enum MoviesAPI {
         let joined = genres.joined(separator: ",")
             .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
         return try await APIClient.shared.request(
-            endpoint: "/movies/discover?genres=\(joined)&page=\(page)"
+            endpoint: "/movies/discover?genres=\(joined)&page=\(page)",
+            authenticated: true
         )
     }
 
@@ -55,7 +56,8 @@ enum RecommendationsAPI {
 
     static func refresh(limit: Int = 50) async throws -> RecommendationsResponse {
         try await APIClient.shared.request(
-            endpoint: "/recommendations/me?limit=\(limit)&refresh=true",
+            endpoint: "/recommendations/me/refresh?limit=\(limit)",
+            method: "POST",
             authenticated: true
         )
     }

@@ -129,9 +129,9 @@ struct DiscoverSectionView: View {
     ) -> some View {
         Button { selectFilter(filter) } label: {
             Text(filter.rawValue)
-                .font(.system(size: 13, weight: .medium))
-                .padding(.vertical, 7)
-                .padding(.horizontal, 14)
+                .font(.system(size: 12, weight: .medium))
+                .padding(.vertical, 6)
+                .padding(.horizontal, 12)
                 .background(
                     activeFilter == filter
                         ? .white : AppTheme.card
@@ -148,12 +148,12 @@ struct DiscoverSectionView: View {
         Button {} label: {
             HStack(spacing: 4) {
                 Image(systemName: "sparkles")
-                    .font(.system(size: 11))
+                    .font(.system(size: 10))
                 Text("Describe")
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.system(size: 12, weight: .medium))
             }
-            .padding(.vertical, 7)
-            .padding(.horizontal, 14)
+            .padding(.vertical, 6)
+            .padding(.horizontal, 12)
             .background(AppTheme.card)
             .foregroundStyle(AppTheme.textDim)
             .clipShape(Capsule())
@@ -174,11 +174,11 @@ struct DiscoverSectionView: View {
                     Button { toggleGenre(genre) } label: {
                         Text(genre)
                             .font(.system(
-                                size: 12,
+                                size: 11,
                                 weight: .medium
                             ))
-                            .padding(.vertical, 6)
-                            .padding(.horizontal, 12)
+                            .padding(.vertical, 5)
+                            .padding(.horizontal, 10)
                             .background(
                                 active ? .white : AppTheme.card
                             )

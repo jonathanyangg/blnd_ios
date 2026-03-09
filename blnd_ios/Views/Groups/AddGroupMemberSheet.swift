@@ -77,7 +77,11 @@ struct AddGroupMemberSheet: View {
                 .font(.system(size: 17, weight: .bold))
                 .foregroundStyle(.white)
             Spacer()
-            Text("Cancel").font(.system(size: 15)).opacity(0)
+            Button { dismiss() } label: {
+                Text("Done")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white)
+            }
         }
         .padding(.top, 20)
         .padding(.horizontal, 24)

@@ -212,7 +212,6 @@ struct HomeView: View {
     private func refreshCurrentTab() async {
         switch selectedTab {
         case .forYou:
-            isLoadingFYP = true
             fypError = nil
             do {
                 let resp = try await RecommendationsAPI.refresh()
@@ -222,7 +221,6 @@ struct HomeView: View {
                     fypError = error.localizedDescription
                 }
             }
-            isLoadingFYP = false
         case .discover:
             // DiscoverSectionView manages its own state
             break

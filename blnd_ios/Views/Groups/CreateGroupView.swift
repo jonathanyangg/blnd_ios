@@ -7,10 +7,22 @@ struct CreateGroupView: View {
     @State private var groupName = ""
     @State private var isCreating = false
     @State private var errorMessage: String?
+    @State private var createdGroup: GroupDetailResponse?
 
     var body: some View {
+        if let group = createdGroup {
+            AddGroupMemberSheet(
+                groupId: group.id,
+                onMemberAdded: { _ in }
+            )
+            .background(AppTheme.background)
+        } else {
+            createForm
+        }
+    }
+
+    private var createForm: some View {
         VStack(spacing: 0) {
-            // Header
             HStack {
                 Button("Cancel") { dismiss() }
                     .foregroundStyle(AppTheme.textMuted)
@@ -18,7 +30,7 @@ struct CreateGroupView: View {
 
                 Spacer()
 
-                Text("New Group")
+                Text("New Blend")
                     .font(.system(size: 18, weight: .bold))
                     .foregroundStyle(.white)
 
@@ -59,10 +71,6 @@ struct CreateGroupView: View {
                         .font(.system(size: 13))
                         .foregroundStyle(.red)
                 }
-
-                Text("You can add members after creating the group.")
-                    .font(.system(size: 13))
-                    .foregroundStyle(AppTheme.textDim)
             }
             .padding(.horizontal, 24)
 
@@ -85,9 +93,11 @@ struct CreateGroupView: View {
         errorMessage = nil
 
         do {
-            _ = try await GroupsAPI.createGroup(name: trimmedName)
+            let group = try await GroupsAPI.createGroup(
+                name: trimmedName
+            )
             await onCreated?()
-            dismiss()
+            withAnimation { createdGroup = group }
         } catch let APIError.badRequest(message) {
             errorMessage = message
         } catch {
