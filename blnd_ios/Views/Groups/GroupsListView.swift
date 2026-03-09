@@ -104,10 +104,10 @@ private struct GroupCardRow: View {
 
             HStack(spacing: 0) {
                 ForEach(
-                    0 ..< min(group.memberCount, 3),
-                    id: \.self
-                ) { index in
-                    AvatarView(size: 28, overlap: index > 0)
+                    Array(group.memberAvatars.prefix(3).enumerated()),
+                    id: \.offset
+                ) { index, avatarUrl in
+                    AvatarView(url: avatarUrl, size: 28, overlap: index > 0)
                 }
                 if group.memberCount > 3 {
                     ZStack {

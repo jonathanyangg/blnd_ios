@@ -30,7 +30,7 @@ struct GroupDetailView: View {
                 }
             }
             .task { await loadAll() }
-            .refreshable { await loadAll() }
+            .refreshable { await loadAll(forceRefresh: true) }
             .sheet(isPresented: $showMembers) {
                 membersSheet
             }
@@ -120,8 +120,8 @@ struct GroupDetailView: View {
                 ForEach(
                     Array(group.members.prefix(3).enumerated()),
                     id: \.element.id
-                ) { index, _ in
-                    AvatarView(size: 28, overlap: index > 0)
+                ) { index, member in
+                    AvatarView(url: member.avatarUrl, size: 28, overlap: index > 0)
                 }
                 if group.members.count > 3 {
                     ZStack {
@@ -300,7 +300,8 @@ struct GroupDetailView: View {
 
     // MARK: - Data Loading
 
-    private func loadAll() async {
+    private func loadAll(forceRefresh: Bool = false) async {
+        guard forceRefresh || group == nil else { return }
         do {
             async let groupResult = GroupsAPI.getGroup(
                 groupId: groupId

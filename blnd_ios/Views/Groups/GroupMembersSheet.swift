@@ -79,7 +79,7 @@ struct GroupMembersSheet: View {
         group: GroupDetailResponse
     ) -> some View {
         HStack(spacing: 12) {
-            AvatarView(size: 44)
+            AvatarView(url: member.avatarUrl, size: 44)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(member.displayName ?? member.username)

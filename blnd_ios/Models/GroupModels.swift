@@ -21,12 +21,14 @@ struct GroupResponse: Decodable, Identifiable {
     let name: String
     let createdBy: String
     let memberCount: Int
+    let memberAvatars: [String?]
     let createdAt: String
 
     enum CodingKeys: String, CodingKey {
         case id, name
         case createdBy = "created_by"
         case memberCount = "member_count"
+        case memberAvatars = "member_avatars"
         case createdAt = "created_at"
     }
 }
@@ -49,10 +51,12 @@ struct GroupMemberResponse: Decodable, Identifiable {
     let id: String
     let username: String
     let displayName: String?
+    let avatarUrl: String?
 
     enum CodingKeys: String, CodingKey {
         case id, username
         case displayName = "display_name"
+        case avatarUrl = "avatar_url"
     }
 }
 

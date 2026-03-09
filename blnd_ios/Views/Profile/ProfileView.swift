@@ -107,7 +107,7 @@ struct ProfileView: View {
             }
             .buttonStyle(.plain)
             Button { tabState.selectedTab = 2 } label: {
-                statItem(value: "\(groupsCount)", label: "Groups")
+                statItem(value: "\(groupsCount)", label: "Blends")
             }
             .buttonStyle(.plain)
         }
