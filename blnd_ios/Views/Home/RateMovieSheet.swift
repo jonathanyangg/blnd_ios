@@ -5,7 +5,7 @@ struct RateMovieSheet: View {
     let year: String
     let tmdbId: Int
     var posterPath: String?
-    var onSaved: (() -> Void)?
+    var onSaved: ((Double) -> Void)?
 
     @Environment(\.dismiss) private var dismiss
     @State private var rating: Double = 4
@@ -91,7 +91,7 @@ struct RateMovieSheet: View {
                 rating: rating,
                 review: note.isEmpty ? nil : note
             )
-            onSaved?()
+            onSaved?(rating)
             dismiss()
         } catch {
             saveError = error.localizedDescription

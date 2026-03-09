@@ -62,7 +62,10 @@ struct MovieDetailView: View {
                 year: displayYear,
                 tmdbId: tmdbId,
                 posterPath: movie?.posterPath,
-                onSaved: { isWatched = true }
+                onSaved: { savedRating in
+                    isWatched = true
+                    userRating = savedRating
+                }
             )
             .presentationDetents([.medium])
             .presentationDragIndicator(.visible)

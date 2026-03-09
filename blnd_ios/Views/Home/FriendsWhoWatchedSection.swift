@@ -52,7 +52,7 @@ struct FriendWatchedRow: View {
                     .font(.system(size: 14, weight: .medium))
                     .foregroundStyle(.white)
                 if let rating = friend.rating {
-                    StarRatingDisplay(rating: rating)
+                    StarRatingDisplay(rating: rating, starSize: 11)
                 }
             }
             Spacer()

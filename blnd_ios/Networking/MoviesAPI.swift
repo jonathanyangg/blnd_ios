@@ -26,6 +26,13 @@ enum MoviesAPI {
         )
     }
 
+    static func topRated(page: Int = 1) async throws -> MovieSearchResult {
+        try await APIClient.shared.request(
+            endpoint: "/movies/top-rated?page=\(page)",
+            authenticated: true
+        )
+    }
+
     static func getMovie(tmdbId: Int) async throws -> MovieResponse {
         try await APIClient.shared.request(
             endpoint: "/movies/\(tmdbId)",
@@ -37,7 +44,7 @@ enum MoviesAPI {
 /// Recommendation endpoints
 enum RecommendationsAPI {
     static func getRecommendations(
-        limit: Int = 20,
+        limit: Int = 50,
         offset: Int = 0
     ) async throws -> RecommendationsResponse {
         try await APIClient.shared.request(
@@ -46,7 +53,7 @@ enum RecommendationsAPI {
         )
     }
 
-    static func refresh(limit: Int = 20) async throws -> RecommendationsResponse {
+    static func refresh(limit: Int = 50) async throws -> RecommendationsResponse {
         try await APIClient.shared.request(
             endpoint: "/recommendations/me?limit=\(limit)&refresh=true",
             authenticated: true
