@@ -29,10 +29,10 @@ struct GroupMembersSheet: View {
                             memberRow(member, group: group)
                         }
                     }
-
-                    Spacer().frame(height: 24)
-                    actionButtons
                 }
+
+                Divider().background(AppTheme.cardSecondary)
+                actionButtons
             }
         }
         .sheet(isPresented: $showAddMember) {
@@ -188,7 +188,8 @@ struct GroupMembersSheet: View {
             }
         }
         .padding(.horizontal, 24)
-        .padding(.bottom, 32)
+        .padding(.top, 12)
+        .padding(.bottom, 24)
     }
 
     private func removeMember(_ userId: String) async {
