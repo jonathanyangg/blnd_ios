@@ -19,6 +19,14 @@ struct LoginRequest: Encodable {
     let password: String
 }
 
+struct RefreshTokenRequest: Encodable {
+    let refreshToken: String
+
+    enum CodingKeys: String, CodingKey {
+        case refreshToken = "refresh_token"
+    }
+}
+
 struct UpdateProfileRequest: Encodable {
     let username: String?
     let displayName: String?

@@ -16,6 +16,7 @@ struct GroupDetailView: View {
     @State private var showEditName = false
     @State private var editName = ""
     @State private var selectedTab: GroupTab = .blendPicks
+    @State private var toastMessage: String?
     @Namespace private var tabNamespace
     @Environment(\.dismiss) private var dismiss
 
@@ -34,6 +35,26 @@ struct GroupDetailView: View {
             .sheet(isPresented: $showMembers) {
                 membersSheet
             }
+            .overlay(alignment: .top) {
+                if let toast = toastMessage {
+                    Text(toast)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .background(.red.opacity(0.85))
+                        .clipShape(Capsule())
+                        .padding(.top, 60)
+                        .transition(
+                            .move(edge: .top)
+                                .combined(with: .opacity)
+                        )
+                        .onTapGesture { toastMessage = nil }
+                }
+            }
+            .animation(
+                .easeInOut(duration: 0.3), value: toastMessage
+            )
             .alert("Rename Group", isPresented: $showEditName) {
                 TextField("Group name", text: $editName)
                 Button("Cancel", role: .cancel) {}
@@ -323,9 +344,25 @@ extension GroupDetailView {
             recommendations = recsData.results
             watchlist = watchlistData.results
         } catch {
-            print("[GroupDetailView] Load failed: \(error)")
+            if case APIError.rateLimited = error {
+                showToast(
+                    "Woah, slow down! Try again in a minute"
+                )
+            } else if group == nil {
+                print("[GroupDetailView] Load failed: \(error)")
+            } else {
+                showToast(error.localizedDescription)
+            }
         }
         isLoading = false
+    }
+
+    private func showToast(_ message: String) {
+        toastMessage = message
+        Task {
+            try? await Task.sleep(for: .seconds(3))
+            toastMessage = nil
+        }
     }
 
     func saveGroupName() async {
