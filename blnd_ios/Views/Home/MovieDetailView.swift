@@ -59,6 +59,21 @@ struct MovieDetailView: View {
             ToolbarItem(placement: .navigationBarLeading) {
                 BackButton()
             }
+            ToolbarItem(placement: .principal) {
+                if let pct = movie?.matchPercent {
+                    HStack(spacing: 4) {
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 11))
+                        Text("\(pct)% match")
+                            .font(.system(size: 13, weight: .semibold))
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(AppTheme.card)
+                    .clipShape(Capsule())
+                }
+            }
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button {
                     if isHidden {
@@ -134,7 +149,6 @@ struct MovieDetailView: View {
 
             metaRow(movie)
             genreRow(movie)
-            matchScoreBadge(movie)
             ratingSection(movie)
             overviewSection(movie)
             actionButtons
@@ -173,24 +187,6 @@ struct MovieDetailView: View {
                 }
             }
             .padding(.bottom, 12)
-        }
-    }
-
-    @ViewBuilder
-    private func matchScoreBadge(_ movie: MovieResponse) -> some View {
-        if let pct = movie.matchPercent {
-            HStack(spacing: 6) {
-                Image(systemName: "sparkles")
-                    .font(.system(size: 13))
-                Text("\(pct)% match for you")
-                    .font(.system(size: 13, weight: .semibold))
-            }
-            .foregroundStyle(.white)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(AppTheme.card)
-            .clipShape(Capsule())
-            .padding(.bottom, 10)
         }
     }
 
