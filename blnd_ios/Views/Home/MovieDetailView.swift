@@ -140,6 +140,40 @@ struct MovieDetailView: View {
         .padding(.bottom, 32)
     }
 
+    private func heroSection(_ movie: MovieResponse) -> some View {
+        Group {
+            if let trailerUrl = movie.trailerUrl, let videoId = YouTubePlayerView.extractVideoId(from: trailerUrl) {
+                YouTubePlayerView(videoId: videoId)
+                    .frame(height: 200)
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+            } else if let backdrop = movie.backdropPath {
+                AsyncImage(
+                    url: URL(
+                        string: "https://image.tmdb.org/t/p/w780\(backdrop)"
+                    )
+                ) { phase in
+                    switch phase {
+                    case let .success(image):
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(height: 200)
+                            .clipped()
+                            .clipShape(
+                                RoundedRectangle(cornerRadius: 14)
+                            )
+                    default:
+                        heroPlaceholder
+                    }
+                }
+            } else {
+                heroPlaceholder
+            }
+        }
+        .padding(.top, 12)
+        .padding(.horizontal, 24)
+    }
+
     private func detailSection(_ movie: MovieResponse) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(movie.title)
