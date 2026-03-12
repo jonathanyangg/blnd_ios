@@ -14,6 +14,7 @@ struct HomeView: View {
     @State private var recommendations: [RecommendedMovieResponse] = []
     @State private var isLoadingFYP = false
     @State private var fypError: String?
+    @State private var toastMessage: String?
 
     var body: some View {
         NavigationStack {
@@ -50,6 +51,24 @@ struct HomeView: View {
             .fullScreenCover(isPresented: $showSearch) {
                 NavigationStack { SearchView() }
             }
+            .overlay(alignment: .top) {
+                if let toast = toastMessage {
+                    Text(toast)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .background(.red.opacity(0.85))
+                        .clipShape(Capsule())
+                        .padding(.top, 60)
+                        .transition(
+                            .move(edge: .top)
+                                .combined(with: .opacity)
+                        )
+                        .onTapGesture { dismissToast() }
+                }
+            }
+            .animation(.easeInOut(duration: 0.3), value: toastMessage)
         }
     }
 
@@ -146,7 +165,14 @@ struct HomeView: View {
                 NavigationLink {
                     MovieDetailView(
                         tmdbId: movie.tmdbId,
-                        title: movie.title
+                        title: movie.title,
+                        onHide: {
+                            withAnimation {
+                                recommendations.removeAll {
+                                    $0.tmdbId == movie.tmdbId
+                                }
+                            }
+                        }
                     )
                 } label: {
                     MovieCard(
@@ -159,6 +185,16 @@ struct HomeView: View {
                     )
                 }
                 .buttonStyle(.plain)
+                .contextMenu {
+                    Button(role: .destructive) {
+                        hideMovie(movie.tmdbId)
+                    } label: {
+                        Label(
+                            "Not for me",
+                            systemImage: "hand.thumbsdown"
+                        )
+                    }
+                }
             }
         }
         .padding(.horizontal, 24)
@@ -192,6 +228,17 @@ struct HomeView: View {
 
     // MARK: - Data Loading
 
+    private func hideMovie(_ tmdbId: Int) {
+        withAnimation {
+            recommendations.removeAll { $0.tmdbId == tmdbId }
+        }
+        Task {
+            _ = try? await RecommendationsAPI.hideMovie(
+                tmdbId: tmdbId
+            )
+        }
+    }
+
     private func loadForYou() async {
         guard recommendations.isEmpty else { return }
         isLoadingFYP = true
@@ -202,7 +249,7 @@ struct HomeView: View {
             recommendations = response.results
         } catch {
             if !Task.isCancelled {
-                fypError = error.localizedDescription
+                handleLoadError(error)
             }
         }
         isLoadingFYP = false
@@ -218,13 +265,35 @@ struct HomeView: View {
                 recommendations = resp.results
             } catch {
                 if !Task.isCancelled {
-                    fypError = error.localizedDescription
+                    handleLoadError(error)
                 }
             }
         case .discover:
             // DiscoverSectionView manages its own state
             break
         }
+    }
+
+    private func handleLoadError(_ error: Error) {
+        if case APIError.rateLimited = error {
+            showToast("Woah, slow down! Try again in a minute")
+        } else if recommendations.isEmpty {
+            fypError = error.localizedDescription
+        } else {
+            showToast(error.localizedDescription)
+        }
+    }
+
+    private func showToast(_ message: String) {
+        toastMessage = message
+        Task {
+            try? await Task.sleep(for: .seconds(3))
+            dismissToast()
+        }
+    }
+
+    private func dismissToast() {
+        toastMessage = nil
     }
 }
 

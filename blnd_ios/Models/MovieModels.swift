@@ -121,6 +121,30 @@ struct RecommendedMovieResponse: Codable, Identifiable {
     }
 }
 
+struct HiddenMovieResponse: Decodable, Identifiable {
+    let tmdbId: Int
+    let title: String
+    let year: Int?
+    let posterPath: String?
+    let hiddenAt: String
+
+    var id: Int {
+        tmdbId
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case tmdbId = "tmdb_id"
+        case title, year
+        case posterPath = "poster_path"
+        case hiddenAt = "hidden_at"
+    }
+}
+
+struct HiddenMoviesListResponse: Decodable {
+    let results: [HiddenMovieResponse]
+    let total: Int
+}
+
 struct RecommendationsResponse: Decodable {
     let results: [RecommendedMovieResponse]
     let tasteBio: String?

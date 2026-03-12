@@ -32,6 +32,18 @@ enum AuthAPI {
         )
     }
 
+    /// POST /auth/refresh — exchange refresh token for new tokens
+    static func refresh(
+        refreshToken: String
+    ) async throws -> LoginResponse {
+        let body = RefreshTokenRequest(refreshToken: refreshToken)
+        return try await APIClient.shared.request(
+            endpoint: "/auth/refresh",
+            method: "POST",
+            body: body
+        )
+    }
+
     static func me() async throws -> UserResponse {
         try await APIClient.shared.request(
             endpoint: "/auth/me",
