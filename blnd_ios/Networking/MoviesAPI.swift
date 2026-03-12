@@ -61,4 +61,36 @@ enum RecommendationsAPI {
             authenticated: true
         )
     }
+
+    /// POST /recommendations/{tmdb_id}/hide — exclude from future recs
+    static func hideMovie(
+        tmdbId: Int
+    ) async throws -> HiddenMovieResponse {
+        try await APIClient.shared.request(
+            endpoint: "/recommendations/\(tmdbId)/hide",
+            method: "POST",
+            authenticated: true
+        )
+    }
+
+    /// DELETE /recommendations/{tmdb_id}/hide — re-allow in recs
+    static func unhideMovie(tmdbId: Int) async throws {
+        try await APIClient.shared.requestVoid(
+            endpoint: "/recommendations/\(tmdbId)/hide",
+            method: "DELETE",
+            authenticated: true
+        )
+    }
+
+    /// GET /recommendations/hidden — list hidden movies
+    static func getHidden(
+        limit: Int = 100,
+        offset: Int = 0
+    ) async throws -> HiddenMoviesListResponse {
+        try await APIClient.shared.request(
+            endpoint: "/recommendations/hidden"
+                + "?limit=\(limit)&offset=\(offset)",
+            authenticated: true
+        )
+    }
 }
