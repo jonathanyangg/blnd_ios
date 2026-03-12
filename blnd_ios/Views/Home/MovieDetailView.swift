@@ -61,15 +61,15 @@ struct MovieDetailView: View {
             }
             ToolbarItem(placement: .principal) {
                 if let pct = movie?.matchPercent {
-                    HStack(spacing: 4) {
+                    HStack(spacing: 5) {
                         Image(systemName: "sparkles")
-                            .font(.system(size: 11))
+                            .font(.system(size: 13))
                         Text("\(pct)% match")
-                            .font(.system(size: 13, weight: .semibold))
+                            .font(.system(size: 15, weight: .bold))
                     }
                     .foregroundStyle(.white)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 7)
                     .background(AppTheme.card)
                     .clipShape(Capsule())
                 }
@@ -92,6 +92,19 @@ struct MovieDetailView: View {
                         isHidden ? .red : AppTheme.textMuted
                     )
                 }
+                .confirmationDialog(
+                    "Not interested?",
+                    isPresented: $showHideConfirm,
+                    titleVisibility: .visible
+                ) {
+                    Button("Not for me", role: .destructive) {
+                        Task { await hideMovie() }
+                    }
+                } message: {
+                    Text(
+                        "This movie won't show in your recommendations."
+                    )
+                }
             }
         }
         .sheet(isPresented: $showRatingSheet) {
@@ -109,17 +122,6 @@ struct MovieDetailView: View {
             .presentationDetents([.medium])
             .presentationDragIndicator(.visible)
             .presentationBackground(AppTheme.card)
-        }
-        .confirmationDialog(
-            "Not interested?",
-            isPresented: $showHideConfirm,
-            titleVisibility: .visible
-        ) {
-            Button("Not for me", role: .destructive) {
-                Task { await hideMovie() }
-            }
-        } message: {
-            Text("This movie won't show in your recommendations.")
         }
         .task {
             await fetchMovie()

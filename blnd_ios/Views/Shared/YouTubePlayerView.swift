@@ -7,14 +7,13 @@ struct YouTubePlayerView: UIViewRepresentable {
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.allowsInlineMediaPlayback = true
+        config.mediaTypesRequiringUserActionForPlayback = []
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.isOpaque = false
-        webView.backgroundColor = .clear
+        webView.backgroundColor = .black
         webView.scrollView.isScrollEnabled = false
-        return webView
-    }
+        webView.scrollView.bounces = false
 
-    func updateUIView(_ webView: WKWebView, context: Context) {
         let html = """
         <html>
         <head>
@@ -22,6 +21,10 @@ struct YouTubePlayerView: UIViewRepresentable {
         <style>
         * { margin: 0; padding: 0; }
         body { background: #000; }
+        .wrap {
+            position: relative;
+            padding-bottom: 56.25%;
+        }
         iframe {
             width: 100%;
             height: 100%;
@@ -29,10 +32,6 @@ struct YouTubePlayerView: UIViewRepresentable {
             top: 0; left: 0;
             border: 0;
             border-radius: 14px;
-        }
-        .wrap {
-            position: relative;
-            padding-bottom: 56.25%;
         }
         </style>
         </head>
@@ -48,7 +47,11 @@ struct YouTubePlayerView: UIViewRepresentable {
         </html>
         """
         webView.loadHTMLString(html, baseURL: nil)
+
+        return webView
     }
+
+    func updateUIView(_ webView: WKWebView, context: Context) {}
 
     /// Extract YouTube video ID from a full URL
     static func extractVideoId(from url: String) -> String? {
@@ -59,9 +62,7 @@ struct YouTubePlayerView: UIViewRepresentable {
             }
             // youtu.be/ID
             if components.host == "youtu.be" {
-                let path = components.path.trimmingCharacters(
-                    in: CharacterSet(charactersIn: "/")
-                )
+                let path = components.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
                 return path.isEmpty ? nil : path
             }
         }
