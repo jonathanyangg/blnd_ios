@@ -46,9 +46,7 @@ struct WebView: UIViewRepresentable {
 
     /// Coordinator serving as both WKNavigationDelegate and
     /// WKDownloadDelegate to detect and capture file downloads.
-    class Coordinator: NSObject, WKNavigationDelegate,
-        WKDownloadDelegate
-    {
+    class Coordinator: NSObject, WKNavigationDelegate, WKDownloadDelegate {
         let onDownloadComplete: (Data) -> Void
         let onDownloadFailed: (Error) -> Void
         var isLoading: Binding<Bool>
@@ -119,9 +117,7 @@ struct WebView: UIViewRepresentable {
                 WKNavigationActionPolicy
             ) -> Void
         ) {
-            if let url = navigationAction.request.url,
-               isDownloadableURL(url)
-            {
+            if let url = navigationAction.request.url, isDownloadableURL(url) {
                 decisionHandler(.download)
                 return
             }
@@ -196,29 +192,20 @@ struct WebView: UIViewRepresentable {
         private func isDownloadableResponse(
             _ response: WKNavigationResponse
         ) -> Bool {
-            if let mimeType = response.response.mimeType,
-               Self.downloadableMIMETypes.contains(
-                   mimeType.lowercased()
-               )
-            {
+            if let mimeType = response.response.mimeType, Self.downloadableMIMETypes.contains(mimeType.lowercased()) {
                 return true
             }
 
-            if let url = response.response.url,
-               url.pathExtension.lowercased() == "zip"
-            {
+            if let url = response.response.url, url.pathExtension.lowercased() == "zip" {
                 return true
             }
 
             // Check Content-Disposition header for "attachment"
-            if let httpResponse = response.response
-                as? HTTPURLResponse,
-                let disposition = httpResponse.value(
-                    forHTTPHeaderField: "Content-Disposition"
-                ),
-                disposition.lowercased().contains("attachment")
-            {
-                return true
+            if let httpResponse = response.response as? HTTPURLResponse {
+                let disposition = httpResponse.value(forHTTPHeaderField: "Content-Disposition")
+                if let disposition, disposition.lowercased().contains("attachment") {
+                    return true
+                }
             }
 
             return false

@@ -7,8 +7,24 @@ class AuthState {
     var isLoading = false
     var error: String?
 
+    private var logoutObserver: NSObjectProtocol?
+
     init() {
-        isAuthenticated = KeychainManager.readString(key: "accessToken") != nil
+        isAuthenticated =
+            KeychainManager.readString(key: "accessToken") != nil
+        logoutObserver = NotificationCenter.default.addObserver(
+            forName: APIClient.forceLogoutNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.logout()
+        }
+    }
+
+    deinit {
+        if let logoutObserver {
+            NotificationCenter.default.removeObserver(logoutObserver)
+        }
     }
 
     func signup(email: String, password: String, username: String, displayName: String?) async {

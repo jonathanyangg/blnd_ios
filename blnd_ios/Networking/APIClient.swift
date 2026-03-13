@@ -33,12 +33,62 @@ enum APIError: LocalizedError {
     }
 }
 
+/// Serializes concurrent token refresh attempts
+private actor TokenRefresher {
+    private var activeTask: Task<Void, Error>?
+
+    func refresh() async throws {
+        if let activeTask {
+            try await activeTask.value
+            return
+        }
+
+        let task = Task<Void, Error> {
+            guard let token = KeychainManager.readString(
+                key: "refreshToken"
+            ) else {
+                throw APIError.unauthorized
+            }
+            let body = RefreshTokenRequest(refreshToken: token)
+            let response: LoginResponse =
+                try await APIClient.shared.request(
+                    endpoint: "/auth/refresh",
+                    method: "POST",
+                    body: body
+                )
+            KeychainManager.save(
+                key: "accessToken",
+                string: response.accessToken
+            )
+            KeychainManager.save(
+                key: "refreshToken",
+                string: response.refreshToken
+            )
+        }
+        activeTask = task
+
+        do {
+            try await task.value
+            activeTask = nil
+        } catch {
+            activeTask = nil
+            throw error
+        }
+    }
+}
+
 final class APIClient {
     static let shared = APIClient()
+
+    static let forceLogoutNotification = Notification.Name(
+        "APIClientForceLogout"
+    )
+
     private init() {}
 
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
+    private let tokenRefresher = TokenRefresher()
 
     func request<T: Decodable>(
         endpoint: String,
@@ -46,7 +96,7 @@ final class APIClient {
         body: (any Encodable)? = nil,
         authenticated: Bool = false
     ) async throws -> T {
-        let (http, data) = try await performRequest(
+        let (http, data) = try await performRequestWithRetry(
             endpoint: endpoint, method: method,
             body: body, authenticated: authenticated
         )
@@ -59,11 +109,42 @@ final class APIClient {
         body: (any Encodable)? = nil,
         authenticated: Bool = false
     ) async throws {
-        let (http, data) = try await performRequest(
+        let (http, data) = try await performRequestWithRetry(
             endpoint: endpoint, method: method,
             body: body, authenticated: authenticated
         )
         try handleVoidResponse(http: http, data: data)
+    }
+
+    private func performRequestWithRetry(
+        endpoint: String,
+        method: String,
+        body: (any Encodable)?,
+        authenticated: Bool
+    ) async throws -> (HTTPURLResponse, Data) {
+        let (http, data) = try await performRequest(
+            endpoint: endpoint, method: method,
+            body: body, authenticated: authenticated
+        )
+
+        guard http.statusCode == 401, authenticated else {
+            return (http, data)
+        }
+
+        do {
+            try await tokenRefresher.refresh()
+        } catch {
+            NotificationCenter.default.post(
+                name: Self.forceLogoutNotification,
+                object: nil
+            )
+            throw APIError.unauthorized
+        }
+
+        return try await performRequest(
+            endpoint: endpoint, method: method,
+            body: body, authenticated: authenticated
+        )
     }
 
     private func performRequest(

@@ -1,6 +1,7 @@
 import Foundation
 
 enum APIConfig {
-    /// Change to production URL when deploying
-    static let baseURL = "https://blnd-backend.onrender.com"
+    // TODO: Change back to production before TestFlight
+    // static let baseURL = "https://blnd-backend.onrender.com"
+    static let baseURL = "http://192.168.1.44:8000"
 }

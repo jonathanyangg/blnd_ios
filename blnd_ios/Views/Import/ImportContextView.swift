@@ -154,23 +154,8 @@ struct ImportContextView: View {
                         }
                     }
 
-                    // Failed titles list
                     if summary.failed > 0, !summary.failedTitles.isEmpty {
-                        ScrollView {
-                            VStack(alignment: .leading, spacing: 8) {
-                                ForEach(summary.failedTitles, id: \.self) { title in
-                                    Text(title)
-                                        .font(.system(size: 14))
-                                        .foregroundStyle(AppTheme.textMuted)
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                }
-                            }
-                            .padding(16)
-                        }
-                        .frame(maxHeight: 200)
-                        .background(AppTheme.card)
-                        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cornerRadiusMedium))
-                        .padding(.horizontal, 24)
+                        failedTitlesList(summary.failedTitles)
                     }
 
                     Spacer(minLength: 40)
@@ -284,6 +269,24 @@ struct ImportContextView: View {
 
             Spacer()
         }
+    }
+
+    private func failedTitlesList(_ titles: [String]) -> some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(titles, id: \.self) { title in
+                    Text(title)
+                        .font(.system(size: 14))
+                        .foregroundStyle(AppTheme.textMuted)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            .padding(16)
+        }
+        .frame(maxHeight: 200)
+        .background(AppTheme.card)
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cornerRadiusMedium))
+        .padding(.horizontal, 24)
     }
 
     private func statRow(count: Int, label: String) -> some View {
