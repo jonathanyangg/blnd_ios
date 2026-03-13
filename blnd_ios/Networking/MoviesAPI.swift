@@ -45,7 +45,7 @@ enum MoviesAPI {
 /// Recommendation endpoints
 enum RecommendationsAPI {
     static func getRecommendations(
-        limit: Int = 50,
+        limit: Int = 60,
         offset: Int = 0
     ) async throws -> RecommendationsResponse {
         try await APIClient.shared.request(
@@ -54,7 +54,7 @@ enum RecommendationsAPI {
         )
     }
 
-    static func refresh(limit: Int = 50) async throws -> RecommendationsResponse {
+    static func refresh(limit: Int = 60) async throws -> RecommendationsResponse {
         try await APIClient.shared.request(
             endpoint: "/recommendations/me/refresh?limit=\(limit)",
             method: "POST",

@@ -4,36 +4,66 @@ struct FriendsWhoWatchedSection: View {
     let friends: [FriendWatchedResponse]
     @State private var showAll = false
 
-    private let previewLimit = 5
-
     var body: some View {
         if !friends.isEmpty {
-            VStack(alignment: .leading, spacing: 10) {
-                Text("Friends who watched")
-                    .font(.system(size: 15, weight: .bold))
-                    .foregroundStyle(.white)
-
-                ForEach(friends.prefix(previewLimit)) { friend in
-                    FriendWatchedRow(friend: friend)
+            VStack(alignment: .leading, spacing: 12) {
+                Button { showAll = true } label: {
+                    HStack(spacing: 4) {
+                        Text("Watched by")
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundStyle(.white)
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(AppTheme.textDim)
+                    }
                 }
 
-                if friends.count > previewLimit {
-                    Button {
-                        showAll = true
-                    } label: {
-                        Text("View all \(friends.count) friends")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(AppTheme.textMuted)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(friends) { friend in
+                            Button { showAll = true } label: {
+                                friendTile(friend)
+                            }
+                        }
                     }
-                    .padding(.top, 2)
                 }
             }
             .padding(.bottom, 20)
             .sheet(isPresented: $showAll) {
                 AllFriendsWatchedSheet(friends: friends)
-                    .presentationDetents([.large])
+                    .presentationDetents([.medium, .large])
                     .presentationDragIndicator(.visible)
                     .presentationBackground(AppTheme.background)
+            }
+        }
+    }
+
+    private func friendTile(
+        _ friend: FriendWatchedResponse
+    ) -> some View {
+        VStack(spacing: 4) {
+            AvatarView(url: friend.avatarUrl, size: 48)
+            Text(friend.displayName ?? friend.username)
+                .font(.system(size: 10))
+                .foregroundStyle(.white)
+                .lineLimit(1)
+                .frame(width: 48)
+            if let rating = friend.rating {
+                HStack(spacing: 2) {
+                    Image(systemName: "star.fill")
+                        .font(.system(size: 8))
+                    Text(
+                        rating.truncatingRemainder(dividingBy: 1) == 0
+                            ? String(format: "%.0f", rating)
+                            : String(format: "%.1f", rating)
+                    )
+                    .font(.system(size: 10, weight: .bold))
+                }
+                .foregroundStyle(.white)
+                .padding(.horizontal, 5)
+                .padding(.vertical, 3)
+                .background(.black.opacity(0.7))
+                .clipShape(Capsule())
             }
         }
     }
@@ -103,7 +133,7 @@ private struct AllFriendsWatchedSheet: View {
                 }
             }
             .background(AppTheme.background)
-            .navigationTitle("Friends who watched")
+            .navigationTitle("Watched by")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {

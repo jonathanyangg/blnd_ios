@@ -15,9 +15,12 @@ struct MovieDetailView: View {
     @State var isWatchlistLoading = false
     @State var showUnwatchConfirm = false
     @State var showWatchlistSheet = false
+    @State var showWatchedOptions = false
     @State var friendsWhoWatched: [FriendWatchedResponse] = []
     @State var isHidden = false
     @State var showHideConfirm = false
+    @State var overviewExpanded = false
+    @State var overviewTruncated = false
 
     private var displayTitle: String {
         movie?.title ?? title
@@ -115,8 +118,10 @@ struct MovieDetailView: View {
                 posterPath: movie?.posterPath,
                 existingRating: isWatched ? userRating : nil,
                 onSaved: { savedRating in
+                    let wasNew = !isWatched
                     isWatched = true
                     userRating = savedRating
+                    if wasNew { onHide?() }
                 }
             )
             .presentationDetents([.medium])
@@ -151,11 +156,16 @@ struct MovieDetailView: View {
 
             metaRow(movie)
             genreRow(movie)
-            ratingSection(movie)
+            taglineSection(movie)
             overviewSection(movie)
+            CastSectionView(cast: movie.cast)
+
+            Divider()
+                .overlay(AppTheme.border)
+                .padding(.bottom, 20)
+
             actionButtons
             FriendsWhoWatchedSection(friends: friendsWhoWatched)
-            CastSectionView(cast: movie.cast)
         }
         .padding(.horizontal, 24)
     }
@@ -165,6 +175,9 @@ struct MovieDetailView: View {
             .compactMap { $0?.isEmpty == true ? nil : $0 }
         if let vote = movie.voteAverage, vote > 0 {
             parts.append("★ \(String(format: "%.1f", vote))")
+        }
+        if let director = movie.director {
+            parts.append(director)
         }
         let meta = parts.joined(separator: " \u{00B7} ")
         return Group {
@@ -193,22 +206,7 @@ struct MovieDetailView: View {
     }
 
     @ViewBuilder
-    private func ratingSection(_ movie: MovieResponse) -> some View {
-        HStack(spacing: 4) {
-            if let userRating {
-                StarRatingDisplay(rating: userRating)
-            } else {
-                StarRatingDisplay(rating: 0)
-                Text("Rate")
-                    .font(.system(size: 13))
-                    .foregroundStyle(AppTheme.textDim)
-            }
-        }
-        .padding(.bottom, 8)
-        .onTapGesture {
-            showRatingSheet = true
-        }
-
+    private func taglineSection(_ movie: MovieResponse) -> some View {
         if let tagline = movie.tagline, !tagline.isEmpty {
             Text(tagline)
                 .font(.system(size: 14, weight: .medium))
@@ -221,21 +219,45 @@ struct MovieDetailView: View {
     @ViewBuilder
     private func overviewSection(_ movie: MovieResponse) -> some View {
         if let overview = movie.overview, !overview.isEmpty {
-            Text(overview)
-                .font(.system(size: 14))
-                .foregroundStyle(AppTheme.textMuted)
-                .lineSpacing(4)
-                .padding(.bottom, 16)
-        }
+            ZStack(alignment: .bottomTrailing) {
+                Text(overview)
+                    .font(.system(size: 14))
+                    .foregroundStyle(AppTheme.textMuted)
+                    .lineSpacing(4)
+                    .lineLimit(overviewExpanded ? nil : 6)
+                    .background(
+                        ViewThatFits(in: .vertical) {
+                            Text(overview)
+                                .font(.system(size: 14))
+                                .lineSpacing(4)
+                                .hidden()
+                                .onAppear { overviewTruncated = false }
+                            Color.clear
+                                .onAppear { overviewTruncated = true }
+                        }
+                        .lineLimit(6)
+                    )
 
-        if let director = movie.director {
-            HStack(spacing: 4) {
-                Text("Directed by")
-                    .font(.system(size: 13))
-                    .foregroundStyle(AppTheme.textDim)
-                Text(director)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.white)
+                if overviewTruncated, !overviewExpanded {
+                    Text("more")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(.white)
+                        .padding(.leading, 8)
+                        .background(
+                            LinearGradient(
+                                colors: [
+                                    AppTheme.background.opacity(0),
+                                    AppTheme.background,
+                                ],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                            .padding(.leading, -16)
+                        )
+                }
+            }
+            .onTapGesture {
+                if overviewTruncated { overviewExpanded = true }
             }
             .padding(.bottom, 16)
         }

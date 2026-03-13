@@ -5,25 +5,27 @@ struct CastSectionView: View {
 
     var body: some View {
         if !cast.isEmpty {
-            Text("Cast")
-                .font(.system(size: 15, weight: .bold))
-                .foregroundStyle(.white)
-                .padding(.bottom, 12)
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Cast")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(.white)
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
-                    ForEach(Array(cast.enumerated()), id: \.offset) { _, member in
-                        VStack(spacing: 4) {
-                            castAvatar(member)
-                            Text(member.name)
-                                .font(.system(size: 10))
-                                .foregroundStyle(.white)
-                                .lineLimit(1)
-                                .frame(width: 48)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(Array(cast.enumerated()), id: \.offset) { _, member in
+                            VStack(spacing: 4) {
+                                castAvatar(member)
+                                Text(member.name)
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(.white)
+                                    .lineLimit(1)
+                                    .frame(width: 48)
+                            }
                         }
                     }
                 }
             }
+            .padding(.bottom, 20)
         }
     }
 

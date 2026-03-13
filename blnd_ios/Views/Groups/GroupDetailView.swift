@@ -8,15 +8,16 @@ private enum GroupTab: String, CaseIterable {
 struct GroupDetailView: View {
     let groupId: Int
 
-    @State private var group: GroupDetailResponse?
-    @State private var recommendations: [GroupRecMovieResponse] = []
-    @State private var watchlist: [WatchlistMovieResponse] = []
-    @State private var isLoading = true
+    @State var group: GroupDetailResponse?
+    @State var recommendations: [GroupRecMovieResponse] = []
+    @State var watchlist: [WatchlistMovieResponse] = []
+    @State var isLoading = true
     @State private var showMembers = false
-    @State private var showEditName = false
-    @State private var editName = ""
+    @State var isEditingName = false
+    @State var editName = ""
+    @FocusState private var nameFieldFocused: Bool
     @State private var selectedTab: GroupTab = .blendPicks
-    @State private var toastMessage: String?
+    @State var toastMessage: String?
     @Namespace private var tabNamespace
     @Environment(\.dismiss) private var dismiss
 
@@ -55,11 +56,6 @@ struct GroupDetailView: View {
             .animation(
                 .easeInOut(duration: 0.3), value: toastMessage
             )
-            .alert("Rename Group", isPresented: $showEditName) {
-                TextField("Group name", text: $editName)
-                Button("Cancel", role: .cancel) {}
-                Button("Save") { Task { await saveGroupName() } }
-            }
     }
 
     private var content: some View {
@@ -106,16 +102,35 @@ struct GroupDetailView: View {
     ) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .center) {
-                Text(group.name)
-                    .font(.system(size: 22, weight: .bold))
-                    .foregroundStyle(.white)
-                Button {
-                    editName = group.name
-                    showEditName = true
-                } label: {
-                    Image(systemName: "pencil")
-                        .font(.system(size: 13))
-                        .foregroundStyle(AppTheme.textMuted)
+                if isEditingName {
+                    TextField("Group name", text: $editName)
+                        .font(.system(size: 22, weight: .bold))
+                        .foregroundStyle(.white)
+                        .focused($nameFieldFocused)
+                        .onSubmit { submitRename() }
+                    Button { submitRename() } label: {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(.white)
+                    }
+                    Button { isEditingName = false } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(AppTheme.textMuted)
+                    }
+                } else {
+                    Text(group.name)
+                        .font(.system(size: 22, weight: .bold))
+                        .foregroundStyle(.white)
+                    Button {
+                        editName = group.name
+                        isEditingName = true
+                        nameFieldFocused = true
+                    } label: {
+                        Image(systemName: "pencil")
+                            .font(.system(size: 13))
+                            .foregroundStyle(AppTheme.textMuted)
+                    }
                 }
                 Spacer()
             }
@@ -316,66 +331,6 @@ struct GroupDetailView: View {
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)
         .presentationBackground(AppTheme.background)
-    }
-}
-
-// MARK: - Data Loading
-
-extension GroupDetailView {
-    func loadAll(forceRefresh: Bool = false) async {
-        guard forceRefresh || group == nil else { return }
-        do {
-            async let groupResult = GroupsAPI.getGroup(
-                groupId: groupId
-            )
-            async let recsResult = GroupsAPI.getRecommendations(
-                groupId: groupId
-            )
-            async let watchlistResult = GroupsAPI.getWatchlist(
-                groupId: groupId
-            )
-
-            let (groupData, recsData, watchlistData) = try await (
-                groupResult, recsResult, watchlistResult
-            )
-            group = groupData
-            recommendations = recsData.results
-            watchlist = watchlistData.results
-        } catch {
-            if case APIError.rateLimited = error {
-                showToast(
-                    "Woah, slow down! Try again in a minute"
-                )
-            } else if group == nil {
-                print("[GroupDetailView] Load failed: \(error)")
-            } else {
-                showToast(error.localizedDescription)
-            }
-        }
-        isLoading = false
-    }
-
-    private func showToast(_ message: String) {
-        toastMessage = message
-        Task {
-            try? await Task.sleep(for: .seconds(3))
-            toastMessage = nil
-        }
-    }
-
-    func saveGroupName() async {
-        let trimmed = editName.trimmingCharacters(
-            in: .whitespaces
-        )
-        guard !trimmed.isEmpty else { return }
-        do {
-            group = try await GroupsAPI.updateGroup(
-                groupId: groupId,
-                name: trimmed
-            )
-        } catch {
-            print("[GroupDetailView] Rename failed: \(error)")
-        }
     }
 }
 

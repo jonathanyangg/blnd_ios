@@ -44,17 +44,26 @@ extension MovieDetailView {
         HStack(spacing: 10) {
             Button {
                 if isWatched {
-                    showUnwatchConfirm = true
+                    showWatchedOptions = true
                 } else {
                     showRatingSheet = true
                 }
             } label: {
                 HStack(spacing: 6) {
+                    Image(
+                        systemName: isWatched
+                            ? "checkmark.circle.fill" : "eye"
+                    )
+                    .font(.system(size: 14, weight: .semibold))
                     if isWatched {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 13, weight: .bold))
+                        if let userRating {
+                            Text("★ \(String(format: "%.1f", userRating))")
+                        } else {
+                            Text("Watched")
+                        }
+                    } else {
+                        Text("Mark Watched")
                     }
-                    Text("Watched")
                 }
                 .font(.system(size: 15, weight: .semibold))
                 .frame(maxWidth: .infinity)
@@ -70,8 +79,11 @@ extension MovieDetailView {
 
             Button { showWatchlistSheet = true } label: {
                 HStack(spacing: 6) {
-                    Image(systemName: "plus")
-                        .font(.system(size: 13, weight: .bold))
+                    Image(
+                        systemName: isInWatchlist
+                            ? "bookmark.fill" : "bookmark"
+                    )
+                    .font(.system(size: 13, weight: .bold))
                     Text("Watchlist")
                 }
                 .font(.system(size: 15, weight: .semibold))
@@ -91,6 +103,21 @@ extension MovieDetailView {
             }
         }
         .padding(.bottom, 20)
+        .confirmationDialog(
+            "Watched",
+            isPresented: $showWatchedOptions,
+            titleVisibility: .visible
+        ) {
+            Button("Change Rating") {
+                showRatingSheet = true
+            }
+            Button(
+                "Remove from Watched",
+                role: .destructive
+            ) {
+                showUnwatchConfirm = true
+            }
+        }
         .confirmationDialog(
             "Remove from watched?",
             isPresented: $showUnwatchConfirm,

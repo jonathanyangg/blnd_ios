@@ -23,6 +23,9 @@ struct DiscoverSectionView: View {
     @State private var errorMessage: String?
     @State private var selectedGenres: Set<String> = []
     @State private var showGenrePicker = false
+    @State private var currentPage = 1
+    @State private var hasMorePages = true
+    @State private var isLoadingMore = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -74,6 +77,18 @@ struct DiscoverSectionView: View {
                     cardView(movie: movie, index: index)
                 }
                 .buttonStyle(.plain)
+                .onAppear {
+                    if index == movies.count - 4 {
+                        Task { await loadNextPage() }
+                    }
+                }
+            }
+
+            if isLoadingMore {
+                ProgressView()
+                    .tint(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
             }
         }
         .padding(.horizontal, 24)
@@ -238,8 +253,7 @@ struct DiscoverSectionView: View {
         showGenrePicker = filter == .genre
 
         guard changed else { return }
-        movies = []
-        errorMessage = nil
+        resetPagination()
         if filter == .genre, selectedGenres.isEmpty { return }
         Task { await loadMovies() }
     }
@@ -251,10 +265,17 @@ struct DiscoverSectionView: View {
             selectedGenres.insert(genre)
         }
 
-        movies = []
+        resetPagination()
         if !selectedGenres.isEmpty {
             Task { await loadMovies() }
         }
+    }
+
+    private func resetPagination() {
+        movies = []
+        errorMessage = nil
+        currentPage = 1
+        hasMorePages = true
     }
 
     // MARK: - Data
@@ -262,22 +283,11 @@ struct DiscoverSectionView: View {
     func loadMovies() async {
         isLoading = true
         errorMessage = nil
+        currentPage = 1
         do {
-            let response: MovieSearchResult
-            switch activeFilter {
-            case .trending:
-                response = try await MoviesAPI.trending()
-            case .topRated:
-                response = try await MoviesAPI.topRated()
-            case .genre:
-                response = try await MoviesAPI.discover(
-                    genres: Array(selectedGenres)
-                )
-            case .describe:
-                isLoading = false
-                return
-            }
+            let response = try await fetchPage(1)
             movies = response.results
+            hasMorePages = movies.count < response.totalResults
         } catch {
             if !Task.isCancelled {
                 errorMessage = error.localizedDescription
@@ -286,9 +296,40 @@ struct DiscoverSectionView: View {
         isLoading = false
     }
 
+    private func loadNextPage() async {
+        guard hasMorePages, !isLoading, !isLoadingMore else { return }
+        isLoadingMore = true
+        let nextPage = currentPage + 1
+        do {
+            let response = try await fetchPage(nextPage)
+            movies.append(contentsOf: response.results)
+            currentPage = nextPage
+            hasMorePages = movies.count < response.totalResults
+        } catch {
+            if !Task.isCancelled {
+                hasMorePages = false
+            }
+        }
+        isLoadingMore = false
+    }
+
+    private func fetchPage(_ page: Int) async throws -> MovieSearchResult {
+        switch activeFilter {
+        case .trending:
+            return try await MoviesAPI.trending(page: page)
+        case .topRated:
+            return try await MoviesAPI.topRated(page: page)
+        case .genre:
+            return try await MoviesAPI.discover(
+                genres: Array(selectedGenres), page: page
+            )
+        case .describe:
+            throw CancellationError()
+        }
+    }
+
     func refresh() async {
-        movies = []
-        errorMessage = nil
+        resetPagination()
         await loadMovies()
     }
 }
