@@ -109,15 +109,13 @@ struct GroupDetailView: View {
                 Text(group.name)
                     .font(.system(size: 22, weight: .bold))
                     .foregroundStyle(.white)
-                if group.createdBy == currentUserId {
-                    Button {
-                        editName = group.name
-                        showEditName = true
-                    } label: {
-                        Image(systemName: "pencil")
-                            .font(.system(size: 13))
-                            .foregroundStyle(AppTheme.textMuted)
-                    }
+                Button {
+                    editName = group.name
+                    showEditName = true
+                } label: {
+                    Image(systemName: "pencil")
+                        .font(.system(size: 13))
+                        .foregroundStyle(AppTheme.textMuted)
                 }
                 Spacer()
             }

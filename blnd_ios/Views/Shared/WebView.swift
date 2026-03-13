@@ -11,12 +11,14 @@ struct WebView: UIViewRepresentable {
     let onDownloadComplete: (Data) -> Void
     let onDownloadFailed: (Error) -> Void
     @Binding var isLoading: Bool
+    var scrollToBottomURLPath: String?
 
     func makeCoordinator() -> Coordinator {
         Coordinator(
             onDownloadComplete: onDownloadComplete,
             onDownloadFailed: onDownloadFailed,
-            isLoading: $isLoading
+            isLoading: $isLoading,
+            scrollToBottomURLPath: scrollToBottomURLPath
         )
     }
 
@@ -50,6 +52,7 @@ struct WebView: UIViewRepresentable {
         let onDownloadComplete: (Data) -> Void
         let onDownloadFailed: (Error) -> Void
         var isLoading: Binding<Bool>
+        let scrollToBottomURLPath: String?
         private var fileDestinationURL: URL?
         // Strong reference to prevent WKDownload deallocation
         private var currentDownload: WKDownload?
@@ -65,11 +68,13 @@ struct WebView: UIViewRepresentable {
         init(
             onDownloadComplete: @escaping (Data) -> Void,
             onDownloadFailed: @escaping (Error) -> Void,
-            isLoading: Binding<Bool>
+            isLoading: Binding<Bool>,
+            scrollToBottomURLPath: String? = nil
         ) {
             self.onDownloadComplete = onDownloadComplete
             self.onDownloadFailed = onDownloadFailed
             self.isLoading = isLoading
+            self.scrollToBottomURLPath = scrollToBottomURLPath
         }
 
         // MARK: - WKNavigationDelegate
@@ -82,10 +87,14 @@ struct WebView: UIViewRepresentable {
         }
 
         func webView(
-            _: WKWebView,
+            _ webView: WKWebView,
             didFinish _: WKNavigation!
         ) {
             isLoading.wrappedValue = false
+            if let path = scrollToBottomURLPath, webView.url?.path.contains(path) == true {
+                let script = "window.scrollTo(0, document.body.scrollHeight);"
+                webView.evaluateJavaScript(script)
+            }
         }
 
         func webView(

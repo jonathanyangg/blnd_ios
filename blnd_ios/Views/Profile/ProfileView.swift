@@ -83,7 +83,7 @@ struct ProfileView: View {
                         .resizable()
                         .scaledToFit()
                         .frame(width: 16, height: 16)
-                    Text("Import from Letterboxd")
+                    Text("Import")
                         .font(.system(size: 14, weight: .medium))
                 }
                 .foregroundStyle(AppTheme.textDim)

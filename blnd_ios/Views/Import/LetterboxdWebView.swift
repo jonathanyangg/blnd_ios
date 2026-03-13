@@ -34,7 +34,8 @@ struct LetterboxdWebView: View {
                         errorMessage = error.localizedDescription
                         showError = true
                     },
-                    isLoading: $isLoading
+                    isLoading: $isLoading,
+                    scrollToBottomURLPath: "/settings/data"
                 )
 
                 if isLoading {
@@ -91,7 +92,7 @@ struct LetterboxdWebView: View {
 
             Spacer()
 
-            Text("Import from Letterboxd")
+            Text("Import")
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(.white)
 

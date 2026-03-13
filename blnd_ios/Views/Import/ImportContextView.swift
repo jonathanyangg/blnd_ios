@@ -238,9 +238,8 @@ struct ImportContextView: View {
     private var instructionsCard: some View {
         VStack(spacing: 16) {
             stepRow(number: 1, text: "Log in to your Letterboxd account")
-            stepRow(number: 2, text: "Scroll to the bottom")
-            stepRow(number: 3, text: "Tap \"Export Your Data\"")
-            stepRow(number: 4, text: "We'll handle the rest")
+            stepRow(number: 2, text: "Tap \"Export Your Data\"")
+            stepRow(number: 3, text: "We'll handle the rest")
         }
         .padding(20)
         .background(AppTheme.card)
