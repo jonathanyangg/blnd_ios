@@ -4,45 +4,53 @@ import SwiftUI
 
 extension GroupDetailView {
     var reelsContent: some View {
-        ZStack(alignment: .top) {
-            switch selectedTab {
-            case .blendPicks:
-                if recommendations.isEmpty {
-                    emptyState(
-                        "Rate more movies to get group picks"
-                    )
-                    .frame(
-                        maxWidth: .infinity,
-                        maxHeight: .infinity
-                    )
-                } else {
-                    ReelsFeedView(
-                        movies: recommendations.map {
-                            ReelMovie(from: $0)
-                        },
-                        groupContext: groupContext
-                    )
-                }
-            case .watchlist:
-                if watchlist.isEmpty {
-                    emptyState(
-                        "No movies in the group watchlist yet"
-                    )
-                    .frame(
-                        maxWidth: .infinity,
-                        maxHeight: .infinity
-                    )
-                } else {
-                    ReelsFeedView(
-                        movies: watchlist.map {
-                            ReelMovie(from: $0)
-                        },
-                        groupContext: groupContext
-                    )
-                }
-            }
-
+        VStack(spacing: 0) {
             reelsHeader
+            reelsFeedContent
+        }
+    }
+
+    @ViewBuilder
+    private var reelsFeedContent: some View {
+        switch selectedTab {
+        case .blendPicks:
+            if recommendations.isEmpty {
+                Spacer()
+                emptyState(
+                    "Rate more movies to get group picks"
+                )
+                Spacer()
+            } else {
+                ReelsFeedView(
+                    movies: recommendations.map {
+                        ReelMovie(from: $0)
+                    },
+                    groupContext: groupContext,
+                    onNavigateToDetail: { tid, title in
+                        reelsDetailTarget = (tid, title)
+                        showReelsDetail = true
+                    }
+                )
+            }
+        case .watchlist:
+            if watchlist.isEmpty {
+                Spacer()
+                emptyState(
+                    "No movies in the group watchlist yet"
+                )
+                Spacer()
+            } else {
+                ReelsFeedView(
+                    movies: watchlist.map {
+                        ReelMovie(from: $0)
+                    },
+                    groupContext: groupContext,
+                    onNavigateToDetail: { tid, title in
+                        reelsDetailTarget = (tid, title)
+                        showReelsDetail = true
+                    }
+                )
+            }
         }
     }
 
@@ -56,8 +64,6 @@ extension GroupDetailView {
                             weight: .bold
                         ))
                         .foregroundStyle(.white)
-                        .shadow(radius: 4)
-                        .padding(.top, 8)
 
                     Button { showMembers = true } label: {
                         HStack(spacing: 6) {
@@ -66,7 +72,7 @@ extension GroupDetailView {
                             )
                             .font(.system(size: 12))
                             .foregroundStyle(
-                                .white.opacity(0.7)
+                                AppTheme.textMuted
                             )
                             Image(
                                 systemName: "chevron.right"
@@ -76,7 +82,7 @@ extension GroupDetailView {
                                 weight: .medium
                             ))
                             .foregroundStyle(
-                                .white.opacity(0.5)
+                                AppTheme.textDim
                             )
                         }
                     }
@@ -104,9 +110,8 @@ extension GroupDetailView {
                                 .foregroundStyle(
                                     selectedTab == tab
                                         ? .white
-                                        : .white.opacity(0.6)
+                                        : AppTheme.textMuted
                                 )
-                                .shadow(radius: 2)
 
                             Rectangle()
                                 .fill(
@@ -119,18 +124,9 @@ extension GroupDetailView {
                 }
             }
             .padding(.horizontal, 24)
-            .padding(.bottom, 8)
+
+            Divider().overlay(AppTheme.border)
         }
-        .background(
-            LinearGradient(
-                colors: [
-                    .black.opacity(0.6),
-                    .black.opacity(0.3),
-                    .clear,
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-        )
+        .background(AppTheme.background)
     }
 }

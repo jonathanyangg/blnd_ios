@@ -17,6 +17,7 @@ struct DiscoverSectionView: View {
     let cardWidth: CGFloat
     let cardHeight: CGFloat
     var viewMode: ViewMode = .grid
+    var onNavigateToDetail: ((Int, String) -> Void)?
 
     @State var activeFilter: DiscoverFilter = .trending
     @State var movies: [MovieResponse] = []
@@ -39,60 +40,64 @@ struct DiscoverSectionView: View {
     // MARK: - Reels Mode
 
     private var reelsBody: some View {
-        ZStack(alignment: .top) {
-            if isLoading {
-                ProgressView()
-                    .tint(.white)
-                    .frame(
-                        maxWidth: .infinity,
-                        maxHeight: .infinity
-                    )
-            } else if let error = errorMessage {
-                VStack(spacing: 12) {
-                    Text(error)
-                        .font(.system(size: 14))
-                        .foregroundStyle(AppTheme.textMuted)
-                        .multilineTextAlignment(.center)
-                    Button("Retry") {
-                        Task { await loadMovies() }
-                    }
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(.white)
-                }
-                .frame(
-                    maxWidth: .infinity,
-                    maxHeight: .infinity
-                )
-            } else if activeFilter == .genre, selectedGenres.isEmpty {
-                genreEmptyState
-                    .frame(
-                        maxWidth: .infinity,
-                        maxHeight: .infinity
-                    )
-            } else {
-                ReelsFeedView(
-                    movies: movies.map { ReelMovie(from: $0) },
-                    onLoadMore: { await loadNextPage() },
-                    onRefresh: { await refresh() }
-                )
-            }
-
-            // Floating filter chips
+        VStack(spacing: 0) {
+            // Filter chips fixed above feed
             VStack(spacing: 0) {
-                Spacer()
-                    .frame(height: 140)
-
                 filterChips
                     .padding(.horizontal, 24)
+                    .padding(.top, 10)
+                    .padding(.bottom, 12)
 
                 if showGenrePicker {
                     genrePickerRow
-                        .padding(.top, 8)
+                        .padding(.bottom, 10)
                 }
+
+                Divider().overlay(AppTheme.border)
             }
-            .allowsHitTesting(true)
+            .background(AppTheme.background)
+
+            // Feed
+            if isLoading {
+                Spacer()
+                ProgressView().tint(.white)
+                Spacer()
+            } else if let error = errorMessage {
+                Spacer()
+                reelsError(error)
+                Spacer()
+            } else if activeFilter == .genre, selectedGenres.isEmpty {
+                Spacer()
+                genreEmptyState
+                Spacer()
+            } else {
+                ReelsFeedView(
+                    movies: movies.map {
+                        ReelMovie(from: $0)
+                    },
+                    onLoadMore: { await loadNextPage() },
+                    onRefresh: { await refresh() },
+                    onNavigateToDetail: onNavigateToDetail
+                )
+            }
         }
         .task { await loadMovies() }
+    }
+
+    private func reelsError(
+        _ message: String
+    ) -> some View {
+        VStack(spacing: 12) {
+            Text(message)
+                .font(.system(size: 14))
+                .foregroundStyle(AppTheme.textMuted)
+                .multilineTextAlignment(.center)
+            Button("Retry") {
+                Task { await loadMovies() }
+            }
+            .font(.system(size: 14, weight: .semibold))
+            .foregroundStyle(.white)
+        }
     }
 
     // MARK: - Grid Mode
@@ -192,7 +197,7 @@ struct DiscoverSectionView: View {
 
     // MARK: - Filter Chips
 
-    private var filterChips: some View {
+    var filterChips: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 ForEach(
@@ -251,11 +256,15 @@ struct DiscoverSectionView: View {
 
     // MARK: - Genre Picker
 
-    private var genrePickerRow: some View {
+    var genrePickerRow: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 6) {
-                ForEach(discoverGenres, id: \.self) { genre in
-                    let active = selectedGenres.contains(genre)
+                ForEach(
+                    discoverGenres,
+                    id: \.self
+                ) { genre in
+                    let active =
+                        selectedGenres.contains(genre)
                     Button { toggleGenre(genre) } label: {
                         Text(genre)
                             .font(.system(
@@ -265,7 +274,8 @@ struct DiscoverSectionView: View {
                             .padding(.vertical, 5)
                             .padding(.horizontal, 10)
                             .background(
-                                active ? .white : AppTheme.card
+                                active ? .white
+                                    : AppTheme.card
                             )
                             .foregroundStyle(
                                 active ? .black
@@ -279,7 +289,7 @@ struct DiscoverSectionView: View {
         }
     }
 
-    private var genreEmptyState: some View {
+    var genreEmptyState: some View {
         VStack(spacing: 8) {
             Text("Pick up to 3 genres")
                 .font(.system(size: 15, weight: .semibold))
@@ -301,15 +311,19 @@ struct DiscoverSectionView: View {
             .padding(.top, 60)
     }
 
-    private func errorView(message: String) -> some View {
+    private func errorView(
+        message: String
+    ) -> some View {
         VStack(spacing: 12) {
             Text(message)
                 .font(.system(size: 14))
                 .foregroundStyle(AppTheme.textMuted)
                 .multilineTextAlignment(.center)
-            Button("Retry") { Task { await loadMovies() } }
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(.white)
+            Button("Retry") {
+                Task { await loadMovies() }
+            }
+            .font(.system(size: 14, weight: .semibold))
+            .foregroundStyle(.white)
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 60)

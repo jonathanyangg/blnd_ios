@@ -20,6 +20,7 @@ SwiftUI iOS app for blnd — movie taste syncing with AI recommendations.
 - **Onboarding nav**: `WelcomeView` owns a `NavigationStack(path:)` with `AuthRoute` enum; child views take `@Binding var path`. Signup API call happens on SignUpView (step 3), credentials collected last so duplicate email errors show immediately.
 - **Onboarding state**: `OnboardingState` caches credentials + genres + ratings so back-navigation preserves selections. Genres submitted via `PATCH /auth/profile`, ratings via `POST /tracking/` per movie — both fire on OnboardingCompleteView "Let's go" tap.
 - **Models**: Codable structs matching backend Pydantic schemas (snake_case → camelCase via CodingKeys)
+- **Reels feed**: Instagram Reels-style vertical paging (`ScrollView` + `.scrollTargetBehavior(.paging)` + `GeometryReader` for card height). `ReelMovie` normalizes all movie response types. `ReelsFeedView` prefetches `MovieResponse` details for current card ± 3 neighbors via `TaskGroup`. Cards show skeleton placeholders until detail loads. Horizontal swipe left → watchlist, right → inline rating overlay. YouTube trailers autoplay muted with full controls. Grid/reels toggle via `ViewMode` enum on Home + Group views.
 
 ## Project Structure
 
@@ -34,6 +35,7 @@ blnd_ios/blnd_ios/
 ├── Models/
 │   ├── AuthModels.swift           SignupRequest, LoginRequest, UpdateProfileRequest (username, displayName, tasteBio, favoriteGenres, avatarUrl), LoginResponse, UserResponse, UserSearchResult, UserSearchResponse
 │   ├── MovieModels.swift          Genre, CastMember, MovieResponse (incl matchScore, trailerUrl), MovieSearchResult, RecommendedMovieResponse, RecommendationsResponse
+│   ├── ReelMovie.swift            Normalized movie struct for reels feed — factory inits from RecommendedMovieResponse, MovieResponse, GroupRecMovieResponse, WatchlistMovieResponse
 │   ├── TrackingModels.swift       TrackMovieRequest, WatchedMovieResponse, WatchlistMovieResponse, FriendWatchedResponse, etc.
 │   ├── FriendModels.swift         SendFriendRequestRequest, FriendResponse (incl avatarUrl), FriendRequestResponse, FriendListResponse, PendingRequestsResponse
 │   └── GroupModels.swift          CreateGroupRequest, AddMemberRequest, UpdateGroupRequest, GroupResponse, GroupDetailResponse, GroupMemberResponse, GroupRecMovieResponse, etc.
@@ -63,19 +65,26 @@ blnd_ios/blnd_ios/
 │   │   ├── RateMoviesView.swift   fetches genre-based movies from discover API, swipe cards with posters
 │   │   └── OnboardingCompleteView.swift  submits genres + ratings to API, then sets authenticated
 │   ├── Home/
-│   │   ├── HomeView.swift         FYP + Trending tabs, TikTok-style underline picker, match % badges, pull-to-refresh
+│   │   ├── HomeView.swift         FYP + Discover tabs, reels/grid toggle, navigation state
+│   │   ├── HomeViewReels.swift    Reels mode header + feed for HomeView
+│   │   ├── HomeViewGrid.swift     Grid mode layout for HomeView
+│   │   ├── HomeViewData.swift     Data loading (recommendations, refresh, error handling)
 │   │   ├── SearchResultsView.swift  fullscreen SearchView with live debounced search (350ms), auto-focus
 │   │   ├── MovieDetailView.swift  fetches by tmdbId, match score badge, tappable trailer, watched/unwatch/watchlist picker, cast, friends who watched
 │   │   ├── RateMovieSheet.swift   half-sheet, half-star rating input, wired to POST /tracking/
 │   │   ├── FriendsWhoWatchedSection.swift  shows friends who watched a movie with avatars + ratings
-│   │   └── DiscoverSectionView.swift  discover section component
+│   │   ├── DiscoverSectionView.swift  discover section, supports reels + grid modes
+│   │   └── DiscoverSectionData.swift  data loading for discover (pagination, filter actions)
 │   ├── Friends/
 │   │   ├── FriendsListView.swift  Friends/Requests tabs, accept/reject, pull-to-refresh, avatar support
 │   │   ├── FriendProfileView.swift  friend data with avatar, remove friend with confirmation
 │   │   └── AddFriendView.swift    Instagram-style live user search, send request inline, avatars
 │   ├── Groups/
 │   │   ├── GroupsListView.swift   real data, member count + avatar stack, pull-to-refresh
-│   │   ├── GroupDetailView.swift  blend picks, group watchlist, members list, add member (friends picker sheet), edit group name
+│   │   ├── GroupDetailView.swift  blend picks, group watchlist, reels/grid toggle, members
+│   │   ├── GroupDetailReels.swift reels mode header + feed for GroupDetailView
+│   │   ├── GroupDetailGrid.swift  grid mode layout for GroupDetailView
+│   │   ├── GroupDetailActions.swift  data loading (loadAll, rename)
 │   │   ├── CreateGroupView.swift  creates group via API, loading/error states
 │   │   ├── GroupMembersSheet.swift  member list with kick/leave actions
 │   │   └── AddGroupMemberSheet.swift  friends picker to add members, avatars
@@ -97,7 +106,15 @@ blnd_ios/blnd_ios/
 │       ├── StarRatingInput.swift  interactive half-star rating + StarRatingDisplay read-only
 │       ├── WatchlistPickerSheet.swift  Spotify-style add to personal/group watchlists
 │       ├── SwipeBackGesture.swift  edge-swipe dismiss modifier for views with hidden back button
-│       └── OnboardingProgressBar.swift  step indicator for onboarding flow
+│       ├── OnboardingProgressBar.swift  step indicator for onboarding flow
+│       ├── ViewMode.swift         enum: .reels / .grid
+│       ├── ReelsFeedView.swift    Core vertical paging ScrollView with prefetch cache + toast
+│       ├── ReelCardView.swift     Full-screen reel card: title, trailer, genres, overview, skeleton loading
+│       ├── ReelCardActions.swift  Gesture handling + watchlist/rating actions for ReelCardView
+│       ├── ReelTrailerView.swift  WKWebView YouTube embed with autoplay, mute, controls
+│       ├── ReelRatingOverlay.swift  Inline star rating overlay on reel cards
+│       ├── ReelSwipeIndicator.swift  Visual indicator during horizontal swipe (bookmark/star icons)
+│       └── ReelToast.swift        Brief auto-dismissing toast for swipe actions
 ```
 
 ## Conventions
@@ -142,14 +159,14 @@ blnd_ios/blnd_ios/
 - **4 tabs**: Home (with search), Friends, Blends (groups), Profile
 - **Settings toggles**: Apple default style with green tint
 
-## Screens (20 total)
+## Screens (20+ total)
 
 - **Onboarding (4)**: Pick Genres → Rate Movies (swipe cards) → Create Account (signup API call) → You're In
-- **Home (3)**: Home Feed, Search Results, Movie Detail
+- **Home (3)**: Home Feed (reels default + grid toggle), Search Results, Movie Detail
 - **Friends (3)**: Friends List, Friend Profile, Add Friend
-- **Groups (3)**: Groups List, Group Detail, Create Group
+- **Groups (3)**: Groups List, Group Detail (reels default + grid toggle), Create Group
 - **Profile (6)**: Profile, Settings, Account (edit name/username/avatar), Notifications, Privacy, About
-- **Shared (1)**: Rate Movie bottom sheet
+- **Shared (2)**: Rate Movie bottom sheet, Reels feed (shared across Home FYP, Discover, Group Blends/Watchlist)
 
 ## Completed
 
@@ -201,12 +218,15 @@ blnd_ios/blnd_ios/
 46. Settings toggle style: Apple default with green tint (.tint(.green))
 47. Re-rate movie: UpdateTrackingRequest model, TrackingAPI.updateRating() via PATCH /tracking/{tmdb_id}, RateMovieSheet pre-fills existing rating and uses PATCH for updates vs POST for new, button shows "Update Rating"
 
+48. Reels-style movie feed: ReelMovie model, ReelsFeedView (vertical paging + prefetch), ReelCardView (skeleton → trailer + info), horizontal swipe gestures (watchlist/rate), ReelTrailerView (YouTube autoplay muted with controls), ReelRatingOverlay, ReelSwipeIndicator, ReelToast, ViewMode toggle (reels/grid) on Home + GroupDetail, HomeView split into extensions (Reels/Grid/Data), GroupDetailView split into extensions (Reels/Grid), DiscoverSectionView supports both modes
+49. MovieDetailView: "more" button for long descriptions (replaced unreliable ViewThatFits with simple always-visible "more" button)
+
 ## Next Steps
 
-48. Letterboxd import (POST /import/letterboxd — file upload in settings)
-49. Add avatar_url to backend GroupMemberResponse so group member avatars show
-50. Profile edit UI (taste bio — backend already wired)
-51. Polish: empty states, error handling
+50. Letterboxd import (POST /import/letterboxd — file upload in settings)
+51. Add avatar_url to backend GroupMemberResponse so group member avatars show
+52. Profile edit UI (taste bio — backend already wired)
+53. Polish: empty states, error handling
 
 ## Linting
 
@@ -223,4 +243,4 @@ blnd_ios/blnd_ios/
 
 ## Last Updated
 
-2026-03-09
+2026-03-19

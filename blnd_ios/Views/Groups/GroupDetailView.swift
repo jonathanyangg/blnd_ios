@@ -19,6 +19,8 @@ struct GroupDetailView: View {
     @State var selectedTab: GroupTab = .blendPicks
     @State var viewMode: ViewMode = .reels
     @State var toastMessage: String?
+    @State var showReelsDetail = false
+    @State var reelsDetailTarget: (Int, String) = (0, "")
     @Namespace var tabNamespace
     @Environment(\.dismiss) var dismiss
 
@@ -40,6 +42,14 @@ struct GroupDetailView: View {
             }
         }
         .background(AppTheme.background)
+        .navigationDestination(
+            isPresented: $showReelsDetail
+        ) {
+            MovieDetailView(
+                tmdbId: reelsDetailTarget.0,
+                title: reelsDetailTarget.1
+            )
+        }
         .navigationBarBackButtonHidden()
         .swipeBackGesture()
         .toolbar {

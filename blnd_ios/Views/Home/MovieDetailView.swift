@@ -20,7 +20,6 @@ struct MovieDetailView: View {
     @State var isHidden = false
     @State var showHideConfirm = false
     @State var overviewExpanded = false
-    @State var overviewTruncated = false
 
     private var displayTitle: String {
         movie?.title ?? title
@@ -219,45 +218,24 @@ struct MovieDetailView: View {
     @ViewBuilder
     private func overviewSection(_ movie: MovieResponse) -> some View {
         if let overview = movie.overview, !overview.isEmpty {
-            ZStack(alignment: .bottomTrailing) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(overview)
                     .font(.system(size: 14))
                     .foregroundStyle(AppTheme.textMuted)
                     .lineSpacing(4)
-                    .lineLimit(overviewExpanded ? nil : 6)
-                    .background(
-                        ViewThatFits(in: .vertical) {
-                            Text(overview)
-                                .font(.system(size: 14))
-                                .lineSpacing(4)
-                                .hidden()
-                                .onAppear { overviewTruncated = false }
-                            Color.clear
-                                .onAppear { overviewTruncated = true }
-                        }
-                        .lineLimit(6)
-                    )
+                    .lineLimit(overviewExpanded ? nil : 4)
 
-                if overviewTruncated, !overviewExpanded {
-                    Text("more")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(.white)
-                        .padding(.leading, 8)
-                        .background(
-                            LinearGradient(
-                                colors: [
-                                    AppTheme.background.opacity(0),
-                                    AppTheme.background,
-                                ],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                            .padding(.leading, -16)
-                        )
+                if !overviewExpanded {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            overviewExpanded = true
+                        }
+                    } label: {
+                        Text("more")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(.white)
+                    }
                 }
-            }
-            .onTapGesture {
-                if overviewTruncated { overviewExpanded = true }
             }
             .padding(.bottom, 16)
         }

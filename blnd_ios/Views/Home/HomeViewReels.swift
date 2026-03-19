@@ -4,65 +4,19 @@ import SwiftUI
 
 extension HomeView {
     var reelsContent: some View {
-        ZStack(alignment: .top) {
-            switch selectedTab {
-            case .forYou:
-                if isLoadingFYP {
-                    ProgressView()
-                        .tint(.white)
-                        .frame(
-                            maxWidth: .infinity,
-                            maxHeight: .infinity
-                        )
-                } else if let error = fypError {
-                    VStack(spacing: 12) {
-                        Text(error)
-                            .font(.system(size: 14))
-                            .foregroundStyle(AppTheme.textMuted)
-                            .multilineTextAlignment(.center)
-                        Button("Retry") {
-                            Task { await loadForYou() }
-                        }
-                        .font(.system(
-                            size: 14,
-                            weight: .semibold
-                        ))
-                        .foregroundStyle(.white)
-                    }
-                    .frame(
-                        maxWidth: .infinity,
-                        maxHeight: .infinity
-                    )
-                } else {
-                    ReelsFeedView(
-                        movies: recommendations.map {
-                            ReelMovie(from: $0)
-                        },
-                        onRefresh: {
-                            await refreshFYP()
-                        }
-                    )
-                }
-            case .discover:
-                DiscoverSectionView(
-                    cardWidth: 0,
-                    cardHeight: 0,
-                    viewMode: .reels
-                )
-            }
-
-            reelsOverlayHeader
+        VStack(spacing: 0) {
+            reelsHeader
+            reelsFeed
         }
         .task { await loadForYou() }
     }
 
-    var reelsOverlayHeader: some View {
+    private var reelsHeader: some View {
         VStack(spacing: 0) {
             HStack {
                 Text("blnd")
                     .font(.system(size: 24, weight: .bold))
                     .foregroundStyle(.white)
-                    .shadow(radius: 4)
                 Spacer()
                 HStack(spacing: 16) {
                     Button {
@@ -81,9 +35,9 @@ extension HomeView {
                     }
                 }
             }
-            .padding(.top, 60)
+            .padding(.top, 8)
             .padding(.horizontal, 24)
-            .padding(.bottom, 12)
+            .padding(.bottom, 16)
 
             HStack(spacing: 24) {
                 ForEach(HomeTab.allCases, id: \.self) { tab in
@@ -92,7 +46,7 @@ extension HomeView {
                             selectedTab = tab
                         }
                     } label: {
-                        VStack(spacing: 6) {
+                        VStack(spacing: 8) {
                             Text(tab.rawValue)
                                 .font(.system(
                                     size: 15,
@@ -102,9 +56,8 @@ extension HomeView {
                                 .foregroundStyle(
                                     selectedTab == tab
                                         ? .white
-                                        : .white.opacity(0.6)
+                                        : AppTheme.textMuted
                                 )
-                                .shadow(radius: 2)
 
                             Rectangle()
                                 .fill(
@@ -117,19 +70,50 @@ extension HomeView {
                 }
             }
             .padding(.horizontal, 24)
-            .padding(.bottom, 8)
+            .padding(.bottom, 4)
+
+            Divider()
+                .overlay(AppTheme.border)
         }
-        .background(
-            LinearGradient(
-                colors: [
-                    .black.opacity(0.6),
-                    .black.opacity(0.3),
-                    .clear,
-                ],
-                startPoint: .top,
-                endPoint: .bottom
+        .background(AppTheme.background)
+    }
+
+    @ViewBuilder
+    private var reelsFeed: some View {
+        switch selectedTab {
+        case .forYou:
+            if isLoadingFYP {
+                Spacer()
+                ProgressView().tint(.white)
+                Spacer()
+            } else if let error = fypError {
+                Spacer()
+                errorView(message: error) {
+                    Task { await loadForYou() }
+                }
+                Spacer()
+            } else {
+                ReelsFeedView(
+                    movies: recommendations.map {
+                        ReelMovie(from: $0)
+                    },
+                    onRefresh: { await refreshFYP() },
+                    onNavigateToDetail: { tid, title in
+                        reelsDetailTarget = (tid, title)
+                        showReelsDetail = true
+                    }
+                )
+            }
+        case .discover:
+            DiscoverSectionView(
+                cardWidth: 0,
+                cardHeight: 0,
+                viewMode: .reels,
+                onNavigateToDetail: { tid, title in
+                    reelsDetailTarget = (tid, title)
+                    showReelsDetail = true
+                }
             )
-        )
-        .allowsHitTesting(true)
+        }
     }
 }

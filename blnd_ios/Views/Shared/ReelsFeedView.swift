@@ -5,6 +5,7 @@ struct ReelsFeedView: View {
     var groupContext: ReelCardView.GroupContext?
     var onLoadMore: (() async -> Void)?
     var onRefresh: (() async -> Void)?
+    var onNavigateToDetail: ((Int, String) -> Void)?
 
     @State private var currentId: Int?
     @State private var detailCache: [Int: MovieResponse] = [:]
@@ -12,42 +13,57 @@ struct ReelsFeedView: View {
     @State private var toastMessage: String?
     @State private var showWatchlistPicker = false
     @State private var watchlistTmdbId: Int?
+    @State private var addedToWatchlist: Set<Int> = []
 
     var body: some View {
-        ScrollView(.vertical) {
-            LazyVStack(spacing: 0) {
-                ForEach(
-                    Array(movies.enumerated()),
-                    id: \.element.id
-                ) { index, movie in
-                    ReelCardView(
-                        movie: movie,
-                        isActive: movie.tmdbId == currentId,
-                        fullDetail: detailCache[movie.tmdbId],
-                        groupContext: groupContext,
-                        onWatchlistAdded: { message in
-                            showToast(message)
-                        },
-                        onRated: { rating in
-                            showToast(
-                                "Rated \(String(format: "%.1f", rating)) stars"
-                            )
-                        }
-                    )
-                    .id(movie.tmdbId)
-                    .onAppear {
-                        if index >= movies.count - 4 {
-                            Task { await onLoadMore?() }
+        GeometryReader { geo in
+            let cardHeight = geo.size.height
+
+            ScrollView(.vertical) {
+                LazyVStack(spacing: 0) {
+                    ForEach(
+                        Array(movies.enumerated()),
+                        id: \.element.id
+                    ) { index, movie in
+                        ReelCardView(
+                            movie: movie,
+                            isActive: movie.tmdbId == currentId,
+                            fullDetail: detailCache[movie.tmdbId],
+                            groupContext: groupContext,
+                            onWatchlistAdded: { msg in
+                                addedToWatchlist.insert(
+                                    movie.tmdbId
+                                )
+                                showToast(msg)
+                            },
+                            onRated: { rating in
+                                let text = String(
+                                    format: "%.1f",
+                                    rating
+                                )
+                                showToast(
+                                    "Rated \(text) stars"
+                                )
+                            },
+                            onNavigateToDetail: onNavigateToDetail
+                        )
+                        .frame(height: cardHeight)
+                        .id(movie.tmdbId)
+                        .onAppear {
+                            if index >= movies.count - 4 {
+                                Task {
+                                    await onLoadMore?()
+                                }
+                            }
                         }
                     }
                 }
+                .scrollTargetLayout()
             }
-            .scrollTargetLayout()
+            .scrollTargetBehavior(.paging)
+            .scrollPosition(id: $currentId)
+            .scrollIndicators(.hidden)
         }
-        .scrollTargetBehavior(.paging)
-        .scrollPosition(id: $currentId)
-        .scrollIndicators(.hidden)
-        .ignoresSafeArea()
         .onChange(of: currentId) { _, newId in
             if let newId {
                 prefetchNeighbors(for: newId)
@@ -78,19 +94,24 @@ struct ReelsFeedView: View {
                         toastMessage = nil
                     }
                 )
-                .padding(.top, 100)
+                .padding(.top, 16)
                 .transition(
-                    .move(edge: .top).combined(with: .opacity)
+                    .move(edge: .top)
+                        .combined(with: .opacity)
                 )
             }
         }
-        .animation(.easeInOut(duration: 0.3), value: toastMessage)
+        .animation(
+            .easeInOut(duration: 0.3),
+            value: toastMessage
+        )
         .sheet(isPresented: $showWatchlistPicker) {
             if let tid = watchlistTmdbId {
                 WatchlistPickerSheet(
                     tmdbId: tid,
                     isWatched: false,
-                    isInPersonalWatchlist: false
+                    isInPersonalWatchlist: addedToWatchlist
+                        .contains(tid)
                 ) { _ in }
                     .presentationDetents([.medium, .large])
                     .presentationDragIndicator(.visible)
@@ -112,13 +133,16 @@ struct ReelsFeedView: View {
             let high = min(movies.count - 1, idx + 3)
             let window = movies[low ... high]
 
-            await withTaskGroup(of: (Int, MovieResponse?).self) { group in
+            await withTaskGroup(
+                of: (Int, MovieResponse?).self
+            ) { group in
                 for item in window where detailCache[item.tmdbId] == nil {
                     group.addTask {
                         do {
-                            let detail = try await MoviesAPI.getMovie(
-                                tmdbId: item.tmdbId
-                            )
+                            let detail =
+                                try await MoviesAPI.getMovie(
+                                    tmdbId: item.tmdbId
+                                )
                             return (item.tmdbId, detail)
                         } catch {
                             return (item.tmdbId, nil)
