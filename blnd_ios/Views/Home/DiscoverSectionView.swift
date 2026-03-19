@@ -16,18 +16,88 @@ let discoverGenres = [
 struct DiscoverSectionView: View {
     let cardWidth: CGFloat
     let cardHeight: CGFloat
+    var viewMode: ViewMode = .grid
 
-    @State private var activeFilter: DiscoverFilter = .trending
-    @State private var movies: [MovieResponse] = []
-    @State private var isLoading = false
-    @State private var errorMessage: String?
-    @State private var selectedGenres: Set<String> = []
-    @State private var showGenrePicker = false
-    @State private var currentPage = 1
-    @State private var hasMorePages = true
-    @State private var isLoadingMore = false
+    @State var activeFilter: DiscoverFilter = .trending
+    @State var movies: [MovieResponse] = []
+    @State var isLoading = false
+    @State var errorMessage: String?
+    @State var selectedGenres: Set<String> = []
+    @State var showGenrePicker = false
+    @State var currentPage = 1
+    @State var hasMorePages = true
+    @State var isLoadingMore = false
 
     var body: some View {
+        if viewMode == .reels {
+            reelsBody
+        } else {
+            gridBody
+        }
+    }
+
+    // MARK: - Reels Mode
+
+    private var reelsBody: some View {
+        ZStack(alignment: .top) {
+            if isLoading {
+                ProgressView()
+                    .tint(.white)
+                    .frame(
+                        maxWidth: .infinity,
+                        maxHeight: .infinity
+                    )
+            } else if let error = errorMessage {
+                VStack(spacing: 12) {
+                    Text(error)
+                        .font(.system(size: 14))
+                        .foregroundStyle(AppTheme.textMuted)
+                        .multilineTextAlignment(.center)
+                    Button("Retry") {
+                        Task { await loadMovies() }
+                    }
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.white)
+                }
+                .frame(
+                    maxWidth: .infinity,
+                    maxHeight: .infinity
+                )
+            } else if activeFilter == .genre, selectedGenres.isEmpty {
+                genreEmptyState
+                    .frame(
+                        maxWidth: .infinity,
+                        maxHeight: .infinity
+                    )
+            } else {
+                ReelsFeedView(
+                    movies: movies.map { ReelMovie(from: $0) },
+                    onLoadMore: { await loadNextPage() },
+                    onRefresh: { await refresh() }
+                )
+            }
+
+            // Floating filter chips
+            VStack(spacing: 0) {
+                Spacer()
+                    .frame(height: 140)
+
+                filterChips
+                    .padding(.horizontal, 24)
+
+                if showGenrePicker {
+                    genrePickerRow
+                        .padding(.top, 8)
+                }
+            }
+            .allowsHitTesting(true)
+        }
+        .task { await loadMovies() }
+    }
+
+    // MARK: - Grid Mode
+
+    private var gridBody: some View {
         VStack(spacing: 0) {
             filterChips
                 .padding(.horizontal, 24)
@@ -243,93 +313,5 @@ struct DiscoverSectionView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 60)
-    }
-
-    // MARK: - Actions
-
-    private func selectFilter(_ filter: DiscoverFilter) {
-        let changed = activeFilter != filter
-        activeFilter = filter
-        showGenrePicker = filter == .genre
-
-        guard changed else { return }
-        resetPagination()
-        if filter == .genre, selectedGenres.isEmpty { return }
-        Task { await loadMovies() }
-    }
-
-    private func toggleGenre(_ genre: String) {
-        if selectedGenres.contains(genre) {
-            selectedGenres.remove(genre)
-        } else if selectedGenres.count < 3 {
-            selectedGenres.insert(genre)
-        }
-
-        resetPagination()
-        if !selectedGenres.isEmpty {
-            Task { await loadMovies() }
-        }
-    }
-
-    private func resetPagination() {
-        movies = []
-        errorMessage = nil
-        currentPage = 1
-        hasMorePages = true
-    }
-
-    // MARK: - Data
-
-    func loadMovies() async {
-        isLoading = true
-        errorMessage = nil
-        currentPage = 1
-        do {
-            let response = try await fetchPage(1)
-            movies = response.results
-            hasMorePages = movies.count < response.totalResults
-        } catch {
-            if !Task.isCancelled {
-                errorMessage = error.localizedDescription
-            }
-        }
-        isLoading = false
-    }
-
-    private func loadNextPage() async {
-        guard hasMorePages, !isLoading, !isLoadingMore else { return }
-        isLoadingMore = true
-        let nextPage = currentPage + 1
-        do {
-            let response = try await fetchPage(nextPage)
-            movies.append(contentsOf: response.results)
-            currentPage = nextPage
-            hasMorePages = movies.count < response.totalResults
-        } catch {
-            if !Task.isCancelled {
-                hasMorePages = false
-            }
-        }
-        isLoadingMore = false
-    }
-
-    private func fetchPage(_ page: Int) async throws -> MovieSearchResult {
-        switch activeFilter {
-        case .trending:
-            return try await MoviesAPI.trending(page: page)
-        case .topRated:
-            return try await MoviesAPI.topRated(page: page)
-        case .genre:
-            return try await MoviesAPI.discover(
-                genres: Array(selectedGenres), page: page
-            )
-        case .describe:
-            throw CancellationError()
-        }
-    }
-
-    func refresh() async {
-        resetPagination()
-        await loadMovies()
     }
 }

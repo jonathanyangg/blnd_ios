@@ -55,6 +55,12 @@ enum AppTheme {
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
+
+    static let reelScrimGradient = LinearGradient(
+        colors: [.clear, Color.black.opacity(0.7)],
+        startPoint: .center,
+        endPoint: .bottom
+    )
 }
 
 // MARK: - Color Extension
