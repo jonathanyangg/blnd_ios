@@ -29,19 +29,20 @@ extension DiscoverSectionView {
 
     func resetPagination() {
         movies = []
+        seenIds = []
         errorMessage = nil
-        currentPage = 1
         hasMorePages = true
     }
 
     func loadMovies() async {
         isLoading = true
         errorMessage = nil
-        currentPage = 1
+        seenIds = []
         do {
-            let response = try await fetchPage(1)
+            let response = try await fetchBatch(exclude: [])
             movies = response.results
-            hasMorePages = movies.count < response.totalResults
+            seenIds = Set(response.results.map(\.tmdbId))
+            hasMorePages = !response.results.isEmpty
         } catch {
             if !Task.isCancelled {
                 errorMessage = error.localizedDescription
@@ -54,13 +55,19 @@ extension DiscoverSectionView {
         guard hasMorePages, !isLoading, !isLoadingMore
         else { return }
         isLoadingMore = true
-        let nextPage = currentPage + 1
         do {
-            let response = try await fetchPage(nextPage)
-            movies.append(contentsOf: response.results)
-            currentPage = nextPage
-            hasMorePages =
-                movies.count < response.totalResults
+            let response = try await fetchBatch(exclude: seenIds)
+            let newMovies = response.results.filter {
+                !seenIds.contains($0.tmdbId)
+            }
+            if newMovies.isEmpty {
+                hasMorePages = false
+            } else {
+                movies.append(contentsOf: newMovies)
+                for movie in newMovies {
+                    seenIds.insert(movie.tmdbId)
+                }
+            }
         } catch {
             if !Task.isCancelled {
                 hasMorePages = false
@@ -69,17 +76,17 @@ extension DiscoverSectionView {
         isLoadingMore = false
     }
 
-    func fetchPage(
-        _ page: Int
+    func fetchBatch(
+        exclude: Set<Int>
     ) async throws -> MovieSearchResult {
         switch activeFilter {
         case .trending:
-            return try await MoviesAPI.trending(page: page)
+            return try await MoviesAPI.trending(exclude: exclude)
         case .topRated:
-            return try await MoviesAPI.topRated(page: page)
+            return try await MoviesAPI.topRated(exclude: exclude)
         case .genre:
             return try await MoviesAPI.discover(
-                genres: Array(selectedGenres), page: page
+                genres: Array(selectedGenres), exclude: exclude
             )
         case .describe:
             throw CancellationError()

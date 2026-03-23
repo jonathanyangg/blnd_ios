@@ -24,7 +24,7 @@ struct DiscoverSectionView: View {
     @State var errorMessage: String?
     @State var selectedGenres: Set<String> = []
     @State var showGenrePicker = false
-    @State var currentPage = 1
+    @State var seenIds: Set<Int> = []
     @State var hasMorePages = true
     @State var isLoadingMore = false
 

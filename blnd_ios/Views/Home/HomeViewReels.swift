@@ -97,6 +97,7 @@ extension HomeView {
                     movies: recommendations.map {
                         ReelMovie(from: $0)
                     },
+                    onLoadMore: { await loadMoreFYP() },
                     onRefresh: { await refreshFYP() }
                 )
             }

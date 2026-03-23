@@ -19,9 +19,9 @@ extension HomeView {
         isLoadingFYP = true
         fypError = nil
         do {
-            let response =
-                try await RecommendationsAPI.getRecommendations()
+            let response = try await RecommendationsAPI.getFeed()
             recommendations = response.results
+            seenFYPIds = Set(response.results.map(\.tmdbId))
         } catch {
             if !Task.isCancelled {
                 handleLoadError(error)
@@ -30,11 +30,36 @@ extension HomeView {
         isLoadingFYP = false
     }
 
+    func loadMoreFYP() async {
+        guard !isLoadingMoreFYP, !isLoadingFYP else { return }
+        isLoadingMoreFYP = true
+        do {
+            let response = try await RecommendationsAPI.getFeed(
+                exclude: Array(seenFYPIds)
+            )
+            let newMovies = response.results.filter {
+                !seenFYPIds.contains($0.tmdbId)
+            }
+            if !newMovies.isEmpty {
+                recommendations.append(contentsOf: newMovies)
+                for movie in newMovies {
+                    seenFYPIds.insert(movie.tmdbId)
+                }
+            }
+        } catch {
+            if !Task.isCancelled {
+                handleLoadError(error)
+            }
+        }
+        isLoadingMoreFYP = false
+    }
+
     func refreshFYP() async {
         fypError = nil
         do {
             let resp = try await RecommendationsAPI.refresh()
             recommendations = resp.results
+            seenFYPIds = Set(resp.results.map(\.tmdbId))
         } catch {
             if !Task.isCancelled {
                 handleLoadError(error)

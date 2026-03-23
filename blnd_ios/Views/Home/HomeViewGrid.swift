@@ -94,43 +94,70 @@ extension HomeView {
             GridItem(.flexible(), spacing: 12),
         ]
         return LazyVGrid(columns: columns, spacing: 16) {
-            ForEach(recommendations) { movie in
-                NavigationLink {
-                    MovieDetailView(
-                        tmdbId: movie.tmdbId,
-                        title: movie.title,
-                        onHide: {
-                            withAnimation {
-                                recommendations.removeAll {
-                                    $0.tmdbId == movie.tmdbId
-                                }
-                            }
-                        }
-                    )
-                } label: {
-                    MovieCard(
-                        title: movie.title,
-                        year: movie.yearString,
-                        posterPath: movie.posterPath,
-                        width: cardWidth,
-                        height: cardHeight,
-                        scorePercent: movie.scorePercent
-                    )
-                }
-                .buttonStyle(.plain)
-                .contextMenu {
-                    Button(role: .destructive) {
-                        hideMovie(movie.tmdbId)
-                    } label: {
-                        Label(
-                            "Not for me",
-                            systemImage: "hand.thumbsdown"
-                        )
-                    }
-                }
+            ForEach(
+                Array(recommendations.enumerated()),
+                id: \.element.id
+            ) { index, movie in
+                fypGridCard(
+                    movie: movie, index: index,
+                    cardWidth: cardWidth, cardHeight: cardHeight
+                )
+            }
+
+            if isLoadingMoreFYP {
+                ProgressView()
+                    .tint(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
             }
         }
         .padding(.horizontal, 24)
+    }
+
+    private func fypGridCard(
+        movie: RecommendedMovieResponse,
+        index: Int,
+        cardWidth: CGFloat,
+        cardHeight: CGFloat
+    ) -> some View {
+        NavigationLink {
+            MovieDetailView(
+                tmdbId: movie.tmdbId,
+                title: movie.title,
+                onHide: {
+                    withAnimation {
+                        recommendations.removeAll {
+                            $0.tmdbId == movie.tmdbId
+                        }
+                    }
+                }
+            )
+        } label: {
+            MovieCard(
+                title: movie.title,
+                year: movie.yearString,
+                posterPath: movie.posterPath,
+                width: cardWidth,
+                height: cardHeight,
+                scorePercent: movie.scorePercent
+            )
+        }
+        .buttonStyle(.plain)
+        .onAppear {
+            if index >= recommendations.count - 4 {
+                Task { await loadMoreFYP() }
+            }
+        }
+        .contextMenu {
+            Button(role: .destructive) {
+                hideMovie(movie.tmdbId)
+            } label: {
+                Label(
+                    "Not for me",
+                    systemImage: "hand.thumbsdown"
+                )
+            }
+        }
     }
 
     var loadingView: some View {

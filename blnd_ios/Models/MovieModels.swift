@@ -1,5 +1,12 @@
 import Foundation
 
+// MARK: - Requests
+
+struct FeedRequest: Encodable {
+    let exclude: [Int]
+    let limit: Int
+}
+
 // MARK: - Shared
 
 struct Genre: Codable, Identifiable {

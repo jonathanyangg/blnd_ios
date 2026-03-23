@@ -2,12 +2,19 @@ import Foundation
 
 /// Movie endpoints: search, trending, detail
 enum MoviesAPI {
-    /// GET /movies/discover — top movies by genre (no auth required)
-    static func discover(genres: [String], page: Int = 1) async throws -> MovieSearchResult {
+    /// GET /movies/discover — top movies by genre with softmax sampling
+    static func discover(
+        genres: [String],
+        exclude: Set<Int> = []
+    ) async throws -> MovieSearchResult {
         let joined = genres.joined(separator: ",")
             .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        var endpoint = "/movies/discover?genres=\(joined)"
+        if !exclude.isEmpty {
+            endpoint += "&exclude=\(exclude.map(String.init).joined(separator: ","))"
+        }
         return try await APIClient.shared.request(
-            endpoint: "/movies/discover?genres=\(joined)&page=\(page)",
+            endpoint: endpoint,
             authenticated: true
         )
     }
@@ -20,16 +27,24 @@ enum MoviesAPI {
         )
     }
 
-    static func trending(page: Int = 1) async throws -> MovieSearchResult {
-        try await APIClient.shared.request(
-            endpoint: "/movies/trending?page=\(page)",
+    static func trending(exclude: Set<Int> = []) async throws -> MovieSearchResult {
+        var endpoint = "/movies/trending"
+        if !exclude.isEmpty {
+            endpoint += "?exclude=\(exclude.map(String.init).joined(separator: ","))"
+        }
+        return try await APIClient.shared.request(
+            endpoint: endpoint,
             authenticated: true
         )
     }
 
-    static func topRated(page: Int = 1) async throws -> MovieSearchResult {
-        try await APIClient.shared.request(
-            endpoint: "/movies/top-rated?page=\(page)",
+    static func topRated(exclude: Set<Int> = []) async throws -> MovieSearchResult {
+        var endpoint = "/movies/top-rated"
+        if !exclude.isEmpty {
+            endpoint += "?exclude=\(exclude.map(String.init).joined(separator: ","))"
+        }
+        return try await APIClient.shared.request(
+            endpoint: endpoint,
             authenticated: true
         )
     }
@@ -44,6 +59,20 @@ enum MoviesAPI {
 
 /// Recommendation endpoints
 enum RecommendationsAPI {
+    /// POST /recommendations/me/feed — infinite scroll feed with exclude list
+    static func getFeed(
+        exclude: [Int] = [],
+        limit: Int = 50
+    ) async throws -> RecommendationsResponse {
+        let body = FeedRequest(exclude: exclude, limit: limit)
+        return try await APIClient.shared.request(
+            endpoint: "/recommendations/me/feed",
+            method: "POST",
+            body: body,
+            authenticated: true
+        )
+    }
+
     static func getRecommendations(
         limit: Int = 60,
         offset: Int = 0
