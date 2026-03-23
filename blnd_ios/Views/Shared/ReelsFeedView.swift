@@ -77,7 +77,7 @@ struct ReelsFeedView: View {
                 prefetchNeighbors(for: first.tmdbId)
             }
         }
-        .overlay(alignment: .top) {
+        .overlay(alignment: .bottom) {
             if let toast = toastMessage {
                 ReelToast(
                     message: toast,
@@ -91,7 +91,7 @@ struct ReelsFeedView: View {
                         toastMessage = nil
                     }
                 )
-                .padding(.top, 16)
+                .padding(.bottom, 24)
                 .transition(
                     .move(edge: .top)
                         .combined(with: .opacity)
@@ -160,7 +160,7 @@ struct ReelsFeedView: View {
     private func showToast(_ message: String) {
         toastMessage = message
         Task {
-            try? await Task.sleep(for: .seconds(2))
+            try? await Task.sleep(for: .seconds(1.2))
             if toastMessage == message {
                 toastMessage = nil
             }
