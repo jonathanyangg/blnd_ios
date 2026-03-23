@@ -20,6 +20,7 @@ struct DiscoverSectionView: View {
 
     @State var activeFilter: DiscoverFilter = .trending
     @State var movies: [MovieResponse] = []
+    @State var discoverReelMovies: [ReelMovie] = []
     @State var isLoading = false
     @State var errorMessage: String?
     @State var selectedGenres: Set<String> = []
@@ -71,9 +72,7 @@ struct DiscoverSectionView: View {
                 Spacer()
             } else {
                 ReelsFeedView(
-                    movies: movies.map {
-                        ReelMovie(from: $0)
-                    },
+                    movies: discoverReelMovies,
                     onLoadMore: { await loadNextPage() },
                     onRefresh: { await refresh() }
                 )

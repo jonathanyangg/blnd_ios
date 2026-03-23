@@ -22,6 +22,7 @@ extension GroupDetailView {
             group = groupData
             recommendations = recsData.results
             seenRecIds = Set(recsData.results.map(\.tmdbId))
+            groupReelMovies = recsData.results.map { ReelMovie(from: $0) }
             watchlist = watchlistData.results
         } catch {
             if case APIError.rateLimited = error {
@@ -53,6 +54,9 @@ extension GroupDetailView {
                 for movie in newMovies {
                     seenRecIds.insert(movie.tmdbId)
                 }
+                groupReelMovies.append(
+                    contentsOf: newMovies.map { ReelMovie(from: $0) }
+                )
             }
         } catch {
             if !Task.isCancelled {

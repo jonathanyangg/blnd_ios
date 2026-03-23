@@ -29,6 +29,7 @@ extension DiscoverSectionView {
 
     func resetPagination() {
         movies = []
+        discoverReelMovies = []
         seenIds = []
         errorMessage = nil
         hasMorePages = true
@@ -43,6 +44,7 @@ extension DiscoverSectionView {
             let response = try await fetchBatch(exclude: [])
             movies = response.results
             seenIds = Set(response.results.map(\.tmdbId))
+            discoverReelMovies = response.results.map { ReelMovie(from: $0) }
             hasMorePages = !response.results.isEmpty
         } catch {
             if !Task.isCancelled {
@@ -68,6 +70,9 @@ extension DiscoverSectionView {
                 for movie in newMovies {
                     seenIds.insert(movie.tmdbId)
                 }
+                discoverReelMovies.append(
+                    contentsOf: newMovies.map { ReelMovie(from: $0) }
+                )
             }
         } catch {
             if !Task.isCancelled {

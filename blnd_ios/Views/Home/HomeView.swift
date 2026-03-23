@@ -21,6 +21,7 @@ struct HomeView: View {
 
     // For You
     @State var recommendations: [RecommendedMovieResponse] = []
+    @State var fypReelMovies: [ReelMovie] = []
     @State var seenFYPIds: Set<Int> = []
     @State var isLoadingFYP = false
     @State var isLoadingMoreFYP = false

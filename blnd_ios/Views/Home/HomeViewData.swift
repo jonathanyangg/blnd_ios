@@ -3,9 +3,14 @@ import SwiftUI
 // MARK: - Data Loading
 
 extension HomeView {
+    func rebuildReelMovies() {
+        fypReelMovies = recommendations.map { ReelMovie(from: $0) }
+    }
+
     func hideMovie(_ tmdbId: Int) {
         withAnimation {
             recommendations.removeAll { $0.tmdbId == tmdbId }
+            fypReelMovies.removeAll { $0.tmdbId == tmdbId }
         }
         Task {
             _ = try? await RecommendationsAPI.hideMovie(
@@ -22,6 +27,7 @@ extension HomeView {
             let response = try await RecommendationsAPI.getFeed()
             recommendations = response.results
             seenFYPIds = Set(response.results.map(\.tmdbId))
+            rebuildReelMovies()
         } catch {
             if !Task.isCancelled {
                 handleLoadError(error)
@@ -45,6 +51,9 @@ extension HomeView {
                 for movie in newMovies {
                     seenFYPIds.insert(movie.tmdbId)
                 }
+                fypReelMovies.append(
+                    contentsOf: newMovies.map { ReelMovie(from: $0) }
+                )
             }
         } catch {
             if !Task.isCancelled {
@@ -60,6 +69,7 @@ extension HomeView {
             let resp = try await RecommendationsAPI.refresh()
             recommendations = resp.results
             seenFYPIds = Set(resp.results.map(\.tmdbId))
+            rebuildReelMovies()
         } catch {
             if !Task.isCancelled {
                 handleLoadError(error)

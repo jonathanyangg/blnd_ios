@@ -94,9 +94,7 @@ extension HomeView {
                 Spacer()
             } else {
                 ReelsFeedView(
-                    movies: recommendations.map {
-                        ReelMovie(from: $0)
-                    },
+                    movies: fypReelMovies,
                     onLoadMore: { await loadMoreFYP() },
                     onRefresh: { await refreshFYP() }
                 )

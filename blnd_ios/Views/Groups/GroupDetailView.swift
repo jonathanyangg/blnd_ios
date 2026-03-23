@@ -10,6 +10,7 @@ struct GroupDetailView: View {
 
     @State var group: GroupDetailResponse?
     @State var recommendations: [GroupRecMovieResponse] = []
+    @State var groupReelMovies: [ReelMovie] = []
     @State var seenRecIds: Set<Int> = []
     @State var isLoadingMoreRecs = false
     @State var watchlist: [WatchlistMovieResponse] = []

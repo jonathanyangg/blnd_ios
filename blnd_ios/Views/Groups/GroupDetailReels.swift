@@ -22,9 +22,7 @@ extension GroupDetailView {
                 Spacer()
             } else {
                 ReelsFeedView(
-                    movies: recommendations.map {
-                        ReelMovie(from: $0)
-                    },
+                    movies: groupReelMovies,
                     groupContext: groupContext,
                     onLoadMore: { await loadMoreRecs() }
                 )
