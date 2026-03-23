@@ -171,31 +171,29 @@ struct WatchlistPickerSheet: View {
     // MARK: - Data
 
     private func loadState() async {
-        do {
-            async let groupList = GroupsAPI.listGroups()
-            async let status = TrackingAPI
-                .getWatchlistStatus(tmdbId: tmdbId)
+        let cache = UserActionCache.shared
 
-            let (grp, sts) = try await (groupList, status)
-            groups = grp.groups
+        // Use cached groups + only fetch group watchlist status from API
+        groups = await cache.fetchGroups()
+        personalChecked = cache.isWatchlisted(tmdbId) || isWatched
+        initialPersonal = personalChecked
 
-            personalChecked = sts.personal || isWatched
-            initialPersonal = personalChecked
-
-            let inGroups = Set(sts.groupIds)
-            for group in groups {
-                let inList = inGroups.contains(group.id)
-                groupChecked[group.id] = inList
-                initialGroupState[group.id] = inList
+        // Fetch group watchlist status (lightweight — single query)
+        if !groups.isEmpty {
+            do {
+                let sts = try await TrackingAPI
+                    .getWatchlistStatus(tmdbId: tmdbId)
+                let inGroups = Set(sts.groupIds)
+                for group in groups {
+                    let inList = inGroups.contains(group.id)
+                    groupChecked[group.id] = inList
+                    initialGroupState[group.id] = inList
+                }
+            } catch {
+                // Non-fatal — groups show unchecked
             }
-        } catch {
-            personalChecked =
-                isInPersonalWatchlist || isWatched
-            initialPersonal = personalChecked
-            print(
-                "[WatchlistPicker] load: \(error)"
-            )
         }
+
         isLoading = false
     }
 
@@ -203,12 +201,15 @@ struct WatchlistPickerSheet: View {
         isSaving = true
 
         // Personal watchlist changes
+        let cache = UserActionCache.shared
         if personalChecked != initialPersonal, !isWatched {
             do {
                 if personalChecked {
                     _ = try await TrackingAPI.addToWatchlist(tmdbId: tmdbId)
+                    cache.didWatchlist(tmdbId)
                 } else {
                     try await TrackingAPI.removeFromWatchlist(tmdbId: tmdbId)
+                    cache.didRemoveFromWatchlist(tmdbId)
                 }
             } catch {
                 print("[WatchlistPicker] Personal watchlist error: \(error)")

@@ -96,6 +96,7 @@ struct CreateGroupView: View {
             let group = try await GroupsAPI.createGroup(
                 name: trimmedName
             )
+            UserActionCache.shared.invalidateGroups()
             await onCreated?()
             withAnimation { createdGroup = group }
         } catch let APIError.badRequest(message) {

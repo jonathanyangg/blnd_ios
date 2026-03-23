@@ -213,6 +213,7 @@ struct GroupMembersSheet: View {
         isLeaving = true
         do {
             try await GroupsAPI.leaveGroup(groupId: groupId)
+            UserActionCache.shared.invalidateGroups()
             dismiss()
             onGroupDeleted?()
         } catch {
@@ -225,6 +226,7 @@ struct GroupMembersSheet: View {
         isDeleting = true
         do {
             try await GroupsAPI.deleteGroup(groupId: groupId)
+            UserActionCache.shared.invalidateGroups()
             dismiss()
             onGroupDeleted?()
         } catch {
