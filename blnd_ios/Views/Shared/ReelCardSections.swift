@@ -43,20 +43,37 @@ extension ReelCardView {
                 Text(part)
             }
 
-            if let pct = movie.scorePercent {
+            if fullDetail?.voteAverage != nil || movie.scorePercent != nil {
                 if !metaParts.isEmpty {
                     Text("  ")
                 }
-                HStack(spacing: 3) {
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 11))
-                    Text("\(pct)%")
-                        .font(.system(
-                            size: 14,
-                            weight: .bold
-                        ))
+
+                if let vote = fullDetail?.voteAverage, vote > 0 {
+                    HStack(spacing: 3) {
+                        Image(systemName: "star.fill")
+                            .font(.system(size: 11))
+                        Text(String(format: "%.1f", vote))
+                            .font(.system(
+                                size: 14,
+                                weight: .bold
+                            ))
+                    }
+                    .foregroundStyle(.yellow)
                 }
-                .foregroundStyle(.white)
+
+                if let pct = movie.scorePercent {
+                    HStack(spacing: 3) {
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 11))
+                        Text("\(pct)%")
+                            .font(.system(
+                                size: 14,
+                                weight: .bold
+                            ))
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.leading, 6)
+                }
             }
         }
         .font(.system(size: 14))
