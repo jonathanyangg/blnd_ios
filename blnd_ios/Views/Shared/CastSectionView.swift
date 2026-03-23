@@ -5,21 +5,28 @@ struct CastSectionView: View {
 
     var body: some View {
         if !cast.isEmpty {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 10) {
                 Text("Cast")
                     .font(.system(size: 15, weight: .bold))
                     .foregroundStyle(.white)
 
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 12) {
-                        ForEach(Array(cast.enumerated()), id: \.offset) { _, member in
-                            VStack(spacing: 4) {
+                ScrollView(
+                    .horizontal, showsIndicators: false
+                ) {
+                    HStack(spacing: 10) {
+                        ForEach(
+                            Array(cast.enumerated()),
+                            id: \.offset
+                        ) { _, member in
+                            VStack(spacing: 3) {
                                 castAvatar(member)
                                 Text(member.name)
-                                    .font(.system(size: 10))
-                                    .foregroundStyle(.white)
+                                    .font(.system(size: 9))
+                                    .foregroundStyle(
+                                        AppTheme.textMuted
+                                    )
                                     .lineLimit(1)
-                                    .frame(width: 48)
+                                    .frame(width: 36)
                             }
                         }
                     }
@@ -30,20 +37,27 @@ struct CastSectionView: View {
     }
 
     @ViewBuilder
-    private func castAvatar(_ member: CastMember) -> some View {
-        if let path = member.profilePath, let url = URL(string: "https://image.tmdb.org/t/p/w185\(path)") {
+    private func castAvatar(
+        _ member: CastMember
+    ) -> some View {
+        let base = "https://image.tmdb.org/t/p/w185"
+        if let path = member.profilePath, let url = URL(string: "\(base)\(path)") {
             CachedAsyncImage(url: url) { image in
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fill)
-                    .frame(width: 48, height: 48)
+                    .frame(width: 36, height: 36)
                     .posterBlur()
                     .clipShape(Circle())
             } placeholder: {
-                AvatarView(size: 48)
+                Circle()
+                    .fill(AppTheme.card)
+                    .frame(width: 36, height: 36)
             }
         } else {
-            AvatarView(size: 48)
+            Circle()
+                .fill(AppTheme.card)
+                .frame(width: 36, height: 36)
         }
     }
 }

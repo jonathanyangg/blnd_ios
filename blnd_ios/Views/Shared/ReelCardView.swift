@@ -19,6 +19,7 @@ struct ReelCardView: View {
     @State var isDragging = false
     @State var trailerReady = false
     @State var overviewExpanded = false
+    @State var friendsWhoWatched: [FriendWatchedResponse] = []
 
     let swipeThreshold: CGFloat = 120
 
@@ -73,11 +74,15 @@ struct ReelCardView: View {
             }
         }
         .onAppear {
-            if isActive { trailerReady = true }
+            if isActive {
+                trailerReady = true
+                loadFriends()
+            }
         }
         .onChange(of: isActive) { _, active in
             if active {
                 trailerReady = true
+                loadFriends()
             } else {
                 trailerReady = false
                 overviewExpanded = false

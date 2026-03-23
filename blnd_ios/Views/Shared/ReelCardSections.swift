@@ -125,8 +125,65 @@ extension ReelCardView {
                 cardOverview
 
                 compactCastSection
+
+                compactFriendsSection
             } else {
                 skeletonDetails
+            }
+        }
+    }
+
+    // MARK: - Friends Who Watched (Compact)
+
+    @ViewBuilder
+    var compactFriendsSection: some View {
+        if !friendsWhoWatched.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Watched by")
+                    .font(.system(
+                        size: 13, weight: .semibold
+                    ))
+                    .foregroundStyle(
+                        AppTheme.textMuted
+                    )
+
+                ScrollView(
+                    .horizontal,
+                    showsIndicators: false
+                ) {
+                    HStack(spacing: 10) {
+                        ForEach(
+                            friendsWhoWatched
+                        ) { friend in
+                            friendTile(friend)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    func friendTile(_ friend: FriendWatchedResponse) -> some View {
+        VStack(spacing: 3) {
+            AvatarView(url: friend.avatarUrl, size: 36)
+            Text(friend.displayName ?? friend.username)
+                .font(.system(size: 9))
+                .foregroundStyle(.white)
+                .lineLimit(1)
+                .frame(width: 36)
+            if let rating = friend.rating {
+                let text = rating.truncatingRemainder(dividingBy: 1) == 0
+                    ? String(format: "%.0f", rating)
+                    : String(format: "%.1f", rating)
+                HStack(spacing: 2) {
+                    Image(systemName: "star.fill").font(.system(size: 7))
+                    Text(text).font(.system(size: 9, weight: .bold))
+                }
+                .foregroundStyle(.white)
+                .padding(.horizontal, 4)
+                .padding(.vertical, 2)
+                .background(.black.opacity(0.7))
+                .clipShape(Capsule())
             }
         }
     }

@@ -41,27 +41,27 @@ struct FriendsWhoWatchedSection: View {
     private func friendTile(
         _ friend: FriendWatchedResponse
     ) -> some View {
-        VStack(spacing: 4) {
-            AvatarView(url: friend.avatarUrl, size: 48)
+        VStack(spacing: 3) {
+            AvatarView(url: friend.avatarUrl, size: 36)
             Text(friend.displayName ?? friend.username)
-                .font(.system(size: 10))
+                .font(.system(size: 9))
                 .foregroundStyle(.white)
                 .lineLimit(1)
-                .frame(width: 48)
+                .frame(width: 36)
             if let rating = friend.rating {
                 HStack(spacing: 2) {
                     Image(systemName: "star.fill")
-                        .font(.system(size: 8))
+                        .font(.system(size: 7))
                     Text(
                         rating.truncatingRemainder(dividingBy: 1) == 0
                             ? String(format: "%.0f", rating)
                             : String(format: "%.1f", rating)
                     )
-                    .font(.system(size: 10, weight: .bold))
+                    .font(.system(size: 9, weight: .bold))
                 }
                 .foregroundStyle(.white)
-                .padding(.horizontal, 5)
-                .padding(.vertical, 3)
+                .padding(.horizontal, 4)
+                .padding(.vertical, 2)
                 .background(.black.opacity(0.7))
                 .clipShape(Capsule())
             }

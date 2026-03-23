@@ -85,6 +85,22 @@ extension ReelCardView {
         }
     }
 
+    func loadFriends() {
+        guard friendsWhoWatched.isEmpty else { return }
+        Task {
+            do {
+                let response =
+                    try await TrackingAPI
+                        .friendsWhoWatched(
+                            tmdbId: movie.tmdbId
+                        )
+                friendsWhoWatched = response.results
+            } catch {
+                // Non-fatal
+            }
+        }
+    }
+
     func posterURL(_ path: String) -> URL? {
         URL(
             string: "https://image.tmdb.org/t/p/w780\(path)"
