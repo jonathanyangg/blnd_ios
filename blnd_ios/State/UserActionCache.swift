@@ -24,6 +24,12 @@ final class UserActionCache {
     /// Cached movie detail responses (persists across navigation)
     private(set) var movieDetails: [Int: MovieResponse] = [:]
 
+    /// tmdb_ids currently being fetched (prevents duplicate in-flight requests)
+    private(set) var pendingDetailIds: Set<Int> = []
+
+    /// Cached friends-who-watched per movie (persists across card recycling)
+    private(set) var friendsWhoWatched: [Int: [FriendWatchedResponse]] = [:]
+
     /// Whether initial data has been loaded
     private(set) var didLoadInitial = false
 
@@ -102,10 +108,27 @@ final class UserActionCache {
 
     func cacheMovieDetail(_ movie: MovieResponse) {
         movieDetails[movie.tmdbId] = movie
+        pendingDetailIds.remove(movie.tmdbId)
     }
 
     func movieDetail(for tmdbId: Int) -> MovieResponse? {
         movieDetails[tmdbId]
+    }
+
+    /// Returns true if this ID should be fetched (not cached, not in-flight).
+    func shouldFetchDetail(_ tmdbId: Int) -> Bool {
+        if movieDetails[tmdbId] != nil { return false }
+        if pendingDetailIds.contains(tmdbId) { return false }
+        pendingDetailIds.insert(tmdbId)
+        return true
+    }
+
+    func cacheFriendsWhoWatched(_ tmdbId: Int, friends: [FriendWatchedResponse]) {
+        friendsWhoWatched[tmdbId] = friends
+    }
+
+    func getFriendsWhoWatched(_ tmdbId: Int) -> [FriendWatchedResponse]? {
+        friendsWhoWatched[tmdbId]
     }
 
     // MARK: - Queries
@@ -150,6 +173,8 @@ final class UserActionCache {
         pendingRequests = nil
         didLoadFriends = false
         movieDetails.removeAll()
+        pendingDetailIds.removeAll()
+        friendsWhoWatched.removeAll()
         didLoadInitial = false
     }
 }

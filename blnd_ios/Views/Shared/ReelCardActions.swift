@@ -86,14 +86,18 @@ extension ReelCardView {
     }
 
     func loadFriends() {
-        guard friendsWhoWatched.isEmpty else { return }
+        let cache = UserActionCache.shared
+        if let cached = cache.getFriendsWhoWatched(movie.tmdbId) {
+            friendsWhoWatched = cached
+            return
+        }
         Task {
             do {
-                let response =
-                    try await TrackingAPI
-                        .friendsWhoWatched(
-                            tmdbId: movie.tmdbId
-                        )
+                let response = try await TrackingAPI
+                    .friendsWhoWatched(tmdbId: movie.tmdbId)
+                cache.cacheFriendsWhoWatched(
+                    movie.tmdbId, friends: response.results
+                )
                 friendsWhoWatched = response.results
             } catch {
                 // Non-fatal

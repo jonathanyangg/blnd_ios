@@ -133,7 +133,7 @@ struct ReelsFeedView: View {
             await withTaskGroup(
                 of: (Int, MovieResponse?).self
             ) { group in
-                for item in window where UserActionCache.shared.movieDetails[item.tmdbId] == nil {
+                for item in window where UserActionCache.shared.shouldFetchDetail(item.tmdbId) {
                     group.addTask {
                         do {
                             let detail =
