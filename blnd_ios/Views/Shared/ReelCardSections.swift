@@ -225,31 +225,35 @@ extension ReelCardView {
 
     @ViewBuilder
     var cardOverview: some View {
-        let text = fullDetail?.overview
-            ?? movie.overview
+        let text = fullDetail?.overview ?? movie.overview
         if let text, !text.isEmpty {
             VStack(alignment: .leading, spacing: 4) {
                 Text(text)
                     .font(.system(size: 13))
                     .foregroundStyle(AppTheme.textMuted)
                     .lineSpacing(3)
-                    .lineLimit(
-                        overviewExpanded ? nil : 3
+                    .lineLimit(overviewExpanded ? nil : 3)
+                    .background(
+                        Text(text).font(.system(size: 13)).lineSpacing(3)
+                            .fixedSize(horizontal: false, vertical: true).hidden()
+                            .background(GeometryReader { geo in
+                                Color.clear.preference(key: OverviewFullH.self, value: geo.size.height)
+                            })
                     )
+                    .background(GeometryReader { geo in
+                        Color.clear.preference(key: OverviewTruncH.self, value: geo.size.height)
+                    })
+                    .onPreferenceChange(OverviewFullH.self) { overviewFullHeight = $0 }
+                    .onPreferenceChange(OverviewTruncH.self) { overviewTruncatedHeight = $0 }
 
-                if !overviewExpanded {
+                if !overviewExpanded, overviewFullHeight > overviewTruncatedHeight + 1 {
                     Button {
-                        withAnimation(
-                            .easeInOut(duration: 0.2)
-                        ) {
+                        withAnimation(.easeInOut(duration: 0.2)) {
                             overviewExpanded = true
                         }
                     } label: {
                         Text("more")
-                            .font(.system(
-                                size: 13,
-                                weight: .medium
-                            ))
+                            .font(.system(size: 13, weight: .medium))
                             .foregroundStyle(.white)
                     }
                 }
@@ -362,22 +366,14 @@ extension ReelCardView {
         if swipeOffset < -15 {
             HStack {
                 Spacer()
-                ReelSwipeIndicator(
-                    offset: swipeOffset,
-                    threshold: swipeThreshold,
-                    isLeft: true
-                )
-                .padding(.trailing, 40)
+                ReelSwipeIndicator(offset: swipeOffset, threshold: swipeThreshold, isLeft: true)
+                    .padding(.trailing, 40)
             }
         }
         if swipeOffset > 15 {
             HStack {
-                ReelSwipeIndicator(
-                    offset: swipeOffset,
-                    threshold: swipeThreshold,
-                    isLeft: false
-                )
-                .padding(.leading, 40)
+                ReelSwipeIndicator(offset: swipeOffset, threshold: swipeThreshold, isLeft: false)
+                    .padding(.leading, 40)
                 Spacer()
             }
         }
@@ -386,14 +382,9 @@ extension ReelCardView {
     // MARK: - Rating Overlay
 
     var ratingOverlay: some View {
-        ReelRatingOverlay(
-            title: movie.title,
-            tmdbId: movie.tmdbId,
-            onDismiss: { showRating = false },
-            onSaved: { rating in
-                showRating = false
-                onRated?(rating)
-            }
-        )
+        ReelRatingOverlay(title: movie.title, tmdbId: movie.tmdbId, onDismiss: { showRating = false }, onSaved: {
+            showRating = false
+            onRated?($0)
+        })
     }
 }

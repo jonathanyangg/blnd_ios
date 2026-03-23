@@ -18,6 +18,8 @@ struct ReelCardView: View {
     @State var showRating = false
     @State var isDragging = false
     @State var overviewExpanded = false
+    @State var overviewFullHeight: CGFloat = 0
+    @State var overviewTruncatedHeight: CGFloat = 0
     @State var friendsWhoWatched: [FriendWatchedResponse] = []
 
     let swipeThreshold: CGFloat = 120
@@ -48,11 +50,12 @@ struct ReelCardView: View {
             mediaSection
                 .padding(.horizontal, 16)
 
-            detailsSection
-                .padding(.top, 14)
-                .padding(.horizontal, 20)
-
-            Spacer(minLength: 0)
+            ScrollView(.vertical, showsIndicators: false) {
+                detailsSection
+                    .padding(.top, 14)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 20)
+            }
         }
         .frame(maxWidth: .infinity)
         .background(Color.black)
