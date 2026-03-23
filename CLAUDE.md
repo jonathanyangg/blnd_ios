@@ -15,14 +15,17 @@ SwiftUI iOS app for blnd — movie taste syncing with AI recommendations.
 - **Networking**: `APIClient` singleton → domain-specific static API enums (`AuthAPI`, `MoviesAPI`, `FriendsAPI`, `GroupsAPI`, etc.)
 - **Auth**: JWT stored in Keychain, injected as Bearer token by `APIClient` and Supabase Storage uploads
 - **Avatars**: Upload JPEG to Supabase Storage (`avatars/{user_id}/avatar.jpg`), get public URL with cache-bust param (`?v=<timestamp>`), save via `PATCH /auth/profile { avatar_url }`. `AvatarView` renders actual image via `AsyncImage` when URL is present, gradient fallback otherwise.
-- **Tab navigation**: `TabState` (@Observable) injected from `MainTabView`, allows any child view to switch tabs (e.g. ProfileView stats → Friends/Groups tab)
+- **Tab navigation**: `TabState` (@Observable) injected from `MainTabView`, allows any child view to switch tabs (e.g. ProfileView stats → Friends/Groups tab). `pendingRequestCount` drives badge on Friends tab, refreshed on launch + tab switch + accept/reject.
+- **UserActionCache**: Singleton in-memory cache of watched movies (ratings) + watchlisted IDs. Bootstrapped on login (fetches full history). Updated inline on rate/watchlist/unwatch actions. Eliminates redundant API calls for status checks. Reset on logout.
 - **Swipe-back**: `SwipeBackGestureModifier` re-enables iOS edge-swipe dismiss on views that hide the navigation back button
 - **Onboarding nav**: `WelcomeView` owns a `NavigationStack(path:)` with `AuthRoute` enum; child views take `@Binding var path`. Signup API call happens on SignUpView (step 3), credentials collected last so duplicate email errors show immediately.
 - **Onboarding state**: `OnboardingState` caches credentials + genres + ratings so back-navigation preserves selections. Genres submitted via `PATCH /auth/profile`, ratings via `POST /tracking/` per movie — both fire on OnboardingCompleteView "Let's go" tap.
 - **Models**: Codable structs matching backend Pydantic schemas (snake_case → camelCase via CodingKeys). `FeedRequest` / `GroupFeedRequest` for POST body with exclude list.
 - **Infinite scroll**: Exclude-based pagination — frontend tracks seen `tmdb_id`s in a `Set<Int>`, sends them as `exclude` param (browse) or POST body (FYP/groups). Backend excludes those IDs from the candidate pool before sampling. Load-more triggers at last 4 items via `.onAppear` (grid) or `ReelsFeedView.onLoadMore` (reels).
 - **Screenshot mode**: `APIConfig.screenshotMode` bool + `.posterBlur()` ViewModifier. When `true`, blurs all TMDB images (posters, backdrops, cast) with `blur(radius: 20)` for App Store screenshots. No-op when `false`.
-- **Reels feed**: Instagram Reels-style vertical paging (`ScrollView` + `.scrollTargetBehavior(.paging)` + `GeometryReader` for card height). `ReelMovie` normalizes all movie response types. `ReelsFeedView` prefetches `MovieResponse` details for current card ± 3 neighbors via `TaskGroup`. Cards show skeleton placeholders until detail loads. Reel cards are self-contained detail views (no tap-to-navigate) — show title, trailer, genre pills, tagline, expandable overview, and compact cast section. Horizontal swipe left → watchlist, right → inline rating overlay. YouTube trailers autoplay via IFrame Player API (muted, with controls). Grid/reels toggle via `ViewMode` enum on Home + Group views. `ReelCardView` split into extensions: `ReelCardSections.swift` (view sections) + `ReelCardActions.swift` (gestures).
+- **Reels feed**: Instagram Reels-style vertical paging (`ScrollView` + `.scrollTargetBehavior(.paging)` + `GeometryReader` for card height). `ReelMovie` normalizes all movie response types. `ReelsFeedView` prefetches `MovieResponse` details for current card ± 3 neighbors via `TaskGroup`. Cards show pulsing skeleton placeholders until detail loads. Reel cards are self-contained detail views (no tap-to-navigate) — show title + match badge, trailer, genre pills, tagline, expandable overview, and compact cast section. Horizontal swipe with spring snap-back + haptic feedback: left → watchlist (optimistic), right → inline rating overlay. YouTube trailers autoplay via IFrame Player API (`youtube-nocookie.com` host/origin, `controls: 0`, invisible until playing via CSS opacity transition). Grid/reels toggle via `ViewMode` enum on Home + Group views. Shared pinned header on both modes (no layout shift on toggle). `ReelCardView` split into extensions: `ReelCardSections.swift` (view sections) + `ReelCardActions.swift` (gestures).
+- **Match badge**: AI purple gradient pill (`AppTheme.aiPurple` / `AppTheme.aiGradient`) shown inline next to title in reels + detail view. Grid cards use original black style.
+- **Tutorial overlay**: 3-step walkthrough (`ScrollHintOverlay`) on first launch — covers vertical scroll, swipe-left, swipe-right. Persisted via `UserDefaults("hasSeenReelsTutorial")`, never shown again after dismiss.
 
 ## Project Structure
 
@@ -46,15 +49,16 @@ blnd_ios/blnd_ios/
 │   ├── AuthAPI.swift              signup(), login(), me(), updateProfile(username/displayName/tasteBio/favoriteGenres/avatarUrl), searchUsers()
 │   ├── AvatarUploader.swift       uploads UIImage JPEG to Supabase Storage, returns public URL with cache-bust
 │   ├── MoviesAPI.swift            discover(genres:exclude:), search(query:page:), trending(exclude:), topRated(exclude:), getMovie() + RecommendationsAPI (getFeed/getRecommendations/refresh/hide/unhide/getHidden)
-│   ├── TrackingAPI.swift          trackMovie, getWatchHistory, getWatchedMovie, deleteWatchedMovie, addToWatchlist, removeFromWatchlist, getWatchlist, friendsWhoWatched
+│   ├── TrackingAPI.swift          trackMovie, getWatchHistory, getWatchedMovie, deleteWatchedMovie, addToWatchlist, removeFromWatchlist, getWatchlist, getWatchlistStatus, friendsWhoWatched
 │   ├── FriendsAPI.swift           listFriends, sendRequest, getPendingRequests, acceptRequest, rejectRequest, removeFriend
 │   └── GroupsAPI.swift            listGroups, createGroup, getGroup, updateGroup, deleteGroup, addMember, kickMember, leaveGroup, getRecommendations, getFeed(exclude:), getWatchlist, addToWatchlist, removeFromWatchlist
 ├── State/
-│   ├── AuthState.swift            @Observable, signup/login/logout/fetchCurrentUser
-│   ├── TabState.swift             @Observable, selectedTab — shared between MainTabView and child views
-│   └── OnboardingState.swift      caches name/username/email/password/genres/ratings (tmdbId→liked) during onboarding
+│   ├── AuthState.swift            @Observable, signup/login/logout/fetchCurrentUser, bootstraps UserActionCache
+│   ├── TabState.swift             @Observable, selectedTab, pendingRequestCount, homeRefreshTrigger
+│   ├── OnboardingState.swift      caches name/username/email/password/genres/ratings (tmdbId→liked) during onboarding
+│   └── UserActionCache.swift      singleton in-memory cache of watched ratings + watchlisted IDs, bootstrapped on login
 ├── Theme/
-│   └── AppTheme.swift             colors, corner radii, spacing, gradients (dark monochrome theme)
+│   └── AppTheme.swift             colors (incl aiPurple, aiGradient), corner radii, spacing, gradients, posterBlur()
 ├── Views/
 │   ├── ContentView.swift          gates on authState.isAuthenticated
 │   ├── MainTabView.swift          4-tab layout (Home, Friends, Blends, Profile), injects TabState
@@ -231,13 +235,25 @@ blnd_ios/blnd_ios/
 55. Infinite scroll for Groups: `GroupsAPI.getFeed(groupId:exclude:limit:)` POST endpoint, `GroupDetailView` tracks `seenRecIds`, `loadMoreRecs()` in both reels and grid modes.
 56. No re-fetch on navigate back: `loadForYou()` guards on `recommendations.isEmpty`, `loadMovies()` guards on `movies.isEmpty`, `loadAll()` guards on `group == nil`. Rating a movie does not trigger taste rebuild or page refresh.
 57. Sticky search in grid mode: `ScrollOffsetKey` preference tracks scroll offset. When user scrolls up while past the header (`offset < -100`), a compact sticky search bar slides in from top. Hides on scroll-down or when back at top. Reels mode has fixed header (always visible).
+58. Shared pinned headers: Home + Group Detail views use a single header component (title bar + view mode toggle + tab picker) pinned above content. Both reels and grid modes render below the same header — no layout shift on toggle.
+59. Match badge: AI purple gradient pill inline next to movie title in reels + detail view. `AppTheme.aiPurple` (#8B7BB5) + `AppTheme.aiGradient`. Grid cards keep original black badge.
+60. Friend request badge: `TabState.pendingRequestCount` fetched on launch + tab switch. `.badge()` on Friends tab. Cleared after accept/reject.
+61. UserActionCache: singleton in-memory cache bootstrapped on login. Tracks watched ratings + watchlisted IDs. Updated inline on all rate/watchlist/unwatch actions. Eliminates redundant status API calls.
+62. Tutorial overlay: 3-step walkthrough (scroll, swipe-left watchlist, swipe-right rate) with progress dots + Next/Skip/Got it. Persisted via UserDefaults, shown once per install.
+63. Smoother swipe gestures: spring snap-back animation, haptic on threshold cross, optimistic watchlist toast. `@State swipeOffset` replaces `@GestureState` for animated reset.
+64. YouTube trailer optimizations: `controls: 0` for faster load, CSS opacity mask (invisible until playing state 1), no artificial delay, `WKNavigationDelegate` for YouTube link handling.
+65. Swift 6 concurrency fixes: `Sendable` on KeychainManager/LoginResponse/RefreshTokenRequest, `@unchecked Sendable` on APIClient, `@MainActor` on TokenRefresher task.
+66. Cleaner Letterboxd import page: left-aligned header, step titles + descriptions, privacy note, split into extension file.
+67. Cleaner rating overlay: minimal 3-element design (title, stars, capsule button), appear/dismiss animations.
+68. Pulsing skeleton: `SkeletonRect` breathes between full and 40% opacity on 1s loop.
+69. WatchlistPickerSheet: uses `GET /watchlist/status/{tmdb_id}` (2 API calls instead of 7+).
 
 ## Next Steps
 
-58. Letterboxd import (POST /import/letterboxd — file upload in settings)
-59. Add avatar_url to backend GroupMemberResponse so group member avatars show
-60. Profile edit UI (taste bio — backend already wired)
-61. Polish: empty states, error handling
+70. Letterboxd import (POST /import/letterboxd — file upload in settings)
+71. Add avatar_url to backend GroupMemberResponse so group member avatars show
+72. Profile edit UI (taste bio — backend already wired)
+73. Polish: empty states, error handling
 
 ## Linting
 
