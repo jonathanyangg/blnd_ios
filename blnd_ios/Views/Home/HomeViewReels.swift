@@ -97,22 +97,14 @@ extension HomeView {
                     movies: recommendations.map {
                         ReelMovie(from: $0)
                     },
-                    onRefresh: { await refreshFYP() },
-                    onNavigateToDetail: { tid, title in
-                        reelsDetailTarget = (tid, title)
-                        showReelsDetail = true
-                    }
+                    onRefresh: { await refreshFYP() }
                 )
             }
         case .discover:
             DiscoverSectionView(
                 cardWidth: 0,
                 cardHeight: 0,
-                viewMode: .reels,
-                onNavigateToDetail: { tid, title in
-                    reelsDetailTarget = (tid, title)
-                    showReelsDetail = true
-                }
+                viewMode: .reels
             )
         }
     }

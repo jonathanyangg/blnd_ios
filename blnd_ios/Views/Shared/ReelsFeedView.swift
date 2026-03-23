@@ -5,7 +5,6 @@ struct ReelsFeedView: View {
     var groupContext: ReelCardView.GroupContext?
     var onLoadMore: (() async -> Void)?
     var onRefresh: (() async -> Void)?
-    var onNavigateToDetail: ((Int, String) -> Void)?
 
     @State private var currentId: Int?
     @State private var detailCache: [Int: MovieResponse] = [:]
@@ -44,8 +43,7 @@ struct ReelsFeedView: View {
                                 showToast(
                                     "Rated \(text) stars"
                                 )
-                            },
-                            onNavigateToDetail: onNavigateToDetail
+                            }
                         )
                         .frame(height: cardHeight)
                         .id(movie.tmdbId)

@@ -17,7 +17,6 @@ struct DiscoverSectionView: View {
     let cardWidth: CGFloat
     let cardHeight: CGFloat
     var viewMode: ViewMode = .grid
-    var onNavigateToDetail: ((Int, String) -> Void)?
 
     @State var activeFilter: DiscoverFilter = .trending
     @State var movies: [MovieResponse] = []
@@ -76,8 +75,7 @@ struct DiscoverSectionView: View {
                         ReelMovie(from: $0)
                     },
                     onLoadMore: { await loadNextPage() },
-                    onRefresh: { await refresh() },
-                    onNavigateToDetail: onNavigateToDetail
+                    onRefresh: { await refresh() }
                 )
             }
         }

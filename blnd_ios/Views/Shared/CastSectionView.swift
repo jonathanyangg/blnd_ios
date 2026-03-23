@@ -39,6 +39,7 @@ struct CastSectionView: View {
                         .resizable()
                         .aspectRatio(contentMode: .fill)
                         .frame(width: 48, height: 48)
+                        .posterBlur()
                         .clipShape(Circle())
                 default:
                     AvatarView(size: 48)

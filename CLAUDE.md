@@ -20,7 +20,8 @@ SwiftUI iOS app for blnd — movie taste syncing with AI recommendations.
 - **Onboarding nav**: `WelcomeView` owns a `NavigationStack(path:)` with `AuthRoute` enum; child views take `@Binding var path`. Signup API call happens on SignUpView (step 3), credentials collected last so duplicate email errors show immediately.
 - **Onboarding state**: `OnboardingState` caches credentials + genres + ratings so back-navigation preserves selections. Genres submitted via `PATCH /auth/profile`, ratings via `POST /tracking/` per movie — both fire on OnboardingCompleteView "Let's go" tap.
 - **Models**: Codable structs matching backend Pydantic schemas (snake_case → camelCase via CodingKeys)
-- **Reels feed**: Instagram Reels-style vertical paging (`ScrollView` + `.scrollTargetBehavior(.paging)` + `GeometryReader` for card height). `ReelMovie` normalizes all movie response types. `ReelsFeedView` prefetches `MovieResponse` details for current card ± 3 neighbors via `TaskGroup`. Cards show skeleton placeholders until detail loads. Horizontal swipe left → watchlist, right → inline rating overlay. YouTube trailers autoplay muted with full controls. Grid/reels toggle via `ViewMode` enum on Home + Group views.
+- **Screenshot mode**: `APIConfig.screenshotMode` bool + `.posterBlur()` ViewModifier. When `true`, blurs all TMDB images (posters, backdrops, cast) with `blur(radius: 20)` for App Store screenshots. No-op when `false`.
+- **Reels feed**: Instagram Reels-style vertical paging (`ScrollView` + `.scrollTargetBehavior(.paging)` + `GeometryReader` for card height). `ReelMovie` normalizes all movie response types. `ReelsFeedView` prefetches `MovieResponse` details for current card ± 3 neighbors via `TaskGroup`. Cards show skeleton placeholders until detail loads. Reel cards are self-contained detail views (no tap-to-navigate) — show title, trailer, genre pills, tagline, expandable overview, and compact cast section. Horizontal swipe left → watchlist, right → inline rating overlay. YouTube trailers autoplay via IFrame Player API (muted, with controls). Grid/reels toggle via `ViewMode` enum on Home + Group views. `ReelCardView` split into extensions: `ReelCardSections.swift` (view sections) + `ReelCardActions.swift` (gestures).
 
 ## Project Structure
 
@@ -109,9 +110,10 @@ blnd_ios/blnd_ios/
 │       ├── OnboardingProgressBar.swift  step indicator for onboarding flow
 │       ├── ViewMode.swift         enum: .reels / .grid
 │       ├── ReelsFeedView.swift    Core vertical paging ScrollView with prefetch cache + toast
-│       ├── ReelCardView.swift     Full-screen reel card: title, trailer, genres, overview, skeleton loading
+│       ├── ReelCardView.swift     Full-screen reel card: properties, body, state (slim — sections in extensions)
+│       ├── ReelCardSections.swift View sections extension: title, media, details (tagline, expandable overview, cast, genres), skeleton, swipe indicators, rating overlay
 │       ├── ReelCardActions.swift  Gesture handling + watchlist/rating actions for ReelCardView
-│       ├── ReelTrailerView.swift  WKWebView YouTube embed with autoplay, mute, controls
+│       ├── ReelTrailerView.swift  WKWebView YouTube IFrame Player API with autoplay, mute, controls
 │       ├── ReelRatingOverlay.swift  Inline star rating overlay on reel cards
 │       ├── ReelSwipeIndicator.swift  Visual indicator during horizontal swipe (bookmark/star icons)
 │       └── ReelToast.swift        Brief auto-dismissing toast for swipe actions
@@ -220,13 +222,16 @@ blnd_ios/blnd_ios/
 
 48. Reels-style movie feed: ReelMovie model, ReelsFeedView (vertical paging + prefetch), ReelCardView (skeleton → trailer + info), horizontal swipe gestures (watchlist/rate), ReelTrailerView (YouTube autoplay muted with controls), ReelRatingOverlay, ReelSwipeIndicator, ReelToast, ViewMode toggle (reels/grid) on Home + GroupDetail, HomeView split into extensions (Reels/Grid/Data), GroupDetailView split into extensions (Reels/Grid), DiscoverSectionView supports both modes
 49. MovieDetailView: "more" button for long descriptions (replaced unreliable ViewThatFits with simple always-visible "more" button)
+50. Reels inline detail: removed tap-to-navigate in reels mode (grid mode unaffected), expanded reel cards with tagline, expandable overview ("more" button), compact cast section (36x36 avatars, max 8). ReelCardView split into extensions (ReelCardSections.swift for view sections). Removed onNavigateToDetail from entire chain (8 files).
+51. YouTube autoplay fix: replaced plain iframe embed with YouTube IFrame Player API in ReelTrailerView — uses onReady callback with explicit mute() + playVideo() for reliable autoplay on iOS WKWebView.
+52. Screenshot mode: `APIConfig.screenshotMode` flag + `.posterBlur()` ViewModifier blurs all TMDB images (posters, backdrops, cast photos) across 7 files when enabled. For taking App Store screenshots without copyrighted movie art. No-op when false.
 
 ## Next Steps
 
-50. Letterboxd import (POST /import/letterboxd — file upload in settings)
-51. Add avatar_url to backend GroupMemberResponse so group member avatars show
-52. Profile edit UI (taste bio — backend already wired)
-53. Polish: empty states, error handling
+53. Letterboxd import (POST /import/letterboxd — file upload in settings)
+54. Add avatar_url to backend GroupMemberResponse so group member avatars show
+55. Profile edit UI (taste bio — backend already wired)
+56. Polish: empty states, error handling
 
 ## Linting
 

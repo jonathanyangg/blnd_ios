@@ -71,6 +71,7 @@ struct RateMovieSheet: View {
                 switch phase {
                 case let .success(image):
                     image.resizable().aspectRatio(contentMode: .fill)
+                        .posterBlur()
                 default:
                     RoundedRectangle(cornerRadius: 8)
                         .fill(AppTheme.posterGradient)

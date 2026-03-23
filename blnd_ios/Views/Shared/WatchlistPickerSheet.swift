@@ -171,40 +171,32 @@ struct WatchlistPickerSheet: View {
     // MARK: - Data
 
     private func loadState() async {
-        personalChecked = isInPersonalWatchlist || isWatched
-        initialPersonal = personalChecked
-
         do {
-            let groupList = try await GroupsAPI.listGroups()
-            groups = groupList.groups
+            async let groupList = GroupsAPI.listGroups()
+            async let status = TrackingAPI
+                .getWatchlistStatus(tmdbId: tmdbId)
 
-            await withTaskGroup(of: (Int, Bool).self) { taskGroup in
-                for group in groups {
-                    taskGroup.addTask {
-                        let inList = await checkGroupWatchlist(groupId: group.id)
-                        return (group.id, inList)
-                    }
-                }
-                for await (id, inList) in taskGroup {
-                    groupChecked[id] = inList
-                    initialGroupState[id] = inList
-                }
+            let (grp, sts) = try await (groupList, status)
+            groups = grp.groups
+
+            personalChecked = sts.personal || isWatched
+            initialPersonal = personalChecked
+
+            let inGroups = Set(sts.groupIds)
+            for group in groups {
+                let inList = inGroups.contains(group.id)
+                groupChecked[group.id] = inList
+                initialGroupState[group.id] = inList
             }
         } catch {
-            print("[WatchlistPicker] Failed to load groups: \(error)")
+            personalChecked =
+                isInPersonalWatchlist || isWatched
+            initialPersonal = personalChecked
+            print(
+                "[WatchlistPicker] load: \(error)"
+            )
         }
         isLoading = false
-    }
-
-    private func checkGroupWatchlist(groupId: Int) async -> Bool {
-        do {
-            let response = try await GroupsAPI.getWatchlist(
-                groupId: groupId, limit: 100
-            )
-            return response.results.contains { $0.tmdbId == tmdbId }
-        } catch {
-            return false
-        }
     }
 
     private func save() async {

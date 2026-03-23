@@ -17,10 +17,6 @@ struct HomeView: View {
     @State var fypError: String?
     @State var toastMessage: String?
 
-    // Reels detail navigation
-    @State var showReelsDetail = false
-    @State var reelsDetailTarget: (Int, String) = (0, "")
-
     var body: some View {
         NavigationStack {
             ZStack {
@@ -31,14 +27,6 @@ struct HomeView: View {
                 }
             }
             .background(AppTheme.background)
-            .navigationDestination(
-                isPresented: $showReelsDetail
-            ) {
-                MovieDetailView(
-                    tmdbId: reelsDetailTarget.0,
-                    title: reelsDetailTarget.1
-                )
-            }
             .fullScreenCover(isPresented: $showSearch) {
                 NavigationStack { SearchView() }
             }

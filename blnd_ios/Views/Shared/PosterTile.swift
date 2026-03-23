@@ -13,6 +13,7 @@ struct PosterTile: View {
                         image
                             .resizable()
                             .aspectRatio(2 / 3, contentMode: .fill)
+                            .posterBlur()
                     default:
                         RoundedRectangle(cornerRadius: 8)
                             .fill(AppTheme.posterGradient)

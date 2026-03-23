@@ -215,6 +215,7 @@ private struct SwipeCard: View {
                     switch phase {
                     case let .success(image):
                         image.resizable().scaledToFill()
+                            .posterBlur()
                     default:
                         RoundedRectangle(cornerRadius: 16)
                             .fill(AppTheme.posterGradient)

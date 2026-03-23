@@ -25,6 +25,7 @@ extension MovieDetailView {
                             .aspectRatio(contentMode: .fill)
                             .frame(height: 200)
                             .clipped()
+                            .posterBlur()
                             .clipShape(
                                 RoundedRectangle(cornerRadius: 14)
                             )

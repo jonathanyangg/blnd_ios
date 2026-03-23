@@ -22,6 +22,7 @@ struct MovieCard: View {
                                 .aspectRatio(contentMode: .fill)
                                 .frame(width: width, height: height)
                                 .clipped()
+                                .posterBlur()
                                 .clipShape(RoundedRectangle(cornerRadius: 10))
                         default:
                             placeholder

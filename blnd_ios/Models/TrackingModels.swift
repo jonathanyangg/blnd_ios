@@ -88,6 +88,16 @@ struct WatchlistResponse: Decodable {
     let total: Int
 }
 
+struct WatchlistStatusResponse: Decodable {
+    let personal: Bool
+    let groupIds: [Int]
+
+    enum CodingKeys: String, CodingKey {
+        case personal
+        case groupIds = "group_ids"
+    }
+}
+
 struct FriendWatchedResponse: Decodable, Identifiable {
     let userId: String
     let username: String

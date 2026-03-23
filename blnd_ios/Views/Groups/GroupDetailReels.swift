@@ -25,11 +25,7 @@ extension GroupDetailView {
                     movies: recommendations.map {
                         ReelMovie(from: $0)
                     },
-                    groupContext: groupContext,
-                    onNavigateToDetail: { tid, title in
-                        reelsDetailTarget = (tid, title)
-                        showReelsDetail = true
-                    }
+                    groupContext: groupContext
                 )
             }
         case .watchlist:
@@ -44,11 +40,7 @@ extension GroupDetailView {
                     movies: watchlist.map {
                         ReelMovie(from: $0)
                     },
-                    groupContext: groupContext,
-                    onNavigateToDetail: { tid, title in
-                        reelsDetailTarget = (tid, title)
-                        showReelsDetail = true
-                    }
+                    groupContext: groupContext
                 )
             }
         }

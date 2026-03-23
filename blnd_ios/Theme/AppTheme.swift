@@ -63,6 +63,17 @@ enum AppTheme {
     )
 }
 
+// MARK: - Screenshot Mode Blur
+
+extension View {
+    /// Blurs poster/backdrop images when screenshot mode is on.
+    func posterBlur() -> some View {
+        blur(
+            radius: APIConfig.screenshotMode ? 20 : 0
+        )
+    }
+}
+
 // MARK: - Color Extension
 
 extension Color {

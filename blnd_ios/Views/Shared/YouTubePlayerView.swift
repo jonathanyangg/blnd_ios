@@ -29,6 +29,7 @@ struct YouTubePlayerView: View {
                         image
                             .resizable()
                             .aspectRatio(contentMode: .fill)
+                            .posterBlur()
                     default:
                         Color.black
                     }
@@ -81,7 +82,10 @@ private struct YouTubeWebView: UIViewRepresentable {
         webView.scrollView.isScrollEnabled = false
         webView.scrollView.bounces = false
 
-        let embedURL = "https://www.youtube-nocookie.com/embed/\(videoId)?playsinline=1&rel=0&autoplay=1"
+        let nocookie = "https://www.youtube-nocookie.com"
+        let embedURL = "\(nocookie)/embed/\(videoId)"
+            + "?playsinline=1&rel=0&autoplay=1"
+            + "&origin=\(nocookie)"
         let html = """
         <html>
         <head>
