@@ -74,28 +74,32 @@ struct OnboardingCompleteView: View {
             isSubmitting = true
         }
 
-        // Submit genres
-        let genres = Array(onboardingState.selectedGenres)
-        if !genres.isEmpty {
-            _ = try? await AuthAPI.updateProfile(
-                favoriteGenres: genres
-            )
-        }
+        if onboardingState.isAppleSignUp {
+            // Apple flow: genres + ratings already sent via /auth/complete-onboarding
+            // Just show the loader animation, then finish
+        } else {
+            // Email flow: submit genres + ratings individually
+            let genres = Array(onboardingState.selectedGenres)
+            if !genres.isEmpty {
+                _ = try? await AuthAPI.updateProfile(
+                    favoriteGenres: genres
+                )
+            }
 
-        // Submit movie ratings (liked -> 4.0, disliked -> 2.0)
-        for (tmdbId, liked) in onboardingState.movieRatings {
-            let rating: Double = liked ? 4.0 : 2.0
-            _ = try? await TrackingAPI.trackMovie(
-                tmdbId: tmdbId,
-                rating: rating
-            )
+            for (tmdbId, liked) in onboardingState.movieRatings {
+                let rating: Double = liked ? 4.0 : 2.0
+                _ = try? await TrackingAPI.trackMovie(
+                    tmdbId: tmdbId,
+                    rating: rating
+                )
+            }
         }
 
         // Ensure loader shows for at least 3 seconds total
         try? await Task.sleep(for: .seconds(1))
 
         onboardingState.reset()
-        authState.isAuthenticated = true
+        authState.phase = .authenticated
     }
 }
 

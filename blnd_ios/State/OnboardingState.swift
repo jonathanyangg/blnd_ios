@@ -20,6 +20,17 @@ class OnboardingState {
     var movieRatings: [Int: Bool] = [:]
     var ratedMovies: [RatedMovie] = []
 
+    // Apple Sign In fields
+    var appleIdToken: String?
+    var appleRawNonce: String?
+    var appleDisplayName: String?
+    var appleAuthCode: String?
+    var appleRefreshToken: String?
+
+    var isAppleSignUp: Bool {
+        appleIdToken != nil
+    }
+
     var likedMovies: [RatedMovie] {
         ratedMovies.filter(\.liked)
     }
@@ -32,5 +43,10 @@ class OnboardingState {
         selectedGenres = []
         movieRatings = [:]
         ratedMovies = []
+        appleIdToken = nil
+        appleRawNonce = nil
+        appleDisplayName = nil
+        appleAuthCode = nil
+        appleRefreshToken = nil
     }
 }

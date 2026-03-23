@@ -1,3 +1,4 @@
+import AuthenticationServices
 import SwiftUI
 
 struct SignUpView: View {
@@ -20,6 +21,45 @@ struct SignUpView: View {
                         .padding(.bottom, 32)
 
                     @Bindable var state = onboardingState
+
+                    // MARK: - Apple Sign In
+
+                    SignInWithAppleButton(.signUp) { request in
+                        let nonce = AppleSignInHelper.randomNonceString()
+                        onboardingState.appleRawNonce = nonce
+                        request.requestedScopes = [.fullName, .email]
+                        request.nonce = AppleSignInHelper.sha256(nonce)
+                    } onCompletion: { result in
+                        switch result {
+                        case let .success(authorization):
+                            handleAppleSignIn(authorization)
+                        case let .failure(error):
+                            let isCancelled = (error as? ASAuthorizationError)?.code == .canceled
+                            if !isCancelled {
+                                authState.error = error.localizedDescription
+                            }
+                        }
+                    }
+                    .signInWithAppleButtonStyle(.white)
+                    .frame(height: 50)
+                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.cornerRadiusMedium))
+
+                    // MARK: - Divider
+
+                    HStack(spacing: 12) {
+                        Rectangle()
+                            .fill(AppTheme.border)
+                            .frame(height: 1)
+                        Text("or")
+                            .font(.system(size: 13))
+                            .foregroundStyle(AppTheme.textMuted)
+                        Rectangle()
+                            .fill(AppTheme.border)
+                            .frame(height: 1)
+                    }
+                    .padding(.vertical, 20)
+
+                    // MARK: - Email Form
 
                     AppTextField(placeholder: "Name", text: $state.name)
                     AppTextField(placeholder: "Username", text: $state.username)
@@ -101,6 +141,34 @@ struct SignUpView: View {
                 BackButton()
             }
         }
+    }
+
+    private func handleAppleSignIn(_ authorization: ASAuthorization) {
+        guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential else { return }
+        guard let tokenData = credential.identityToken,
+              let idToken = String(data: tokenData, encoding: .utf8) else { return }
+
+        // Authorization code for Phase 16 token revocation
+        let authCode = credential.authorizationCode.flatMap { String(data: $0, encoding: .utf8) }
+
+        // Full name -- only available on FIRST authorization
+        let givenName = credential.fullName?.givenName
+        let familyName = credential.fullName?.familyName
+        let displayName = [givenName, familyName].compactMap { $0 }.joined(separator: " ")
+
+        // Store on OnboardingState for ChooseUsernameView
+        onboardingState.appleIdToken = idToken
+        onboardingState.appleDisplayName = displayName.isEmpty ? nil : displayName
+        onboardingState.appleAuthCode = authCode
+        // appleRawNonce was already set in the request closure
+
+        // Pre-fill Name field from Apple's fullName
+        if let name = onboardingState.appleDisplayName {
+            onboardingState.name = name
+        }
+
+        // Navigate to username screen
+        path.append(AuthRoute.chooseUsername)
     }
 
     private func isValidEmail(_ email: String) -> Bool {

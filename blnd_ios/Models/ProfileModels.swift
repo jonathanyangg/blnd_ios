@@ -66,3 +66,34 @@ struct PublicFriendResponse: Decodable, Identifiable, Hashable {
 struct PublicFriendsListResponse: Decodable {
     let friends: [PublicFriendResponse]
 }
+
+// MARK: - Genre Taste
+
+/// A single genre score entry from the taste radar — returned inside GenreTasteResponse
+struct GenreScore: Decodable, Identifiable {
+    let name: String
+    let score: Double
+    let watchCount: Int
+    let avgRating: Double?
+
+    var id: String {
+        name
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case name, score
+        case watchCount = "watch_count"
+        case avgRating = "avg_rating"
+    }
+}
+
+/// Genre taste breakdown — returned by GET /auth/me/taste
+struct GenreTasteResponse: Decodable {
+    let genres: [GenreScore]
+    let totalRated: Int
+
+    enum CodingKeys: String, CodingKey {
+        case genres
+        case totalRated = "total_rated"
+    }
+}

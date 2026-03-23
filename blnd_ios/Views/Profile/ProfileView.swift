@@ -3,6 +3,7 @@ import SwiftUI
 private enum ProfileTab: String, CaseIterable {
     case watched = "Watched"
     case watchlist = "Watchlist"
+    case taste = "Taste"
 }
 
 struct ProfileView: View {
@@ -21,6 +22,8 @@ struct ProfileView: View {
     @State private var isLoadingWatchlist = false
     @State private var friendsCount = 0
     @State private var groupsCount = 0
+    @State private var genreTaste: GenreTasteResponse?
+    @State private var isLoadingTaste = false
 
     var body: some View {
         NavigationStack {
@@ -51,6 +54,8 @@ struct ProfileView: View {
                         watchedGrid
                     case .watchlist:
                         watchlistGrid
+                    case .taste:
+                        tasteContent
                     }
                 }
             }
@@ -66,7 +71,8 @@ struct ProfileView: View {
                 async let watched: () = loadWatched()
                 async let watchlist: () = loadWatchlist()
                 async let counts: () = loadCounts()
-                _ = await (watched, watchlist, counts)
+                async let taste: () = loadTaste()
+                _ = await (watched, watchlist, counts, taste)
             }
         }
     }
@@ -210,6 +216,46 @@ struct ProfileView: View {
         }
     }
 
+    // MARK: - Taste Content
+
+    private var tasteContent: some View {
+        Group {
+            if isLoadingTaste {
+                ProgressView()
+                    .tint(.white)
+                    .padding(.top, 40)
+            } else if let taste = genreTaste, taste.totalRated >= 5 {
+                VStack(spacing: 16) {
+                    RadarChartView(
+                        scores: taste.genres.map(\.score),
+                        labels: taste.genres.map(\.name)
+                    )
+                    .frame(width: 280, height: 280)
+                    .padding(.top, 8)
+
+                    Text("Based on \(taste.totalRated) rated movies")
+                        .font(.system(size: 13))
+                        .foregroundStyle(AppTheme.textDim)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.top, 16)
+            } else {
+                VStack(spacing: 12) {
+                    Image(systemName: "chart.pie")
+                        .font(.system(size: 36))
+                        .foregroundStyle(AppTheme.textDim)
+
+                    Text("Rate at least 5 movies to see your taste profile")
+                        .font(.system(size: 14))
+                        .foregroundStyle(AppTheme.textMuted)
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.top, 60)
+            }
+        }
+    }
+
     private func emptyState(message: String) -> some View {
         Text(message)
             .font(.system(size: 14))
@@ -260,6 +306,18 @@ struct ProfileView: View {
             print("[ProfileView] loadWatchlist error: \(error)")
         }
         isLoadingWatchlist = false
+    }
+
+    private func loadTaste() async {
+        isLoadingTaste = true
+        do {
+            genreTaste = try await ProfileAPI.getGenreTaste()
+        } catch is CancellationError {
+            return
+        } catch {
+            print("[ProfileView] loadTaste error: \(error)")
+        }
+        isLoadingTaste = false
     }
 }
 

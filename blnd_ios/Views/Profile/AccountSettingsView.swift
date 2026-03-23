@@ -10,6 +10,8 @@ struct AccountSettingsView: View {
     @State private var isSaving = false
     @State private var errorMessage: String?
     @State private var showSuccess = false
+    @State private var showDeleteConfirmation = false
+    @State private var isDeleting = false
 
     // Avatar
     @State private var selectedPhoto: PhotosPickerItem?
@@ -32,11 +34,55 @@ struct AccountSettingsView: View {
                     Task { await saveProfile() }
                 }
                 .padding(.top, 8)
+
+                // Danger zone separator
+                Divider()
+                    .background(AppTheme.border)
+                    .padding(.top, 32)
+
+                VStack(spacing: 12) {
+                    Text("Danger Zone")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(AppTheme.textMuted)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    Button(role: .destructive) {
+                        showDeleteConfirmation = true
+                    } label: {
+                        HStack {
+                            if isDeleting {
+                                ProgressView()
+                                    .tint(.white)
+                                    .scaleEffect(0.8)
+                            }
+                            Text("Delete Account")
+                                .font(.system(size: 16, weight: .medium))
+                        }
+                        .foregroundStyle(AppTheme.destructive)
+                        .frame(maxWidth: .infinity)
+                        .padding(16)
+                        .background(AppTheme.card)
+                        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cornerRadiusLarge))
+                    }
+                    .disabled(isDeleting)
+                }
             }
             .padding(.horizontal, 24)
             .padding(.top, 20)
         }
         .background(AppTheme.background)
+        .confirmationDialog(
+            "Delete Account",
+            isPresented: $showDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Delete My Account", role: .destructive) {
+                Task { await performDeletion() }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This will permanently delete your account and all your data. This action cannot be undone.")
+        }
         .navigationBarBackButtonHidden()
         .swipeBackGesture()
         .toolbar {
@@ -52,7 +98,7 @@ struct AccountSettingsView: View {
         .onAppear {
             if let user = authState.currentUser {
                 displayName = user.displayName ?? ""
-                username = user.username
+                username = user.username ?? ""
             }
         }
         .onChange(of: selectedPhoto) { _, newItem in
@@ -182,6 +228,18 @@ struct AccountSettingsView: View {
             errorMessage = error.localizedDescription
         }
         isUploadingAvatar = false
+    }
+
+    private func performDeletion() async {
+        isDeleting = true
+        errorMessage = nil
+        let success = await authState.deleteAccount()
+        if !success {
+            errorMessage = "Failed to delete account. Please try again."
+            isDeleting = false
+        }
+        // If success, AuthState.logout() triggers navigation to WelcomeView
+        // No need to reset isDeleting -- the view will be dismissed
     }
 
     private func saveProfile() async {

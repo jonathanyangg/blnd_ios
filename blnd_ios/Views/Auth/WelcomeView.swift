@@ -6,6 +6,7 @@ enum AuthRoute: Hashable {
     case pickGenres
     case rateMovies
     case createAccount
+    case chooseUsername
     case onboardingComplete
 }
 
@@ -54,6 +55,8 @@ struct WelcomeView: View {
                     RateMoviesView(path: $path)
                 case .createAccount:
                     SignUpView(path: $path)
+                case .chooseUsername:
+                    ChooseUsernameView(path: $path)
                 case .onboardingComplete:
                     OnboardingCompleteView()
                 }

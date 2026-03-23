@@ -1,3 +1,4 @@
+import AuthenticationServices
 import SwiftUI
 
 struct LoginView: View {
@@ -6,6 +7,7 @@ struct LoginView: View {
     @Binding var path: NavigationPath
     @State private var email = ""
     @State private var password = ""
+    @State private var appleNonce = ""
 
     var body: some View {
         VStack(spacing: 0) {
@@ -16,6 +18,45 @@ struct LoginView: View {
                         .foregroundStyle(.white)
                         .padding(.top, 40)
                         .padding(.bottom, 32)
+
+                    // MARK: - Apple Sign In
+
+                    SignInWithAppleButton(.signIn) { request in
+                        let nonce = AppleSignInHelper.randomNonceString()
+                        appleNonce = nonce
+                        request.requestedScopes = [.fullName, .email]
+                        request.nonce = AppleSignInHelper.sha256(nonce)
+                    } onCompletion: { result in
+                        switch result {
+                        case let .success(authorization):
+                            handleAppleSignIn(authorization)
+                        case let .failure(error):
+                            let isCancelled = (error as? ASAuthorizationError)?.code == .canceled
+                            if !isCancelled {
+                                authState.error = error.localizedDescription
+                            }
+                        }
+                    }
+                    .signInWithAppleButtonStyle(.white)
+                    .frame(height: 50)
+                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.cornerRadiusMedium))
+
+                    // MARK: - Divider
+
+                    HStack(spacing: 12) {
+                        Rectangle()
+                            .fill(AppTheme.border)
+                            .frame(height: 1)
+                        Text("or")
+                            .font(.system(size: 13))
+                            .foregroundStyle(AppTheme.textMuted)
+                        Rectangle()
+                            .fill(AppTheme.border)
+                            .frame(height: 1)
+                    }
+                    .padding(.vertical, 20)
+
+                    // MARK: - Email Form
 
                     AppTextField(placeholder: "Email", text: $email)
                         .textContentType(.emailAddress)
@@ -64,6 +105,47 @@ struct LoginView: View {
             ToolbarItem(placement: .navigationBarLeading) {
                 BackButton()
             }
+        }
+    }
+
+    private func handleAppleSignIn(_ authorization: ASAuthorization) {
+        guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential else { return }
+        guard let tokenData = credential.identityToken,
+              let idToken = String(data: tokenData, encoding: .utf8) else { return }
+
+        // Clear stale onboarding state before processing
+        onboardingState.reset()
+
+        // Authorization code for Phase 16 token revocation
+        let authCode = credential.authorizationCode.flatMap { String(data: $0, encoding: .utf8) }
+
+        // Full name -- only available on FIRST authorization
+        let givenName = credential.fullName?.givenName
+        let familyName = credential.fullName?.familyName
+        let displayName = [givenName, familyName].compactMap { $0 }.joined(separator: " ")
+
+        let nonce = appleNonce
+
+        Task {
+            guard let response = await authState.loginWithApple(
+                idToken: idToken, nonce: nonce, authorizationCode: authCode
+            ) else {
+                return // Error already set on authState
+            }
+
+            if response.isNewUser {
+                // Edge case: new user on LoginView -- route to onboarding
+                onboardingState.appleIdToken = idToken
+                onboardingState.appleRawNonce = nonce
+                onboardingState.appleDisplayName = displayName.isEmpty ? nil : displayName
+                onboardingState.appleAuthCode = authCode
+                onboardingState.appleRefreshToken = response.appleRefreshToken
+                if let name = onboardingState.appleDisplayName {
+                    onboardingState.name = name
+                }
+                path.append(AuthRoute.chooseUsername)
+            }
+            // Returning user: loginWithApple already set .authenticated
         }
     }
 }
