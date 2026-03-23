@@ -100,6 +100,21 @@ enum GroupsAPI {
         )
     }
 
+    /// POST /groups/{id}/recommendations/feed — infinite scroll blend picks
+    static func getFeed(
+        groupId: Int,
+        exclude: [Int] = [],
+        limit: Int = 50
+    ) async throws -> GroupRecommendationsResponse {
+        let body = GroupFeedRequest(exclude: exclude, limit: limit)
+        return try await APIClient.shared.request(
+            endpoint: "/groups/\(groupId)/recommendations/feed",
+            method: "POST",
+            body: body,
+            authenticated: true
+        )
+    }
+
     /// GET /groups/{id}/watchlist — group watchlist
     static func getWatchlist(
         groupId: Int,

@@ -9,7 +9,7 @@ extension GroupDetailView {
             async let groupResult = GroupsAPI.getGroup(
                 groupId: groupId
             )
-            async let recsResult = GroupsAPI.getRecommendations(
+            async let recsResult = GroupsAPI.getFeed(
                 groupId: groupId
             )
             async let watchlistResult = GroupsAPI.getWatchlist(
@@ -21,6 +21,7 @@ extension GroupDetailView {
             )
             group = groupData
             recommendations = recsData.results
+            seenRecIds = Set(recsData.results.map(\.tmdbId))
             watchlist = watchlistData.results
         } catch {
             if case APIError.rateLimited = error {
@@ -34,6 +35,31 @@ extension GroupDetailView {
             }
         }
         isLoading = false
+    }
+
+    func loadMoreRecs() async {
+        guard !isLoadingMoreRecs, !isLoading else { return }
+        isLoadingMoreRecs = true
+        do {
+            let response = try await GroupsAPI.getFeed(
+                groupId: groupId,
+                exclude: Array(seenRecIds)
+            )
+            let newMovies = response.results.filter {
+                !seenRecIds.contains($0.tmdbId)
+            }
+            if !newMovies.isEmpty {
+                recommendations.append(contentsOf: newMovies)
+                for movie in newMovies {
+                    seenRecIds.insert(movie.tmdbId)
+                }
+            }
+        } catch {
+            if !Task.isCancelled {
+                showToast(error.localizedDescription)
+            }
+        }
+        isLoadingMoreRecs = false
     }
 
     func showToast(_ message: String) {

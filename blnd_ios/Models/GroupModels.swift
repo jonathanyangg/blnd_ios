@@ -2,6 +2,11 @@ import Foundation
 
 // MARK: - Requests
 
+struct GroupFeedRequest: Encodable {
+    let exclude: [Int]
+    let limit: Int
+}
+
 struct CreateGroupRequest: Encodable {
     let name: String
 }

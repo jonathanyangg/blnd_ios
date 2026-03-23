@@ -25,7 +25,8 @@ extension GroupDetailView {
                     movies: recommendations.map {
                         ReelMovie(from: $0)
                     },
-                    groupContext: groupContext
+                    groupContext: groupContext,
+                    onLoadMore: { await loadMoreRecs() }
                 )
             }
         case .watchlist:

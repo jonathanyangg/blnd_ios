@@ -206,7 +206,10 @@ extension GroupDetailView {
                 )
             } else {
                 movieGrid {
-                    ForEach(recommendations) { movie in
+                    ForEach(
+                        Array(recommendations.enumerated()),
+                        id: \.element.id
+                    ) { index, movie in
                         NavigationLink {
                             MovieDetailView(
                                 tmdbId: movie.tmdbId,
@@ -223,6 +226,18 @@ extension GroupDetailView {
                             )
                         }
                         .buttonStyle(.plain)
+                        .onAppear {
+                            if index >= recommendations.count - 4 {
+                                Task { await loadMoreRecs() }
+                            }
+                        }
+                    }
+
+                    if isLoadingMoreRecs {
+                        ProgressView()
+                            .tint(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
                     }
                 }
             }
