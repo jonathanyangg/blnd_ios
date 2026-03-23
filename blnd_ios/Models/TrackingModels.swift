@@ -119,6 +119,16 @@ struct FriendWatchedResponse: Decodable, Identifiable {
         case rating, review
         case watchedDate = "watched_date"
     }
+
+    var asFriendResponse: FriendResponse {
+        FriendResponse(
+            friendshipId: nil,
+            id: userId,
+            username: username,
+            displayName: displayName,
+            avatarUrl: avatarUrl
+        )
+    }
 }
 
 struct FriendsWhoWatchedResponse: Decodable {

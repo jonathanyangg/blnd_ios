@@ -156,7 +156,15 @@ extension ReelCardView {
                         ForEach(
                             friendsWhoWatched
                         ) { friend in
-                            friendTile(friend)
+                            NavigationLink {
+                                FriendProfileView(
+                                    friend: friend
+                                        .asFriendResponse
+                                )
+                            } label: {
+                                friendTile(friend)
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
                 }

@@ -21,9 +21,14 @@ struct FriendsWhoWatchedSection: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 12) {
                         ForEach(friends) { friend in
-                            Button { showAll = true } label: {
+                            NavigationLink {
+                                FriendProfileView(
+                                    friend: friend.asFriendResponse
+                                )
+                            } label: {
                                 friendTile(friend)
                             }
+                            .buttonStyle(.plain)
                         }
                     }
                 }
@@ -124,7 +129,14 @@ private struct AllFriendsWatchedSheet: View {
                     ScrollView {
                         LazyVStack(spacing: 12) {
                             ForEach(filtered) { friend in
-                                FriendWatchedRow(friend: friend)
+                                NavigationLink {
+                                    FriendProfileView(
+                                        friend: friend.asFriendResponse
+                                    )
+                                } label: {
+                                    FriendWatchedRow(friend: friend)
+                                }
+                                .buttonStyle(.plain)
                             }
                         }
                         .padding(.horizontal, 16)
