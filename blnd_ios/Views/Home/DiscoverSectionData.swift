@@ -11,7 +11,7 @@ extension DiscoverSectionView {
         guard changed else { return }
         resetPagination()
         if filter == .genre, selectedGenres.isEmpty { return }
-        Task { await loadMovies() }
+        Task { await loadMovies(forceRefresh: true) }
     }
 
     func toggleGenre(_ genre: String) {
@@ -23,7 +23,7 @@ extension DiscoverSectionView {
 
         resetPagination()
         if !selectedGenres.isEmpty {
-            Task { await loadMovies() }
+            Task { await loadMovies(forceRefresh: true) }
         }
     }
 
@@ -34,7 +34,8 @@ extension DiscoverSectionView {
         hasMorePages = true
     }
 
-    func loadMovies() async {
+    func loadMovies(forceRefresh: Bool = false) async {
+        guard forceRefresh || movies.isEmpty else { return }
         isLoading = true
         errorMessage = nil
         seenIds = []
@@ -95,6 +96,6 @@ extension DiscoverSectionView {
 
     func refresh() async {
         resetPagination()
-        await loadMovies()
+        await loadMovies(forceRefresh: true)
     }
 }
