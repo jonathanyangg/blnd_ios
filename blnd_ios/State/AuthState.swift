@@ -47,6 +47,9 @@ class AuthState {
             let user = try await AuthAPI.me()
             currentUser = user
             phase = user.username != nil ? .authenticated : .onboardingPending
+            if phase == .authenticated {
+                await UserActionCache.shared.bootstrap()
+            }
         } catch {
             // Token invalid/expired — APIClient retry + forceLogoutNotification
             // handles refresh failures, so just mark unauthenticated
@@ -98,6 +101,7 @@ class AuthState {
 
             if !response.isNewUser {
                 phase = .authenticated
+                await UserActionCache.shared.bootstrap()
             }
             isLoading = false
             return response
@@ -118,6 +122,7 @@ class AuthState {
             KeychainManager.save(key: "refreshToken", string: response.refreshToken)
             KeychainManager.save(key: "userId", string: response.userId)
             phase = .authenticated
+            await UserActionCache.shared.bootstrap()
         } catch {
             self.error = error.localizedDescription
         }
@@ -147,6 +152,7 @@ class AuthState {
         KeychainManager.delete(key: "userId")
         currentUser = nil
         phase = .unauthenticated
+        UserActionCache.shared.reset()
     }
 
     func fetchCurrentUser() async {

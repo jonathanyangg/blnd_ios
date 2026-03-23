@@ -11,6 +11,12 @@ enum AppTheme {
     static let textMuted = Color(hex: 0x999999)
     static let textDim = Color(hex: 0x666666)
     static let destructive = Color(hex: 0xFF3B30)
+    static let aiPurple = Color(hex: 0x8B7BB5)
+    static let aiGradient = LinearGradient(
+        colors: [Color(hex: 0x9B8BC5), Color(hex: 0xC4B5E0)],
+        startPoint: .leading,
+        endPoint: .trailing
+    )
 
     // MARK: - Corner Radii
 

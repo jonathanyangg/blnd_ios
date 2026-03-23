@@ -54,12 +54,15 @@ extension ReelCardView {
         let haptic = UINotificationFeedbackGenerator()
         haptic.notificationOccurred(.success)
 
-        // Optimistic — show toast immediately
+        // Optimistic — show toast + update cache
         if let ctx = groupContext {
             onWatchlistAdded?(
                 "Added to \(ctx.groupName) Watchlist"
             )
         } else {
+            UserActionCache.shared.didWatchlist(
+                movie.tmdbId
+            )
             onWatchlistAdded?("Added to My Watchlist")
         }
 

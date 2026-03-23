@@ -43,7 +43,7 @@ private actor TokenRefresher {
             return
         }
 
-        let task = Task<Void, Error> {
+        let task = Task<Void, Error> { @MainActor in
             guard let token = KeychainManager.readString(
                 key: "refreshToken"
             ) else {
@@ -77,7 +77,7 @@ private actor TokenRefresher {
     }
 }
 
-final class APIClient {
+final class APIClient: @unchecked Sendable {
     static let shared = APIClient()
 
     static let forceLogoutNotification = Notification.Name(

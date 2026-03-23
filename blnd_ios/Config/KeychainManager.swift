@@ -1,7 +1,9 @@
 import Foundation
 import Security
 
-enum KeychainManager {
+/// Thread-safe Keychain wrapper. Marked nonisolated so it can
+/// be called from any actor or isolation domain.
+nonisolated enum KeychainManager {
     static func save(key: String, data: Data) {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,

@@ -106,9 +106,10 @@ struct ReelRatingOverlay: View {
     }
 
     private func checkExisting() async {
-        if let watched = await TrackingAPI.getWatchedMovie(tmdbId: tmdbId) {
-            existingRating = watched.rating
-            if let existing = watched.rating {
+        let cache = UserActionCache.shared
+        if cache.isWatched(tmdbId) {
+            existingRating = cache.rating(for: tmdbId)
+            if let existing = existingRating {
                 rating = existing
             }
         }
@@ -126,6 +127,9 @@ struct ReelRatingOverlay: View {
                     tmdbId: tmdbId, rating: rating
                 )
             }
+            UserActionCache.shared.didRate(
+                tmdbId, rating: rating
+            )
             onSaved(rating)
         } catch {
             print(

@@ -65,7 +65,7 @@ struct ReelCardView: View {
         .rotationEffect(
             .degrees(Double(swipeOffset) * 0.02)
         )
-        .gesture(horizontalSwipe)
+        .simultaneousGesture(horizontalSwipe)
         .overlay { swipeIndicators }
         .overlay {
             if showRating {
@@ -73,26 +73,15 @@ struct ReelCardView: View {
             }
         }
         .onAppear {
-            if isActive, !trailerReady {
-                scheduleTrailer()
-            }
+            if isActive { trailerReady = true }
         }
         .onChange(of: isActive) { _, active in
-            if active, !trailerReady {
-                scheduleTrailer()
-            }
-            if !active {
+            if active {
+                trailerReady = true
+            } else {
                 trailerReady = false
                 overviewExpanded = false
             }
-        }
-    }
-
-    func scheduleTrailer() {
-        DispatchQueue.main.asyncAfter(
-            deadline: .now() + 0.1
-        ) {
-            trailerReady = true
         }
     }
 }
@@ -103,6 +92,8 @@ struct SkeletonRect: View {
     var width: CGFloat?
     var height: CGFloat = 14
 
+    @State private var shimmer = false
+
     var body: some View {
         RoundedRectangle(cornerRadius: 4)
             .fill(AppTheme.card)
@@ -111,5 +102,12 @@ struct SkeletonRect: View {
                 minHeight: height,
                 maxHeight: height
             )
+            .opacity(shimmer ? 0.4 : 1.0)
+            .animation(
+                .easeInOut(duration: 1.0)
+                    .repeatForever(autoreverses: true),
+                value: shimmer
+            )
+            .onAppear { shimmer = true }
     }
 }

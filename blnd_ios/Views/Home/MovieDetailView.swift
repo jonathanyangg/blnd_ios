@@ -62,19 +62,7 @@ struct MovieDetailView: View {
                 BackButton()
             }
             ToolbarItem(placement: .principal) {
-                if let pct = movie?.matchPercent {
-                    HStack(spacing: 5) {
-                        Image(systemName: "sparkles")
-                            .font(.system(size: 13))
-                        Text("\(pct)% match")
-                            .font(.system(size: 15, weight: .bold))
-                    }
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 7)
-                    .background(AppTheme.card)
-                    .clipShape(Capsule())
-                }
+                EmptyView()
             }
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button {
@@ -148,10 +136,35 @@ struct MovieDetailView: View {
 
     private func detailSection(_ movie: MovieResponse) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(movie.title)
-                .font(.system(size: 26, weight: .bold))
-                .foregroundStyle(.white)
-                .padding(.top, 16)
+            HStack(alignment: .center, spacing: 10) {
+                Text(movie.title)
+                    .font(.system(size: 26, weight: .bold))
+                    .foregroundStyle(.white)
+
+                if let pct = movie.matchPercent {
+                    HStack(spacing: 3) {
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 11))
+                            .foregroundStyle(
+                                AppTheme.aiPurple
+                            )
+                        Text("\(pct)%")
+                            .font(.system(
+                                size: 13, weight: .bold
+                            ))
+                            .foregroundStyle(
+                                AppTheme.aiGradient
+                            )
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(
+                        AppTheme.aiPurple.opacity(0.12)
+                    )
+                    .clipShape(Capsule())
+                }
+            }
+            .padding(.top, 16)
 
             metaRow(movie)
             genreRow(movie)

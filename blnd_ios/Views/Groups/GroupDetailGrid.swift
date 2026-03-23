@@ -3,194 +3,30 @@ import SwiftUI
 // MARK: - Grid Mode
 
 extension GroupDetailView {
-    var gridContent: some View {
+    var gridFeed: some View {
         GeometryReader { geo in
+            let cardWidth = (geo.size.width - 24 * 2 - 12) / 2
+            let cardHeight = cardWidth * 1.5
+
             ScrollView {
-                if isLoading {
-                    ProgressView()
-                        .tint(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, 60)
-                } else if let group {
-                    VStack(spacing: 0) {
-                        groupHeader(group)
-                        gridTabPicker
-                            .padding(.horizontal, 24)
-                            .padding(.bottom, 20)
-
-                        let cardWidth =
-                            (geo.size.width - 24 * 2 - 12) / 2
-                        let cardHeight = cardWidth * 1.5
-
-                        switch selectedTab {
-                        case .blendPicks:
-                            blendPicksGrid(
-                                cardWidth: cardWidth,
-                                cardHeight: cardHeight
-                            )
-                        case .watchlist:
-                            watchlistGrid(
-                                cardWidth: cardWidth,
-                                cardHeight: cardHeight
-                            )
-                        }
-                    }
-                    .padding(.bottom, 32)
-                }
-            }
-        }
-    }
-
-    // MARK: - Header
-
-    func groupHeader(
-        _ group: GroupDetailResponse
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            nameRow(group)
-                .padding(.top, 20)
-                .padding(.horizontal, 24)
-                .padding(.bottom, 8)
-
-            Button { showMembers = true } label: {
-                memberAvatarsRow(group)
-            }
-            .buttonStyle(.plain)
-            .padding(.horizontal, 24)
-        }
-    }
-
-    func nameRow(
-        _ group: GroupDetailResponse
-    ) -> some View {
-        HStack(alignment: .center) {
-            if isEditingName {
-                TextField("Group name", text: $editName)
-                    .font(.system(size: 22, weight: .bold))
-                    .foregroundStyle(.white)
-                    .focused($nameFieldFocused)
-                    .onSubmit { submitRename() }
-                Button { submitRename() } label: {
-                    Image(systemName: "checkmark")
-                        .font(.system(
-                            size: 14,
-                            weight: .bold
-                        ))
-                        .foregroundStyle(.white)
-                }
-                Button { isEditingName = false } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(
-                            size: 14,
-                            weight: .bold
-                        ))
-                        .foregroundStyle(AppTheme.textMuted)
-                }
-            } else {
-                Text(group.name)
-                    .font(.system(size: 22, weight: .bold))
-                    .foregroundStyle(.white)
-                Button {
-                    editName = group.name
-                    isEditingName = true
-                    nameFieldFocused = true
-                } label: {
-                    Image(systemName: "pencil")
-                        .font(.system(size: 13))
-                        .foregroundStyle(AppTheme.textMuted)
-                }
-            }
-            Spacer()
-        }
-    }
-
-    func memberAvatarsRow(
-        _ group: GroupDetailResponse
-    ) -> some View {
-        HStack(spacing: 8) {
-            HStack(spacing: 0) {
-                ForEach(
-                    Array(
-                        group.members.prefix(3).enumerated()
-                    ),
-                    id: \.element.id
-                ) { index, member in
-                    AvatarView(
-                        url: member.avatarUrl,
-                        size: 28,
-                        overlap: index > 0
-                    )
-                }
-                if group.members.count > 3 {
-                    ZStack {
-                        Circle()
-                            .fill(AppTheme.card)
-                            .frame(width: 28, height: 28)
-                            .overlay(
-                                Circle()
-                                    .stroke(
-                                        AppTheme.background,
-                                        lineWidth: 2
-                                    )
-                            )
-                        Text("+\(group.members.count - 3)")
-                            .font(.system(size: 10))
-                            .foregroundStyle(.white)
-                    }
-                    .padding(.leading, -10)
-                }
-            }
-            Text("\(group.members.count) members")
-                .font(.system(size: 13))
-                .foregroundStyle(AppTheme.textMuted)
-            Image(systemName: "chevron.right")
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(AppTheme.textDim)
-        }
-        .padding(.bottom, 20)
-    }
-
-    // MARK: - Tab Picker
-
-    var gridTabPicker: some View {
-        HStack(spacing: 24) {
-            ForEach(GroupTab.allCases, id: \.self) { tab in
-                Button {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        selectedTab = tab
-                    }
-                } label: {
-                    VStack(spacing: 6) {
-                        Text(tab.rawValue)
-                            .font(.system(
-                                size: 15,
-                                weight: selectedTab == tab
-                                    ? .bold : .medium
-                            ))
-                            .foregroundStyle(
-                                selectedTab == tab
-                                    ? .white
-                                    : AppTheme.textMuted
-                            )
-
-                        if selectedTab == tab {
-                            Rectangle()
-                                .fill(.white)
-                                .frame(height: 2)
-                                .matchedGeometryEffect(
-                                    id: "groupUnderline",
-                                    in: tabNamespace
-                                )
-                        } else {
-                            Rectangle()
-                                .fill(.clear)
-                                .frame(height: 2)
-                        }
+                VStack(spacing: 0) {
+                    switch selectedTab {
+                    case .blendPicks:
+                        blendPicksGrid(
+                            cardWidth: cardWidth,
+                            cardHeight: cardHeight
+                        )
+                    case .watchlist:
+                        watchlistGrid(
+                            cardWidth: cardWidth,
+                            cardHeight: cardHeight
+                        )
                     }
                 }
+                .padding(.top, 16)
+                .padding(.bottom, 32)
             }
         }
-        .frame(maxWidth: .infinity)
     }
 
     // MARK: - Blend Picks Grid
@@ -207,7 +43,9 @@ extension GroupDetailView {
             } else {
                 movieGrid {
                     ForEach(
-                        Array(recommendations.enumerated()),
+                        Array(
+                            recommendations.enumerated()
+                        ),
                         id: \.element.id
                     ) { index, movie in
                         NavigationLink {
@@ -222,7 +60,8 @@ extension GroupDetailView {
                                 posterPath: movie.posterPath,
                                 width: cardWidth,
                                 height: cardHeight,
-                                scorePercent: movie.scorePercent
+                                scorePercent: movie
+                                    .scorePercent
                             )
                         }
                         .buttonStyle(.plain)
@@ -268,7 +107,8 @@ extension GroupDetailView {
                                 posterPath: item.posterPath,
                                 width: cardWidth,
                                 height: cardHeight,
-                                scorePercent: item.matchPercent
+                                scorePercent: item
+                                    .matchPercent
                             )
                         }
                         .buttonStyle(.plain)

@@ -37,11 +37,14 @@ struct HomeView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack {
+            VStack(spacing: 0) {
+                homeHeader
                 if viewMode == .reels {
-                    reelsContent
+                    reelsFeed
+                        .task { await loadForYou() }
                 } else {
-                    gridContent
+                    gridFeed
+                        .task { await loadForYou() }
                 }
             }
             .background(AppTheme.background)
@@ -88,9 +91,52 @@ struct HomeView: View {
         }
     }
 
-    // MARK: - Grid Mode Tab Picker
+    // MARK: - Shared Header
 
-    func gridTabPicker() -> some View {
+    var homeHeader: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text("blnd")
+                    .font(.system(size: 24, weight: .bold))
+                    .foregroundStyle(.white)
+                Spacer()
+                HStack(spacing: 16) {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            viewMode = viewMode == .reels
+                                ? .grid : .reels
+                        }
+                    } label: {
+                        Image(
+                            systemName: viewMode == .reels
+                                ? "square.grid.2x2"
+                                : "rectangle.stack"
+                        )
+                        .font(.system(size: 18))
+                        .foregroundStyle(.white)
+                    }
+                    Button { showSearch = true } label: {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 20))
+                            .foregroundStyle(.white)
+                    }
+                }
+            }
+            .padding(.top, 8)
+            .padding(.horizontal, 24)
+            .padding(.bottom, 16)
+
+            homeTabPicker()
+                .padding(.horizontal, 24)
+                .padding(.bottom, 4)
+
+            Divider()
+                .overlay(AppTheme.border)
+        }
+        .background(AppTheme.background)
+    }
+
+    func homeTabPicker() -> some View {
         HStack(spacing: 24) {
             ForEach(HomeTab.allCases, id: \.self) { tab in
                 Button {
@@ -98,7 +144,7 @@ struct HomeView: View {
                         selectedTab = tab
                     }
                 } label: {
-                    VStack(spacing: 6) {
+                    VStack(spacing: 8) {
                         Text(tab.rawValue)
                             .font(.system(
                                 size: 15,
@@ -111,24 +157,16 @@ struct HomeView: View {
                                     : AppTheme.textMuted
                             )
 
-                        if selectedTab == tab {
-                            Rectangle()
-                                .fill(.white)
-                                .frame(height: 2)
-                                .matchedGeometryEffect(
-                                    id: "underline",
-                                    in: tabNamespace
-                                )
-                        } else {
-                            Rectangle()
-                                .fill(.clear)
-                                .frame(height: 2)
-                        }
+                        Rectangle()
+                            .fill(
+                                selectedTab == tab
+                                    ? .white : .clear
+                            )
+                            .frame(height: 2)
                     }
                 }
             }
         }
-        .frame(maxWidth: .infinity)
     }
 }
 

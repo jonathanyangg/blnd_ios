@@ -19,7 +19,7 @@ struct LoginRequest: Encodable {
     let password: String
 }
 
-struct RefreshTokenRequest: Encodable {
+struct RefreshTokenRequest: Encodable, Sendable {
     let refreshToken: String
 
     enum CodingKeys: String, CodingKey {
@@ -45,7 +45,7 @@ struct UpdateProfileRequest: Encodable {
 
 // MARK: - Responses
 
-struct LoginResponse: Decodable {
+struct LoginResponse: Decodable, Sendable {
     let accessToken: String
     let refreshToken: String
     let userId: String

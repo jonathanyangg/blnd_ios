@@ -27,7 +27,9 @@ struct GroupDetailView: View {
 
     var groupContext: ReelCardView.GroupContext? {
         guard let group else { return nil }
-        return .init(groupId: groupId, groupName: group.name)
+        return .init(
+            groupId: groupId, groupName: group.name
+        )
     }
 
     var currentUserId: String {
@@ -35,11 +37,19 @@ struct GroupDetailView: View {
     }
 
     var body: some View {
-        Group {
-            if viewMode == .reels, !isLoading, group != nil {
-                reelsContent
+        VStack(spacing: 0) {
+            if !isLoading, group != nil {
+                groupHeader
+            }
+
+            if isLoading {
+                Spacer()
+                ProgressView().tint(.white)
+                Spacer()
+            } else if viewMode == .reels {
+                reelsFeed
             } else {
-                gridContent
+                gridFeed
             }
         }
         .background(AppTheme.background)
@@ -48,27 +58,6 @@ struct GroupDetailView: View {
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 BackButton()
-            }
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        viewMode = viewMode == .reels
-                            ? .grid : .reels
-                    }
-                } label: {
-                    Image(
-                        systemName: viewMode == .reels
-                            ? "square.grid.2x2"
-                            : "rectangle.stack"
-                    )
-                    .font(.system(size: 16))
-                    .foregroundStyle(.white)
-                }
-            }
-        }
-        .onChange(of: selectedTab) { _, newTab in
-            withAnimation(.easeInOut(duration: 0.2)) {
-                viewMode = newTab == .watchlist ? .grid : .reels
             }
         }
         .task { await loadAll() }
@@ -80,8 +69,7 @@ struct GroupDetailView: View {
             if let toast = toastMessage {
                 Text(toast)
                     .font(.system(
-                        size: 13,
-                        weight: .medium
+                        size: 13, weight: .medium
                     ))
                     .foregroundStyle(.white)
                     .padding(.horizontal, 16)
@@ -93,12 +81,119 @@ struct GroupDetailView: View {
                         .move(edge: .top)
                             .combined(with: .opacity)
                     )
-                    .onTapGesture { toastMessage = nil }
+                    .onTapGesture {
+                        toastMessage = nil
+                    }
             }
         }
         .animation(
-            .easeInOut(duration: 0.3), value: toastMessage
+            .easeInOut(duration: 0.3),
+            value: toastMessage
         )
+    }
+
+    // MARK: - Shared Header
+
+    var groupHeader: some View {
+        VStack(spacing: 0) {
+            if let group {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(group.name)
+                            .font(.system(
+                                size: 18, weight: .bold
+                            ))
+                            .foregroundStyle(.white)
+
+                        Button {
+                            showMembers = true
+                        } label: {
+                            HStack(spacing: 4) {
+                                Text(
+                                    "\(group.members.count) members"
+                                )
+                                .font(.system(size: 12))
+                                .foregroundStyle(
+                                    AppTheme.textMuted
+                                )
+                                Image(
+                                    systemName: "chevron.right"
+                                )
+                                .font(.system(
+                                    size: 9, weight: .medium
+                                ))
+                                .foregroundStyle(
+                                    AppTheme.textDim
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer()
+
+                    Button {
+                        withAnimation(
+                            .easeInOut(duration: 0.2)
+                        ) {
+                            viewMode = viewMode == .reels
+                                ? .grid : .reels
+                        }
+                    } label: {
+                        Image(
+                            systemName: viewMode == .reels
+                                ? "square.grid.2x2"
+                                : "rectangle.stack"
+                        )
+                        .font(.system(size: 16))
+                        .foregroundStyle(.white)
+                    }
+                }
+                .padding(.horizontal, 24)
+                .padding(.bottom, 8)
+            }
+
+            groupTabPicker
+                .padding(.horizontal, 24)
+                .padding(.bottom, 4)
+
+            Divider().overlay(AppTheme.border)
+        }
+        .background(AppTheme.background)
+    }
+
+    var groupTabPicker: some View {
+        HStack(spacing: 24) {
+            ForEach(GroupTab.allCases, id: \.self) { tab in
+                Button {
+                    withAnimation(
+                        .easeInOut(duration: 0.2)
+                    ) {
+                        selectedTab = tab
+                    }
+                } label: {
+                    VStack(spacing: 6) {
+                        Text(tab.rawValue)
+                            .font(.system(
+                                size: 14,
+                                weight: selectedTab == tab
+                                    ? .bold : .medium
+                            ))
+                            .foregroundStyle(
+                                selectedTab == tab
+                                    ? .white
+                                    : AppTheme.textMuted
+                            )
+
+                        Rectangle()
+                            .fill(
+                                selectedTab == tab
+                                    ? .white : .clear
+                            )
+                            .frame(height: 2)
+                    }
+                }
+            }
+        }
     }
 
     var membersSheet: some View {

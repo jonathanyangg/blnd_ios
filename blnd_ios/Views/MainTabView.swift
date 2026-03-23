@@ -26,6 +26,7 @@ struct MainTabView: View {
                     Text("Friends")
                 }
                 .tag(1)
+                .badge(tabState.pendingRequestCount)
 
             GroupsListView()
                 .tabItem {
@@ -43,6 +44,16 @@ struct MainTabView: View {
         }
         .tint(.white)
         .environment(tabState)
+        .task {
+            await tabState.refreshPendingCount()
+        }
+        .onChange(of: tabState.selectedTab) { _, tab in
+            if tab == 1 {
+                Task {
+                    await tabState.refreshPendingCount()
+                }
+            }
+        }
     }
 }
 
