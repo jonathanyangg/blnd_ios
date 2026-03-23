@@ -56,12 +56,11 @@ struct ReelCardView: View {
             mediaSection
                 .padding(.horizontal, 16)
 
-            ScrollView(.vertical, showsIndicators: false) {
-                detailsSection
-                    .padding(.top, 14)
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 20)
-            }
+            detailsSection
+                .padding(.top, 14)
+                .padding(.horizontal, 20)
+
+            Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity)
         .background(Color.black)

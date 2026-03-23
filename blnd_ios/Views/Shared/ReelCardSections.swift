@@ -124,9 +124,10 @@ extension ReelCardView {
 
                 cardOverview
 
-                compactCastSection
-
-                compactFriendsSection
+                if !overviewExpanded {
+                    compactCastSection
+                    compactFriendsSection
+                }
             } else {
                 skeletonDetails
             }
