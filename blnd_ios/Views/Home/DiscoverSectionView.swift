@@ -30,55 +30,59 @@ struct DiscoverSectionView: View {
     @State var isLoadingMore = false
 
     var body: some View {
-        if viewMode == .reels {
-            reelsBody
-        } else {
-            gridBody
-        }
-    }
-
-    // MARK: - Reels Mode
-
-    private var reelsBody: some View {
         VStack(spacing: 0) {
-            // Filter chips fixed above feed
-            VStack(spacing: 0) {
-                filterChips
-                    .padding(.horizontal, 24)
-                    .padding(.top, 10)
-                    .padding(.bottom, 12)
-
-                if showGenrePicker {
-                    genrePickerRow
-                        .padding(.bottom, 10)
-                }
-
-                Divider().overlay(AppTheme.border)
-            }
-            .background(AppTheme.background)
-
-            // Feed
-            if isLoading {
-                Spacer()
-                ProgressView().tint(.white)
-                Spacer()
-            } else if let error = errorMessage {
-                Spacer()
-                reelsError(error)
-                Spacer()
-            } else if activeFilter == .genre, selectedGenres.isEmpty {
-                Spacer()
-                genreEmptyState
-                Spacer()
+            filterHeader
+            if viewMode == .reels {
+                reelsFeed
             } else {
-                ReelsFeedView(
-                    movies: discoverReelMovies,
-                    onLoadMore: { await loadNextPage() },
-                    onRefresh: { await refresh() }
-                )
+                gridFeed
             }
         }
         .task { await loadMovies() }
+    }
+
+    // MARK: - Shared Filter Header
+
+    private var filterHeader: some View {
+        VStack(spacing: 0) {
+            filterChips
+                .padding(.horizontal, 24)
+                .padding(.top, 10)
+                .padding(.bottom, 12)
+
+            if showGenrePicker {
+                genrePickerRow
+                    .padding(.bottom, 10)
+            }
+
+            Divider().overlay(AppTheme.border)
+        }
+        .background(AppTheme.background)
+    }
+
+    // MARK: - Reels Feed
+
+    @ViewBuilder
+    private var reelsFeed: some View {
+        if isLoading {
+            Spacer()
+            ProgressView().tint(.white)
+            Spacer()
+        } else if let error = errorMessage {
+            Spacer()
+            reelsError(error)
+            Spacer()
+        } else if activeFilter == .genre, selectedGenres.isEmpty {
+            Spacer()
+            genreEmptyState
+            Spacer()
+        } else {
+            ReelsFeedView(
+                movies: discoverReelMovies,
+                onLoadMore: { await loadNextPage() },
+                onRefresh: { await refresh() }
+            )
+        }
     }
 
     private func reelsError(
@@ -97,22 +101,10 @@ struct DiscoverSectionView: View {
         }
     }
 
-    // MARK: - Grid Mode
+    // MARK: - Grid Feed
 
-    private var gridBody: some View {
-        VStack(spacing: 0) {
-            filterChips
-                .padding(.horizontal, 24)
-                .padding(.bottom, 12)
-
-            if showGenrePicker {
-                genrePickerRow
-                    .padding(.bottom, 12)
-            }
-
-            contentBody
-        }
-        .task { await loadMovies() }
+    private var gridFeed: some View {
+        contentBody
     }
 
     // MARK: - Content
