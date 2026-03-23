@@ -63,6 +63,11 @@ struct GroupDetailView: View {
                 }
             }
         }
+        .onChange(of: selectedTab) { _, newTab in
+            withAnimation(.easeInOut(duration: 0.2)) {
+                viewMode = newTab == .watchlist ? .grid : .reels
+            }
+        }
         .task { await loadAll() }
         .refreshable { await loadAll(forceRefresh: true) }
         .sheet(isPresented: $showMembers) {

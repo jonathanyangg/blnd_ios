@@ -4,7 +4,15 @@ struct MainTabView: View {
     @State private var tabState = TabState()
 
     var body: some View {
-        TabView(selection: $tabState.selectedTab) {
+        TabView(selection: Binding(
+            get: { tabState.selectedTab },
+            set: { newTab in
+                if newTab == 0, tabState.selectedTab == 0 {
+                    tabState.homeRefreshTrigger += 1
+                }
+                tabState.selectedTab = newTab
+            }
+        )) {
             HomeView()
                 .tabItem {
                     Image(systemName: "house")

@@ -6,6 +6,7 @@ enum HomeTab: String, CaseIterable {
 }
 
 struct HomeView: View {
+    @Environment(TabState.self) private var tabState
     @State var selectedTab: HomeTab = .forYou
     @State var showSearch = false
     @State var viewMode: ViewMode = .reels
@@ -16,6 +17,9 @@ struct HomeView: View {
     @State var isLoadingFYP = false
     @State var fypError: String?
     @State var toastMessage: String?
+
+    /// Whether to show the first-time scroll hint overlay
+    @State private var showScrollHint = !UserDefaults.standard.bool(forKey: "hasScrolledForYou")
 
     var body: some View {
         NavigationStack {
@@ -29,6 +33,19 @@ struct HomeView: View {
             .background(AppTheme.background)
             .fullScreenCover(isPresented: $showSearch) {
                 NavigationStack { SearchView() }
+            }
+            .overlay {
+                if showScrollHint, selectedTab == .forYou, !recommendations.isEmpty {
+                    ScrollHintOverlay {
+                        withAnimation(.easeOut(duration: 0.3)) {
+                            showScrollHint = false
+                        }
+                        UserDefaults.standard.set(true, forKey: "hasScrolledForYou")
+                    }
+                }
+            }
+            .onChange(of: tabState.homeRefreshTrigger) {
+                Task { await refreshFYP() }
             }
             .overlay(alignment: .top) {
                 if let toast = toastMessage {
