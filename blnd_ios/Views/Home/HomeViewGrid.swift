@@ -8,33 +8,109 @@ extension HomeView {
             let cardWidth = (geo.size.width - 24 * 2 - 12) / 2
             let cardHeight = cardWidth * 1.5
 
-            ScrollView {
-                VStack(spacing: 0) {
-                    gridHeader
-                    gridTabPicker()
-                        .padding(.horizontal, 24)
-                        .padding(.bottom, 16)
+            ZStack(alignment: .top) {
+                ScrollView {
+                    VStack(spacing: 0) {
+                        gridHeader
+                        gridTabPicker()
+                            .padding(.horizontal, 24)
+                            .padding(.bottom, 16)
 
-                    switch selectedTab {
-                    case .forYou:
-                        forYouContent(
-                            cardWidth: cardWidth,
-                            cardHeight: cardHeight
-                        )
-                    case .discover:
-                        DiscoverSectionView(
-                            cardWidth: cardWidth,
-                            cardHeight: cardHeight,
-                            viewMode: .grid
-                        )
+                        switch selectedTab {
+                        case .forYou:
+                            forYouContent(
+                                cardWidth: cardWidth,
+                                cardHeight: cardHeight
+                            )
+                        case .discover:
+                            DiscoverSectionView(
+                                cardWidth: cardWidth,
+                                cardHeight: cardHeight,
+                                viewMode: .grid
+                            )
+                        }
                     }
+                    .padding(.bottom, 16)
+                    .background(
+                        GeometryReader { inner in
+                            Color.clear.preference(
+                                key: ScrollOffsetKey.self,
+                                value: inner.frame(
+                                    in: .named("gridScroll")
+                                ).minY
+                            )
+                        }
+                    )
                 }
-                .padding(.bottom, 16)
+                .coordinateSpace(name: "gridScroll")
+                .onPreferenceChange(ScrollOffsetKey.self) {
+                    updateStickySearch(offset: $0)
+                }
+                .background(AppTheme.background)
+                .refreshable { await refreshCurrentTab() }
+                .task { await loadForYou() }
+
+                if showStickySearch {
+                    stickySearchBar
+                        .transition(
+                            .move(edge: .top)
+                                .combined(with: .opacity)
+                        )
+                }
             }
-            .background(AppTheme.background)
-            .refreshable { await refreshCurrentTab() }
-            .task { await loadForYou() }
         }
+    }
+
+    private var stickySearchBar: some View {
+        HStack {
+            Text("blnd")
+                .font(.system(size: 20, weight: .bold))
+                .foregroundStyle(.white)
+            Spacer()
+            Button { showSearch = true } label: {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 18))
+                    .foregroundStyle(.white)
+            }
+        }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 12)
+        .background(
+            AppTheme.background
+                .overlay(
+                    Divider()
+                        .overlay(AppTheme.border),
+                    alignment: .bottom
+                )
+        )
+    }
+
+    func updateStickySearch(offset: CGFloat) {
+        let pastHeader = offset < -100
+        let scrollingUp = offset > lastScrollOffset + 2
+
+        if pastHeader, scrollingUp {
+            if !showStickySearch {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    showStickySearch = true
+                }
+            }
+        } else if !scrollingUp, offset < lastScrollOffset - 2 {
+            if showStickySearch {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    showStickySearch = false
+                }
+            }
+        }
+
+        // Hide if scrolled back to top
+        if !pastHeader, showStickySearch {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                showStickySearch = false
+            }
+        }
+
+        lastScrollOffset = offset
     }
 
     var gridHeader: some View {

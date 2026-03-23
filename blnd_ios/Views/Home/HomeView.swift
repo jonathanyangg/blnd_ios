@@ -1,5 +1,12 @@
 import SwiftUI
 
+struct ScrollOffsetKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
 enum HomeTab: String, CaseIterable {
     case forYou = "For You"
     case discover = "Discover"
@@ -19,6 +26,8 @@ struct HomeView: View {
     @State var isLoadingMoreFYP = false
     @State var fypError: String?
     @State var toastMessage: String?
+    @State var showStickySearch = false
+    @State var lastScrollOffset: CGFloat = 0
 
     /// Whether to show the first-time scroll hint overlay
     @State private var showScrollHint = !UserDefaults.standard.bool(forKey: "hasScrolledForYou")
