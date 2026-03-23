@@ -8,15 +8,12 @@ struct AvatarView: View {
     var body: some View {
         Group {
             if let url, let imageURL = URL(string: url) {
-                AsyncImage(url: imageURL) { phase in
-                    switch phase {
-                    case let .success(image):
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                    default:
-                        gradientCircle
-                    }
+                CachedAsyncImage(url: imageURL) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    gradientCircle
                 }
             } else {
                 gradientCircle

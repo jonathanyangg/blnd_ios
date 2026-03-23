@@ -7,18 +7,15 @@ struct PosterTile: View {
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
             if let posterPath, let url = URL(string: "https://image.tmdb.org/t/p/w342\(posterPath)") {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case let .success(image):
-                        image
-                            .resizable()
-                            .aspectRatio(2 / 3, contentMode: .fill)
-                            .posterBlur()
-                    default:
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(AppTheme.posterGradient)
-                            .aspectRatio(2 / 3, contentMode: .fill)
-                    }
+                CachedAsyncImage(url: url) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(2 / 3, contentMode: .fill)
+                        .posterBlur()
+                } placeholder: {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(AppTheme.posterGradient)
+                        .aspectRatio(2 / 3, contentMode: .fill)
                 }
             } else {
                 RoundedRectangle(cornerRadius: 8)

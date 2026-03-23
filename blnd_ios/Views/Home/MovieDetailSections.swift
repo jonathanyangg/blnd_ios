@@ -13,25 +13,22 @@ extension MovieDetailView {
                 .frame(height: 200)
                 .clipShape(RoundedRectangle(cornerRadius: 14))
             } else if let backdrop = movie.backdropPath {
-                AsyncImage(
+                CachedAsyncImage(
                     url: URL(
                         string: "https://image.tmdb.org/t/p/w780\(backdrop)"
                     )
-                ) { phase in
-                    switch phase {
-                    case let .success(image):
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                            .frame(height: 200)
-                            .clipped()
-                            .posterBlur()
-                            .clipShape(
-                                RoundedRectangle(cornerRadius: 14)
-                            )
-                    default:
-                        heroPlaceholder
-                    }
+                ) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(height: 200)
+                        .clipped()
+                        .posterBlur()
+                        .clipShape(
+                            RoundedRectangle(cornerRadius: 14)
+                        )
+                } placeholder: {
+                    heroPlaceholder
                 }
             } else {
                 heroPlaceholder
@@ -169,11 +166,14 @@ extension MovieDetailView {
     }
 
     func checkWatchedStatus() async {
-        if let watched = await TrackingAPI.getWatchedMovie(
-            tmdbId: tmdbId
-        ) {
+        let cache = UserActionCache.shared
+        if cache.isWatched(tmdbId) {
+            isWatched = true
+            userRating = cache.rating(for: tmdbId)
+        } else if let watched = await TrackingAPI.getWatchedMovie(tmdbId: tmdbId) {
             isWatched = true
             userRating = watched.rating
+            cache.didRate(tmdbId, rating: watched.rating ?? 0)
         }
     }
 
@@ -182,6 +182,7 @@ extension MovieDetailView {
             try await TrackingAPI.deleteWatchedMovie(tmdbId: tmdbId)
             isWatched = false
             userRating = nil
+            UserActionCache.shared.didUnwatch(tmdbId)
         } catch {
             print("[MovieDetailView] unwatch error: \(error)")
         }

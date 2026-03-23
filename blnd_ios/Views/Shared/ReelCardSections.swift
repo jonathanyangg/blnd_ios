@@ -7,10 +7,16 @@ extension ReelCardView {
 
     var titleRow: some View {
         VStack(alignment: .leading, spacing: 5) {
-            Text(movie.title)
-                .font(.system(size: 22, weight: .bold))
-                .foregroundStyle(.white)
-                .lineLimit(2)
+            HStack(alignment: .center, spacing: 8) {
+                Text(movie.title)
+                    .font(.system(size: 22, weight: .bold))
+                    .foregroundStyle(.white)
+                    .lineLimit(2)
+
+                if let pct = movie.scorePercent {
+                    matchBadge(pct)
+                }
+            }
 
             if hasDetail {
                 metaLine
@@ -29,51 +35,28 @@ extension ReelCardView {
         }
     }
 
+    func matchBadge(_ pct: Int) -> some View {
+        HStack(spacing: 3) {
+            Image(systemName: "sparkles")
+                .font(.system(size: 10))
+                .foregroundStyle(AppTheme.aiPurple)
+            Text("\(pct)%")
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(AppTheme.aiGradient)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(AppTheme.aiPurple.opacity(0.12))
+        .clipShape(Capsule())
+    }
+
     var metaLine: some View {
-        HStack(spacing: 0) {
-            let parts = metaParts
-            ForEach(
-                Array(parts.enumerated()),
-                id: \.offset
-            ) { index, part in
-                if index > 0 {
-                    Text(" · ")
-                        .foregroundStyle(AppTheme.textDim)
-                }
-                Text(part)
-            }
-
-            if fullDetail?.voteAverage != nil || movie.scorePercent != nil {
-                if !metaParts.isEmpty {
-                    Text("  ")
-                }
-
-                if let vote = fullDetail?.voteAverage, vote > 0 {
-                    HStack(spacing: 3) {
-                        Image(systemName: "star.fill")
-                            .font(.system(size: 11))
-                        Text(String(format: "%.1f", vote))
-                            .font(.system(
-                                size: 14,
-                                weight: .bold
-                            ))
-                    }
-                    .foregroundStyle(.yellow)
-                }
-
-                if let pct = movie.scorePercent {
-                    HStack(spacing: 3) {
-                        Image(systemName: "sparkles")
-                            .font(.system(size: 11))
-                        Text("\(pct)%")
-                            .font(.system(
-                                size: 14,
-                                weight: .bold
-                            ))
-                    }
-                    .foregroundStyle(.white)
-                    .padding(.leading, 6)
-                }
+        Group {
+            let meta = metaParts.joined(
+                separator: " \u{00B7} "
+            )
+            if !meta.isEmpty {
+                Text(meta)
             }
         }
         .font(.system(size: 14))
@@ -87,6 +70,11 @@ extension ReelCardView {
         }
         if let runtime = fullDetail?.runtimeFormatted {
             parts.append(runtime)
+        }
+        if let vote = fullDetail?.voteAverage, vote > 0 {
+            parts.append(
+                "★ \(String(format: "%.1f", vote))"
+            )
         }
         if let director = fullDetail?.director {
             parts.append(director)
@@ -232,22 +220,17 @@ extension ReelCardView {
     ) -> some View {
         let base = "https://image.tmdb.org/t/p/w185"
         if let path = member.profilePath, let url = URL(string: "\(base)\(path)") {
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case let .success(image):
-                    image
-                        .resizable()
-                        .aspectRatio(
-                            contentMode: .fill
-                        )
-                        .frame(width: 36, height: 36)
-                        .posterBlur()
-                        .clipShape(Circle())
-                default:
-                    Circle()
-                        .fill(AppTheme.card)
-                        .frame(width: 36, height: 36)
-                }
+            CachedAsyncImage(url: url) { image in
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 36, height: 36)
+                    .posterBlur()
+                    .clipShape(Circle())
+            } placeholder: {
+                Circle()
+                    .fill(AppTheme.card)
+                    .frame(width: 36, height: 36)
             }
         } else {
             Circle()

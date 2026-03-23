@@ -67,15 +67,12 @@ struct RateMovieSheet: View {
     @ViewBuilder
     private var posterThumbnail: some View {
         if let url = posterPath.flatMap({ URL(string: "https://image.tmdb.org/t/p/w154\($0)") }) {
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case let .success(image):
-                    image.resizable().aspectRatio(contentMode: .fill)
-                        .posterBlur()
-                default:
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(AppTheme.posterGradient)
-                }
+            CachedAsyncImage(url: url) { image in
+                image.resizable().aspectRatio(contentMode: .fill)
+                    .posterBlur()
+            } placeholder: {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(AppTheme.posterGradient)
             }
         } else {
             RoundedRectangle(cornerRadius: 8)
@@ -92,6 +89,9 @@ struct RateMovieSheet: View {
             } else {
                 _ = try await TrackingAPI.trackMovie(tmdbId: tmdbId, rating: rating, review: nil)
             }
+            UserActionCache.shared.didRate(
+                tmdbId, rating: rating
+            )
             onSaved?(rating)
             dismiss()
         } catch {

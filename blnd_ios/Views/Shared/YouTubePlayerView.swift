@@ -21,18 +21,15 @@ struct YouTubePlayerView: View {
     private var thumbnail: some View {
         ZStack {
             if let backdrop = backdropPath {
-                AsyncImage(
+                CachedAsyncImage(
                     url: URL(string: "https://image.tmdb.org/t/p/w780\(backdrop)")
-                ) { phase in
-                    switch phase {
-                    case let .success(image):
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                            .posterBlur()
-                    default:
-                        Color.black
-                    }
+                ) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .posterBlur()
+                } placeholder: {
+                    Color.black
                 }
             } else {
                 Color.black

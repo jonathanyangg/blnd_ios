@@ -14,19 +14,16 @@ struct MovieCard: View {
         VStack(alignment: .leading, spacing: 4) {
             ZStack(alignment: .bottom) {
                 if let posterPath, let url = posterURL(posterPath) {
-                    AsyncImage(url: url) { phase in
-                        switch phase {
-                        case let .success(image):
-                            image
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                                .frame(width: width, height: height)
-                                .clipped()
-                                .posterBlur()
-                                .clipShape(RoundedRectangle(cornerRadius: 10))
-                        default:
-                            placeholder
-                        }
+                    CachedAsyncImage(url: url) { image in
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: width, height: height)
+                            .clipped()
+                            .posterBlur()
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                    } placeholder: {
+                        placeholder
                     }
                 } else {
                     placeholder

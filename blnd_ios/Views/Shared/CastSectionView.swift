@@ -32,18 +32,15 @@ struct CastSectionView: View {
     @ViewBuilder
     private func castAvatar(_ member: CastMember) -> some View {
         if let path = member.profilePath, let url = URL(string: "https://image.tmdb.org/t/p/w185\(path)") {
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case let .success(image):
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: 48, height: 48)
-                        .posterBlur()
-                        .clipShape(Circle())
-                default:
-                    AvatarView(size: 48)
-                }
+            CachedAsyncImage(url: url) { image in
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 48, height: 48)
+                    .posterBlur()
+                    .clipShape(Circle())
+            } placeholder: {
+                AvatarView(size: 48)
             }
         } else {
             AvatarView(size: 48)

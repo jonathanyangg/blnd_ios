@@ -120,17 +120,14 @@ struct AccountSettingsView: View {
                             .frame(width: 90, height: 90)
                             .clipShape(Circle())
                     } else if let imageURL = authState.currentUser?.avatarUrl.flatMap({ URL(string: $0) }) {
-                        AsyncImage(url: imageURL) { phase in
-                            switch phase {
-                            case let .success(image):
-                                image
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                                    .frame(width: 90, height: 90)
-                                    .clipShape(Circle())
-                            default:
-                                AvatarView(size: 90)
-                            }
+                        CachedAsyncImage(url: imageURL) { image in
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                                .frame(width: 90, height: 90)
+                                .clipShape(Circle())
+                        } placeholder: {
+                            AvatarView(size: 90)
                         }
                     } else {
                         AvatarView(size: 90)

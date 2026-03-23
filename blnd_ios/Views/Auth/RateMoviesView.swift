@@ -211,15 +211,12 @@ private struct SwipeCard: View {
     var body: some View {
         ZStack(alignment: .bottom) {
             if let url = posterURL {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case let .success(image):
-                        image.resizable().scaledToFill()
-                            .posterBlur()
-                    default:
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(AppTheme.posterGradient)
-                    }
+                CachedAsyncImage(url: url) { image in
+                    image.resizable().scaledToFill()
+                        .posterBlur()
+                } placeholder: {
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(AppTheme.posterGradient)
                 }
                 .frame(width: 190, height: 280)
                 .clipShape(RoundedRectangle(cornerRadius: 16))
