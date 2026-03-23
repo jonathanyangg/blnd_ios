@@ -17,7 +17,6 @@ struct ReelCardView: View {
     @State var swipeTriggeredHaptic = false
     @State var showRating = false
     @State var isDragging = false
-    @State var trailerReady = false
     @State var overviewExpanded = false
     @State var friendsWhoWatched: [FriendWatchedResponse] = []
 
@@ -33,11 +32,6 @@ struct ReelCardView: View {
     var genres: [Genre] {
         let list = fullDetail?.genres ?? movie.genres
         return list.filter { $0.name != nil }
-    }
-
-    var showTrailer: Bool {
-        isActive && trailerReady && !showRating
-            && trailerVideoId != nil
     }
 
     var hasDetail: Bool {
@@ -74,17 +68,12 @@ struct ReelCardView: View {
             }
         }
         .onAppear {
-            if isActive {
-                trailerReady = true
-                loadFriends()
-            }
+            if isActive { loadFriends() }
         }
         .onChange(of: isActive) { _, active in
             if active {
-                trailerReady = true
                 loadFriends()
             } else {
-                trailerReady = false
                 overviewExpanded = false
             }
         }

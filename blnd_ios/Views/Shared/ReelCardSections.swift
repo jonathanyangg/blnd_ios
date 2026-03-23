@@ -86,28 +86,46 @@ extension ReelCardView {
 
     var mediaSection: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 14)
-                .fill(AppTheme.card)
-                .aspectRatio(16 / 9, contentMode: .fit)
-                .overlay {
-                    if !showTrailer {
-                        Image(systemName: "play.fill")
-                            .font(.system(size: 28))
-                            .foregroundStyle(
-                                AppTheme.textDim
-                            )
-                    }
-                }
-
-            if showTrailer, let videoId = trailerVideoId {
-                ReelTrailerView(videoId: videoId)
-                    .aspectRatio(
-                        16 / 9, contentMode: .fit
-                    )
-                    .clipShape(
-                        RoundedRectangle(cornerRadius: 14)
-                    )
+            mediaThumbnail
+            if let videoId = trailerVideoId {
+                playButton(videoId: videoId)
             }
+        }
+        .aspectRatio(16 / 9, contentMode: .fit)
+    }
+
+    @ViewBuilder
+    private var mediaThumbnail: some View {
+        let shape = RoundedRectangle(cornerRadius: 14)
+        if let videoId = trailerVideoId {
+            CachedAsyncImage(
+                url: URL(string: "https://img.youtube.com/vi/\(videoId)/hqdefault.jpg")
+            ) { img in
+                img.resizable().aspectRatio(16 / 9, contentMode: .fill).clipShape(shape)
+            } placeholder: { shape.fill(AppTheme.card) }
+        } else if let path = fullDetail?.backdropPath {
+            CachedAsyncImage(
+                url: URL(string: "https://image.tmdb.org/t/p/w780\(path)")
+            ) { img in
+                img.resizable().aspectRatio(16 / 9, contentMode: .fill)
+                    .posterBlur().clipShape(shape)
+            } placeholder: { shape.fill(AppTheme.card) }
+        } else {
+            shape.fill(AppTheme.card)
+        }
+    }
+
+    private func playButton(videoId: String) -> some View {
+        Button {
+            if let url = URL(string: "https://www.youtube.com/watch?v=\(videoId)") {
+                UIApplication.shared.open(url)
+            }
+        } label: {
+            Circle().fill(.black.opacity(0.5)).frame(width: 52, height: 52)
+                .overlay {
+                    Image(systemName: "play.fill").font(.system(size: 22))
+                        .foregroundStyle(.white).offset(x: 2)
+                }
         }
     }
 
