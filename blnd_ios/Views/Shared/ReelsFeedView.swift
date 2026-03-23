@@ -7,7 +7,6 @@ struct ReelsFeedView: View {
     var onRefresh: (() async -> Void)?
 
     @State private var currentId: Int?
-    @State private var detailCache: [Int: MovieResponse] = [:]
     @State private var prefetchTask: Task<Void, Never>?
     @State private var toastMessage: String?
     @State private var showWatchlistPicker = false
@@ -27,7 +26,7 @@ struct ReelsFeedView: View {
                         ReelCardView(
                             movie: movie,
                             isActive: movie.tmdbId == currentId,
-                            fullDetail: detailCache[movie.tmdbId],
+                            fullDetail: UserActionCache.shared.movieDetails[movie.tmdbId],
                             groupContext: groupContext,
                             onWatchlistAdded: { msg in
                                 addedToWatchlist.insert(
@@ -134,7 +133,7 @@ struct ReelsFeedView: View {
             await withTaskGroup(
                 of: (Int, MovieResponse?).self
             ) { group in
-                for item in window where detailCache[item.tmdbId] == nil {
+                for item in window where UserActionCache.shared.movieDetails[item.tmdbId] == nil {
                     group.addTask {
                         do {
                             let detail =
@@ -149,7 +148,7 @@ struct ReelsFeedView: View {
                 }
                 for await (tid, detail) in group {
                     if let detail, !Task.isCancelled {
-                        detailCache[tid] = detail
+                        UserActionCache.shared.cacheMovieDetail(detail)
                     }
                 }
             }

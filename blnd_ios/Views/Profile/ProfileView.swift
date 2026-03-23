@@ -67,7 +67,6 @@ struct ProfileView: View {
                 ImportContextView()
             }
             .task {
-                await authState.fetchCurrentUser()
                 async let watched: () = loadWatched()
                 async let watchlist: () = loadWatchlist()
                 async let counts: () = loadCounts()
@@ -281,17 +280,11 @@ struct ProfileView: View {
     }
 
     private func loadCounts() async {
-        do {
-            async let friends = FriendsAPI.listFriends()
-            async let groups = GroupsAPI.listGroups()
-            let (friendsResult, groupsResult) = try await (friends, groups)
-            friendsCount = friendsResult.friends.count
-            groupsCount = groupsResult.groups.count
-        } catch is CancellationError {
-            return
-        } catch {
-            print("[ProfileView] loadCounts error: \(error)")
-        }
+        let cache = UserActionCache.shared
+        await cache.fetchFriends()
+        let groups = await cache.fetchGroups()
+        friendsCount = cache.friends.count
+        groupsCount = groups.count
     }
 
     private func loadWatchlist() async {

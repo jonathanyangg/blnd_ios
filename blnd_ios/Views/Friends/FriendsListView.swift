@@ -57,9 +57,13 @@ struct FriendsListView: View {
                 .presentationBackground(AppTheme.background)
             }
             .task { await loadData() }
-            .refreshable { await loadData() }
+            .refreshable {
+                UserActionCache.shared.invalidateFriends()
+                await loadData()
+            }
             .onChange(of: showAddFriend) {
                 if !showAddFriend {
+                    UserActionCache.shared.invalidateFriends()
                     Task { await loadData() }
                 }
             }
@@ -172,19 +176,10 @@ struct FriendsListView: View {
     // MARK: - Actions
 
     private func loadData() async {
-        do {
-            async let friendsResult = FriendsAPI.listFriends()
-            async let requestsResult = FriendsAPI.getPendingRequests()
-            let (friendsData, requestsData) = try await (
-                friendsResult, requestsResult
-            )
-            friends = friendsData.friends
-            pendingRequests = requestsData
-        } catch is CancellationError {
-            return
-        } catch {
-            print("[FriendsListView] Load failed: \(error)")
-        }
+        let cache = UserActionCache.shared
+        await cache.fetchFriends()
+        friends = cache.friends
+        pendingRequests = cache.pendingRequests
         isLoading = false
     }
 
@@ -193,7 +188,9 @@ struct FriendsListView: View {
             _ = try await FriendsAPI.acceptRequest(
                 friendshipId: request.id
             )
+            UserActionCache.shared.invalidateFriends()
             await loadData()
+            await tabState.refreshPendingCount()
         } catch {
             print("[FriendsListView] Accept failed: \(error)")
         }
@@ -204,7 +201,9 @@ struct FriendsListView: View {
             _ = try await FriendsAPI.rejectRequest(
                 friendshipId: request.id
             )
+            UserActionCache.shared.invalidateFriends()
             await loadData()
+            await tabState.refreshPendingCount()
         } catch {
             print("[FriendsListView] Reject failed: \(error)")
         }

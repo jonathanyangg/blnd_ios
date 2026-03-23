@@ -16,6 +16,14 @@ final class UserActionCache {
     private(set) var groups: [GroupResponse] = []
     private(set) var didLoadGroups = false
 
+    /// Cached friends data
+    private(set) var friends: [FriendResponse] = []
+    private(set) var pendingRequests: PendingRequestsResponse?
+    private(set) var didLoadFriends = false
+
+    /// Cached movie detail responses (persists across navigation)
+    private(set) var movieDetails: [Int: MovieResponse] = [:]
+
     /// Whether initial data has been loaded
     private(set) var didLoadInitial = false
 
@@ -73,6 +81,33 @@ final class UserActionCache {
         didLoadGroups = false
     }
 
+    /// Fetch friends + pending requests (cached after first call).
+    func fetchFriends(forceRefresh: Bool = false) async {
+        if didLoadFriends, !forceRefresh { return }
+        do {
+            async let friendsResult = FriendsAPI.listFriends()
+            async let requestsResult = FriendsAPI.getPendingRequests()
+            let (fData, rData) = try await (friendsResult, requestsResult)
+            friends = fData.friends
+            pendingRequests = rData
+            didLoadFriends = true
+        } catch {
+            // Non-fatal
+        }
+    }
+
+    func invalidateFriends() {
+        didLoadFriends = false
+    }
+
+    func cacheMovieDetail(_ movie: MovieResponse) {
+        movieDetails[movie.tmdbId] = movie
+    }
+
+    func movieDetail(for tmdbId: Int) -> MovieResponse? {
+        movieDetails[tmdbId]
+    }
+
     // MARK: - Queries
 
     func isWatched(_ tmdbId: Int) -> Bool {
@@ -111,6 +146,10 @@ final class UserActionCache {
         watchlistedIds.removeAll()
         groups.removeAll()
         didLoadGroups = false
+        friends.removeAll()
+        pendingRequests = nil
+        didLoadFriends = false
+        movieDetails.removeAll()
         didLoadInitial = false
     }
 }
