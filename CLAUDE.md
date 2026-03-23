@@ -19,7 +19,8 @@ SwiftUI iOS app for blnd — movie taste syncing with AI recommendations.
 - **Swipe-back**: `SwipeBackGestureModifier` re-enables iOS edge-swipe dismiss on views that hide the navigation back button
 - **Onboarding nav**: `WelcomeView` owns a `NavigationStack(path:)` with `AuthRoute` enum; child views take `@Binding var path`. Signup API call happens on SignUpView (step 3), credentials collected last so duplicate email errors show immediately.
 - **Onboarding state**: `OnboardingState` caches credentials + genres + ratings so back-navigation preserves selections. Genres submitted via `PATCH /auth/profile`, ratings via `POST /tracking/` per movie — both fire on OnboardingCompleteView "Let's go" tap.
-- **Models**: Codable structs matching backend Pydantic schemas (snake_case → camelCase via CodingKeys)
+- **Models**: Codable structs matching backend Pydantic schemas (snake_case → camelCase via CodingKeys). `FeedRequest` / `GroupFeedRequest` for POST body with exclude list.
+- **Infinite scroll**: Exclude-based pagination — frontend tracks seen `tmdb_id`s in a `Set<Int>`, sends them as `exclude` param (browse) or POST body (FYP/groups). Backend excludes those IDs from the candidate pool before sampling. Load-more triggers at last 4 items via `.onAppear` (grid) or `ReelsFeedView.onLoadMore` (reels).
 - **Screenshot mode**: `APIConfig.screenshotMode` bool + `.posterBlur()` ViewModifier. When `true`, blurs all TMDB images (posters, backdrops, cast) with `blur(radius: 20)` for App Store screenshots. No-op when `false`.
 - **Reels feed**: Instagram Reels-style vertical paging (`ScrollView` + `.scrollTargetBehavior(.paging)` + `GeometryReader` for card height). `ReelMovie` normalizes all movie response types. `ReelsFeedView` prefetches `MovieResponse` details for current card ± 3 neighbors via `TaskGroup`. Cards show skeleton placeholders until detail loads. Reel cards are self-contained detail views (no tap-to-navigate) — show title, trailer, genre pills, tagline, expandable overview, and compact cast section. Horizontal swipe left → watchlist, right → inline rating overlay. YouTube trailers autoplay via IFrame Player API (muted, with controls). Grid/reels toggle via `ViewMode` enum on Home + Group views. `ReelCardView` split into extensions: `ReelCardSections.swift` (view sections) + `ReelCardActions.swift` (gestures).
 
@@ -35,19 +36,19 @@ blnd_ios/blnd_ios/
 │   └── KeychainManager.swift      save/read/delete tokens via Security framework
 ├── Models/
 │   ├── AuthModels.swift           SignupRequest, LoginRequest, UpdateProfileRequest (username, displayName, tasteBio, favoriteGenres, avatarUrl), LoginResponse, UserResponse, UserSearchResult, UserSearchResponse
-│   ├── MovieModels.swift          Genre, CastMember, MovieResponse (incl matchScore, trailerUrl), MovieSearchResult, RecommendedMovieResponse, RecommendationsResponse
+│   ├── MovieModels.swift          FeedRequest, Genre, CastMember, MovieResponse (incl matchScore, trailerUrl), MovieSearchResult, RecommendedMovieResponse, RecommendationsResponse
 │   ├── ReelMovie.swift            Normalized movie struct for reels feed — factory inits from RecommendedMovieResponse, MovieResponse, GroupRecMovieResponse, WatchlistMovieResponse
 │   ├── TrackingModels.swift       TrackMovieRequest, WatchedMovieResponse, WatchlistMovieResponse, FriendWatchedResponse, etc.
 │   ├── FriendModels.swift         SendFriendRequestRequest, FriendResponse (incl avatarUrl), FriendRequestResponse, FriendListResponse, PendingRequestsResponse
-│   └── GroupModels.swift          CreateGroupRequest, AddMemberRequest, UpdateGroupRequest, GroupResponse, GroupDetailResponse, GroupMemberResponse, GroupRecMovieResponse, etc.
+│   └── GroupModels.swift          GroupFeedRequest, CreateGroupRequest, AddMemberRequest, UpdateGroupRequest, GroupResponse, GroupDetailResponse, GroupMemberResponse, GroupRecMovieResponse, etc.
 ├── Networking/
 │   ├── APIClient.swift            singleton, request(), requestVoid(), Bearer token, notFound error
 │   ├── AuthAPI.swift              signup(), login(), me(), updateProfile(username/displayName/tasteBio/favoriteGenres/avatarUrl), searchUsers()
 │   ├── AvatarUploader.swift       uploads UIImage JPEG to Supabase Storage, returns public URL with cache-bust
-│   ├── MoviesAPI.swift            discover(), search(), trending(), getMovie() + RecommendationsAPI
+│   ├── MoviesAPI.swift            discover(genres:exclude:), search(query:page:), trending(exclude:), topRated(exclude:), getMovie() + RecommendationsAPI (getFeed/getRecommendations/refresh/hide/unhide/getHidden)
 │   ├── TrackingAPI.swift          trackMovie, getWatchHistory, getWatchedMovie, deleteWatchedMovie, addToWatchlist, removeFromWatchlist, getWatchlist, friendsWhoWatched
 │   ├── FriendsAPI.swift           listFriends, sendRequest, getPendingRequests, acceptRequest, rejectRequest, removeFriend
-│   └── GroupsAPI.swift            listGroups, createGroup, getGroup, updateGroup, deleteGroup, addMember, kickMember, leaveGroup, getRecommendations, getWatchlist, addToWatchlist, removeFromWatchlist
+│   └── GroupsAPI.swift            listGroups, createGroup, getGroup, updateGroup, deleteGroup, addMember, kickMember, leaveGroup, getRecommendations, getFeed(exclude:), getWatchlist, addToWatchlist, removeFromWatchlist
 ├── State/
 │   ├── AuthState.swift            @Observable, signup/login/logout/fetchCurrentUser
 │   ├── TabState.swift             @Observable, selectedTab — shared between MainTabView and child views
@@ -225,13 +226,18 @@ blnd_ios/blnd_ios/
 50. Reels inline detail: removed tap-to-navigate in reels mode (grid mode unaffected), expanded reel cards with tagline, expandable overview ("more" button), compact cast section (36x36 avatars, max 8). ReelCardView split into extensions (ReelCardSections.swift for view sections). Removed onNavigateToDetail from entire chain (8 files).
 51. YouTube autoplay fix: replaced plain iframe embed with YouTube IFrame Player API in ReelTrailerView — uses onReady callback with explicit mute() + playVideo() for reliable autoplay on iOS WKWebView.
 52. Screenshot mode: `APIConfig.screenshotMode` flag + `.posterBlur()` ViewModifier blurs all TMDB images (posters, backdrops, cast photos) across 7 files when enabled. For taking App Store screenshots without copyrighted movie art. No-op when false.
+53. Infinite scroll for FYP: `RecommendationsAPI.getFeed(exclude:limit:)` POST endpoint, `HomeView` tracks `seenFYPIds`, `loadMoreFYP()` sends exclude list for fresh batches. Triggers at last 4 items in both reels and grid modes. No auto-rebuild of taste profile on rating — only on explicit refresh, genre update, or onboarding.
+54. Infinite scroll for Discover: replace page-based pagination with exclude-based (`seenIds` set). `MoviesAPI.trending(exclude:)`, `.topRated(exclude:)`, `.discover(genres:exclude:)` — backend softmax-samples 20 from 100 TMDB movies per call, exclude ensures no duplicates across batches.
+55. Infinite scroll for Groups: `GroupsAPI.getFeed(groupId:exclude:limit:)` POST endpoint, `GroupDetailView` tracks `seenRecIds`, `loadMoreRecs()` in both reels and grid modes.
+56. No re-fetch on navigate back: `loadForYou()` guards on `recommendations.isEmpty`, `loadMovies()` guards on `movies.isEmpty`, `loadAll()` guards on `group == nil`. Rating a movie does not trigger taste rebuild or page refresh.
+57. Sticky search in grid mode: `ScrollOffsetKey` preference tracks scroll offset. When user scrolls up while past the header (`offset < -100`), a compact sticky search bar slides in from top. Hides on scroll-down or when back at top. Reels mode has fixed header (always visible).
 
 ## Next Steps
 
-53. Letterboxd import (POST /import/letterboxd — file upload in settings)
-54. Add avatar_url to backend GroupMemberResponse so group member avatars show
-55. Profile edit UI (taste bio — backend already wired)
-56. Polish: empty states, error handling
+58. Letterboxd import (POST /import/letterboxd — file upload in settings)
+59. Add avatar_url to backend GroupMemberResponse so group member avatars show
+60. Profile edit UI (taste bio — backend already wired)
+61. Polish: empty states, error handling
 
 ## Linting
 
@@ -248,4 +254,4 @@ blnd_ios/blnd_ios/
 
 ## Last Updated
 
-2026-03-19
+2026-03-23
