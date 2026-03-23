@@ -29,4 +29,12 @@ enum ProfileAPI {
             authenticated: true
         )
     }
+
+    /// GET /auth/me/taste — fetch the current user's genre taste breakdown (8-axis radar data)
+    static func getGenreTaste() async throws -> GenreTasteResponse {
+        try await APIClient.shared.request(
+            endpoint: "/auth/me/taste",
+            authenticated: true
+        )
+    }
 }

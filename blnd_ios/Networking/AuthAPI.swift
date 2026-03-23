@@ -60,6 +60,58 @@ enum AuthAPI {
         )
     }
 
+    /// POST /auth/oauth — exchange provider ID token for BLND session
+    static func oauth(
+        provider: String,
+        idToken: String,
+        nonce: String?,
+        authorizationCode: String? = nil
+    ) async throws -> OAuthResponse {
+        let body = OAuthRequest(
+            provider: provider,
+            idToken: idToken,
+            nonce: nonce,
+            authorizationCode: authorizationCode
+        )
+        return try await APIClient.shared.request(
+            endpoint: "/auth/oauth",
+            method: "POST",
+            body: body
+        )
+    }
+
+    /// POST /auth/complete-onboarding — create profile for new OAuth user
+    static func completeOnboarding(
+        username: String,
+        displayName: String?,
+        favoriteGenres: [String]?,
+        ratedMovies: [RatedMovieRequest]?,
+        appleRefreshToken: String? = nil
+    ) async throws -> CompleteOnboardingResponse {
+        let body = CompleteOnboardingRequest(
+            username: username,
+            displayName: displayName,
+            favoriteGenres: favoriteGenres,
+            ratedMovies: ratedMovies,
+            appleRefreshToken: appleRefreshToken
+        )
+        return try await APIClient.shared.request(
+            endpoint: "/auth/complete-onboarding",
+            method: "POST",
+            body: body,
+            authenticated: true
+        )
+    }
+
+    /// DELETE /auth/account — permanently delete user account
+    static func deleteAccount() async throws {
+        try await APIClient.shared.requestVoid(
+            endpoint: "/auth/account",
+            method: "DELETE",
+            authenticated: true
+        )
+    }
+
     /// PATCH /auth/profile — update profile fields
     static func updateProfile(
         username: String? = nil,
