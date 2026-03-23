@@ -229,13 +229,13 @@ extension ReelCardView {
                     .onPreferenceChange(OverviewFullH.self) { overviewFullHeight = $0 }
                     .onPreferenceChange(OverviewTruncH.self) { overviewTruncatedHeight = $0 }
 
-                if !overviewExpanded, overviewFullHeight > overviewTruncatedHeight + 1 {
+                if overviewFullHeight > overviewTruncatedHeight + 1 {
                     Button {
                         withAnimation(.easeInOut(duration: 0.2)) {
-                            overviewExpanded = true
+                            overviewExpanded.toggle()
                         }
                     } label: {
-                        Text("more")
+                        Text(overviewExpanded ? "less" : "more")
                             .font(.system(size: 13, weight: .medium))
                             .foregroundStyle(.white)
                     }
