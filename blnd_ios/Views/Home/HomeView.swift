@@ -29,8 +29,10 @@ struct HomeView: View {
     @State var showStickySearch = false
     @State var lastScrollOffset: CGFloat = 0
 
-    /// Whether to show the first-time scroll hint overlay
-    @State private var showScrollHint = !UserDefaults.standard.bool(forKey: "hasScrolledForYou")
+    private static let tutorialKey = "hasSeenReelsTutorial"
+
+    /// Show tutorial overlay on first launch only
+    @State private var showTutorial = !UserDefaults.standard.bool(forKey: tutorialKey)
 
     var body: some View {
         NavigationStack {
@@ -46,12 +48,12 @@ struct HomeView: View {
                 NavigationStack { SearchView() }
             }
             .overlay {
-                if showScrollHint, selectedTab == .forYou, !recommendations.isEmpty {
+                if showTutorial, !recommendations.isEmpty {
                     ScrollHintOverlay {
-                        withAnimation(.easeOut(duration: 0.3)) {
-                            showScrollHint = false
-                        }
-                        UserDefaults.standard.set(true, forKey: "hasScrolledForYou")
+                        showTutorial = false
+                        UserDefaults.standard.set(
+                            true, forKey: Self.tutorialKey
+                        )
                     }
                 }
             }
