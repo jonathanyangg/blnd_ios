@@ -247,13 +247,25 @@ blnd_ios/blnd_ios/
 67. Cleaner rating overlay: minimal 3-element design (title, stars, capsule button), appear/dismiss animations.
 68. Pulsing skeleton: `SkeletonRect` breathes between full and 40% opacity on 1s loop.
 69. WatchlistPickerSheet: uses `GET /watchlist/status/{tmdb_id}` (2 API calls instead of 7+).
+70. Consistent avatars: cast + friends who watched both use 36x36 avatars + 9pt text across detail view and reels. Friends who watched section added to reel cards (fetched lazily per card, cached in UserActionCache).
+71. Discover filter header: shared `filterHeader` component (chips + genre picker + divider) pinned above both reels and grid modes — no layout shift or divider flicker on toggle.
+72. Reel card overview: smart "more"/"less" toggle — measures full vs truncated height via GeometryReader preferences, only shows button when text is actually truncated. Cast + friends hidden when expanded to save space.
+73. Friends navigation: tapping a friend avatar in "Watched by" (both detail view and reels) navigates to `FriendProfileView` via `NavigationLink`. `FriendWatchedResponse.asFriendResponse` adapter.
+74. CachedAsyncImage: drop-in AsyncImage replacement with URLCache (50MB memory + 200MB disk). Replaced all 10 AsyncImage usages. Prevents re-downloading posters/avatars/backdrops on scroll/navigation.
+75. ReelMovie array caching: pre-computed `fypReelMovies`, `groupReelMovies`, `discoverReelMovies` in `@State`. Eliminates `.map { ReelMovie(from:) }` in view body — fixes UI freeze on swipe actions.
+76. UserActionCache expanded: also caches groups list, friends + pending requests, movie detail responses (global prefetch), friends-who-watched per movie, pending detail IDs (deduplicates in-flight prefetches).
+77. WatchlistPickerSheet: uses cached groups + personal watchlist status from UserActionCache. Only fetches group status from API. Opens near-instantly.
+78. ProfileView: removed redundant `fetchCurrentUser()`, `loadCounts()` uses cached friends/groups.
+79. TMDB rating on reel cards: `★ 4.3` in meta line from `fullDetail.voteAverage`.
+80. YouTube link fix: navigation delegate intercepts all `youtube.com`/`youtu.be` URLs → opens in Safari.
+81. Toast: moved from top to bottom of screen, duration reduced to 1.2s.
 
 ## Next Steps
 
-70. Letterboxd import (POST /import/letterboxd — file upload in settings)
-71. Add avatar_url to backend GroupMemberResponse so group member avatars show
-72. Profile edit UI (taste bio — backend already wired)
-73. Polish: empty states, error handling
+82. Letterboxd import (POST /import/letterboxd — file upload in settings)
+83. Add avatar_url to backend GroupMemberResponse so group member avatars show
+84. Profile edit UI (taste bio — backend already wired)
+85. Polish: empty states, error handling
 
 ## Linting
 
@@ -270,4 +282,4 @@ blnd_ios/blnd_ios/
 
 ## Last Updated
 
-2026-03-23
+2026-03-24
