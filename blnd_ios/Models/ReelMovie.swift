@@ -64,7 +64,7 @@ struct ReelMovie: Identifiable, Equatable {
         overview = nil
         scorePercent = movie.matchPercent
         genres = []
-        trailerUrl = nil
+        trailerUrl = movie.trailerUrl
         backdropPath = nil
     }
 }

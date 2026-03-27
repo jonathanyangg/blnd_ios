@@ -61,6 +61,7 @@ struct WatchlistMovieResponse: Decodable, Identifiable {
     let tmdbId: Int
     let title: String
     let posterPath: String?
+    let trailerUrl: String?
     let addedBy: String?
     let addedDate: String?
     let createdAt: String
@@ -76,6 +77,7 @@ struct WatchlistMovieResponse: Decodable, Identifiable {
         case tmdbId = "tmdb_id"
         case title
         case posterPath = "poster_path"
+        case trailerUrl = "trailer_url"
         case addedBy = "added_by"
         case addedDate = "added_date"
         case createdAt = "created_at"
