@@ -133,25 +133,33 @@ struct ReelsFeedView: View {
             let high = min(movies.count - 1, idx + 3)
             let window = movies[low ... high]
 
+            let idsToFetch = await MainActor.run {
+                window.filter { cache.shouldFetchDetail($0.tmdbId) }
+                    .map(\.tmdbId)
+            }
+
             await withTaskGroup(
                 of: (Int, MovieResponse?).self
             ) { group in
-                for item in window where cache.shouldFetchDetail(item.tmdbId) {
+                for tmdbId in idsToFetch {
                     group.addTask {
                         do {
                             let detail =
                                 try await MoviesAPI.getMovie(
-                                    tmdbId: item.tmdbId
+                                    tmdbId: tmdbId
                                 )
-                            return (item.tmdbId, detail)
+                            return (tmdbId, detail)
                         } catch {
-                            return (item.tmdbId, nil)
+                            return (tmdbId, nil)
                         }
                     }
                 }
                 for await (tid, detail) in group {
-                    if let detail, !Task.isCancelled {
-                        cache.cacheMovieDetail(detail)
+                    if Task.isCancelled { break }
+                    if let detail {
+                        await cache.cacheMovieDetail(detail)
+                    } else {
+                        await cache.clearPendingDetail(tid)
                     }
                 }
             }

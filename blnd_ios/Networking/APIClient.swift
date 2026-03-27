@@ -43,7 +43,7 @@ private actor TokenRefresher {
             return
         }
 
-        let task = Task<Void, Error> { @MainActor in
+        let task = Task<Void, Error> {
             guard let token = KeychainManager.readString(
                 key: "refreshToken"
             ) else {

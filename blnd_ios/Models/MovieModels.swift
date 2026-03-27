@@ -10,12 +10,12 @@ struct FeedRequest: Encodable {
 // MARK: - Shared
 
 struct Genre: Codable, Identifiable {
-    let id: Int?
+    let id: Int
     let name: String?
 }
 
 struct CastMember: Codable, Identifiable {
-    let id: Int?
+    let id: Int
     let name: String
     let character: String?
     let profilePath: String?

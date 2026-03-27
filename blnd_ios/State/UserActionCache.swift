@@ -2,6 +2,7 @@ import Foundation
 
 /// In-memory cache of user watch/rate/watchlist actions.
 /// Avoids redundant API calls during a session.
+@MainActor
 @Observable
 final class UserActionCache {
     static let shared = UserActionCache()
@@ -109,6 +110,11 @@ final class UserActionCache {
     func cacheMovieDetail(_ movie: MovieResponse) {
         movieDetails[movie.tmdbId] = movie
         pendingDetailIds.remove(movie.tmdbId)
+    }
+
+    /// Clear pending state on fetch failure so the movie can be retried.
+    func clearPendingDetail(_ tmdbId: Int) {
+        pendingDetailIds.remove(tmdbId)
     }
 
     func movieDetail(for tmdbId: Int) -> MovieResponse? {

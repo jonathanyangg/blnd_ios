@@ -19,7 +19,7 @@ struct LoginRequest: Encodable {
     let password: String
 }
 
-struct RefreshTokenRequest: Encodable, Sendable {
+struct RefreshTokenRequest: Encodable {
     let refreshToken: String
 
     enum CodingKeys: String, CodingKey {
@@ -41,11 +41,20 @@ struct UpdateProfileRequest: Encodable {
         case favoriteGenres = "favorite_genres"
         case avatarUrl = "avatar_url"
     }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(username, forKey: .username)
+        try container.encodeIfPresent(displayName, forKey: .displayName)
+        try container.encodeIfPresent(tasteBio, forKey: .tasteBio)
+        try container.encodeIfPresent(favoriteGenres, forKey: .favoriteGenres)
+        try container.encodeIfPresent(avatarUrl, forKey: .avatarUrl)
+    }
 }
 
 // MARK: - Responses
 
-struct LoginResponse: Decodable, Sendable {
+struct LoginResponse: Decodable {
     let accessToken: String
     let refreshToken: String
     let userId: String
