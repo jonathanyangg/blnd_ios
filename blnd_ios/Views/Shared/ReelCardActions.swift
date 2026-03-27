@@ -10,15 +10,21 @@ extension ReelCardView {
                 let dyy = abs(value.translation.height)
                 guard dxx > dyy * 1.5 else { return }
                 isDragging = true
-                swipeOffset = value.translation.width
+
+                // Clamp offset with rubber-band feel past threshold
+                let raw = value.translation.width
+                let maxOffset = swipeThreshold + 30
+                let clamped = max(-maxOffset, min(maxOffset, raw))
+                swipeOffset = clamped
 
                 let crossed = abs(swipeOffset) >= swipeThreshold
                 if crossed, !swipeTriggeredHaptic {
-                    let haptic = UIImpactFeedbackGenerator(
-                        style: .medium
-                    )
-                    haptic.impactOccurred()
+                    UIImpactFeedbackGenerator(style: .medium)
+                        .impactOccurred()
                     swipeTriggeredHaptic = true
+                } else if !crossed, swipeTriggeredHaptic {
+                    // Reset haptic when user pulls back below threshold
+                    swipeTriggeredHaptic = false
                 }
             }
             .onEnded { value in
@@ -39,20 +45,16 @@ extension ReelCardView {
     }
 
     func resetSwipe() {
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
+        withAnimation(.easeOut(duration: 0.25)) {
             swipeOffset = 0
-        }
-        swipeTriggeredHaptic = false
-        DispatchQueue.main.asyncAfter(
-            deadline: .now() + 0.15
-        ) {
             isDragging = false
         }
+        swipeTriggeredHaptic = false
     }
 
     func addToWatchlist() {
-        let haptic = UINotificationFeedbackGenerator()
-        haptic.notificationOccurred(.success)
+        UINotificationFeedbackGenerator()
+            .notificationOccurred(.success)
 
         // Optimistic — show toast + update cache
         if let ctx = groupContext {
