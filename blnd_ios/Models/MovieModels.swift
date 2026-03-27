@@ -105,6 +105,7 @@ struct RecommendedMovieResponse: Codable, Identifiable {
     let posterPath: String?
     let genres: [Genre]
     let director: String?
+    let trailerUrl: String?
     let similarity: Double
     let score: Double
 
@@ -124,7 +125,9 @@ struct RecommendedMovieResponse: Codable, Identifiable {
         case tmdbId = "tmdb_id"
         case title, year, overview
         case posterPath = "poster_path"
-        case genres, director, similarity, score
+        case genres, director
+        case trailerUrl = "trailer_url"
+        case similarity, score
     }
 }
 

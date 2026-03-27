@@ -76,6 +76,7 @@ struct GroupRecMovieResponse: Decodable, Identifiable {
     let overview: String?
     let posterPath: String?
     let director: String?
+    let trailerUrl: String?
     let similarity: Double
     let score: Double
 
@@ -95,7 +96,9 @@ struct GroupRecMovieResponse: Decodable, Identifiable {
         case tmdbId = "tmdb_id"
         case title, year, overview
         case posterPath = "poster_path"
-        case director, similarity, score
+        case director
+        case trailerUrl = "trailer_url"
+        case similarity, score
     }
 }
 
