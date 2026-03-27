@@ -3,7 +3,6 @@ import SwiftUI
 struct ReelCardView: View {
     let movie: ReelMovie
     let isActive: Bool
-    var fullDetail: MovieResponse?
     var groupContext: GroupContext?
     var onWatchlistAdded: ((String) -> Void)?
     var onRated: ((Double) -> Void)?
@@ -24,6 +23,8 @@ struct ReelCardView: View {
     @State var friendsWhoWatched: [FriendWatchedResponse] = []
 
     let swipeThreshold: CGFloat = 120
+
+    @State var fullDetail: MovieResponse?
 
     var trailerVideoId: String? {
         let url = fullDetail?.trailerUrl ?? movie.trailerUrl
@@ -73,6 +74,17 @@ struct ReelCardView: View {
         .overlay {
             if showRating {
                 ratingOverlay
+            }
+        }
+        .task {
+            if let cached = UserActionCache.shared.movieDetails[movie.tmdbId] {
+                fullDetail = cached
+            } else {
+                do {
+                    let detail = try await MoviesAPI.getMovie(tmdbId: movie.tmdbId)
+                    UserActionCache.shared.cacheMovieDetail(detail)
+                    fullDetail = detail
+                } catch {}
             }
         }
         .onAppear {
