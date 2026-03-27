@@ -73,24 +73,4 @@ extension GroupDetailView {
             toastMessage = nil
         }
     }
-
-    func submitRename() {
-        isEditingName = false
-        Task { await saveGroupName() }
-    }
-
-    func saveGroupName() async {
-        let trimmed = editName.trimmingCharacters(
-            in: .whitespaces
-        )
-        guard !trimmed.isEmpty else { return }
-        do {
-            group = try await GroupsAPI.updateGroup(
-                groupId: groupId,
-                name: trimmed
-            )
-        } catch {
-            print("[GroupDetailView] Rename failed: \(error)")
-        }
-    }
 }

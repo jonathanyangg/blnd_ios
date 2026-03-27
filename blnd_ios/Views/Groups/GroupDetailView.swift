@@ -16,9 +16,6 @@ struct GroupDetailView: View {
     @State var watchlist: [WatchlistMovieResponse] = []
     @State var isLoading = true
     @State var showMembers = false
-    @State var isEditingName = false
-    @State var editName = ""
-    @FocusState var nameFieldFocused: Bool
     @State var selectedTab: GroupTab = .blendPicks
     @State var viewMode: ViewMode = .reels
     @State var toastMessage: String?
