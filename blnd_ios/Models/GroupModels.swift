@@ -75,10 +75,15 @@ struct GroupRecMovieResponse: Decodable, Identifiable {
     let year: Int?
     let overview: String?
     let posterPath: String?
-    let director: String?
+    let genres: [Genre]
+    let runtime: Int?
+    let voteAverage: Double?
     let trailerUrl: String?
-    let similarity: Double
-    let score: Double
+    let director: String?
+    let cast: [CastMember]
+    let tagline: String?
+    let backdropPath: String?
+    let matchScore: Double
 
     var id: Int {
         tmdbId
@@ -89,16 +94,29 @@ struct GroupRecMovieResponse: Decodable, Identifiable {
     }
 
     var scorePercent: Int {
-        Int(score * 100)
+        Int(matchScore * 100)
+    }
+
+    var runtimeFormatted: String? {
+        guard let runtime, runtime > 0 else { return nil }
+        let hours = runtime / 60
+        let minutes = runtime % 60
+        if hours > 0 {
+            return "\(hours)h \(minutes)m"
+        }
+        return "\(minutes)m"
     }
 
     enum CodingKeys: String, CodingKey {
         case tmdbId = "tmdb_id"
         case title, year, overview
         case posterPath = "poster_path"
-        case director
+        case genres, runtime
+        case voteAverage = "vote_average"
         case trailerUrl = "trailer_url"
-        case similarity, score
+        case director, cast, tagline
+        case backdropPath = "backdrop_path"
+        case matchScore = "match_score"
     }
 }
 

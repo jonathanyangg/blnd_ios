@@ -11,9 +11,24 @@ struct ReelMovie: Identifiable, Equatable {
     let genres: [Genre]
     let trailerUrl: String?
     let backdropPath: String?
+    let runtime: Int?
+    let voteAverage: Double?
+    let director: String?
+    let cast: [CastMember]
+    let tagline: String?
 
     var id: Int {
         tmdbId
+    }
+
+    var runtimeFormatted: String? {
+        guard let runtime, runtime > 0 else { return nil }
+        let hours = runtime / 60
+        let minutes = runtime % 60
+        if hours > 0 {
+            return "\(hours)h \(minutes)m"
+        }
+        return "\(minutes)m"
     }
 
     static func == (lhs: ReelMovie, rhs: ReelMovie) -> Bool {
@@ -29,7 +44,12 @@ struct ReelMovie: Identifiable, Equatable {
         scorePercent = movie.scorePercent
         genres = movie.genres
         trailerUrl = movie.trailerUrl
-        backdropPath = nil
+        backdropPath = movie.backdropPath
+        runtime = movie.runtime
+        voteAverage = movie.voteAverage
+        director = movie.director
+        cast = movie.cast
+        tagline = movie.tagline
     }
 
     init(from movie: MovieResponse) {
@@ -42,6 +62,11 @@ struct ReelMovie: Identifiable, Equatable {
         genres = movie.genres
         trailerUrl = movie.trailerUrl
         backdropPath = movie.backdropPath
+        runtime = movie.runtime
+        voteAverage = movie.voteAverage
+        director = movie.director
+        cast = movie.cast
+        tagline = movie.tagline
     }
 
     init(from movie: GroupRecMovieResponse) {
@@ -51,9 +76,14 @@ struct ReelMovie: Identifiable, Equatable {
         posterPath = movie.posterPath
         overview = movie.overview
         scorePercent = movie.scorePercent
-        genres = []
+        genres = movie.genres
         trailerUrl = movie.trailerUrl
-        backdropPath = nil
+        backdropPath = movie.backdropPath
+        runtime = movie.runtime
+        voteAverage = movie.voteAverage
+        director = movie.director
+        cast = movie.cast
+        tagline = movie.tagline
     }
 
     init(from movie: WatchlistMovieResponse) {
@@ -66,5 +96,10 @@ struct ReelMovie: Identifiable, Equatable {
         genres = []
         trailerUrl = movie.trailerUrl
         backdropPath = nil
+        runtime = nil
+        voteAverage = nil
+        director = nil
+        cast = []
+        tagline = nil
     }
 }

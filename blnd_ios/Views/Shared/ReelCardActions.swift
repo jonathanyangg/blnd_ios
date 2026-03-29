@@ -107,6 +107,24 @@ extension ReelCardView {
         }
     }
 
+    func hideMovie() async {
+        do {
+            _ = try await RecommendationsAPI.hideMovie(
+                tmdbId: movie.tmdbId
+            )
+            isHidden = true
+        } catch {}
+    }
+
+    func unhideMovie() async {
+        do {
+            try await RecommendationsAPI.unhideMovie(
+                tmdbId: movie.tmdbId
+            )
+            isHidden = false
+        } catch {}
+    }
+
     func posterURL(_ path: String) -> URL? {
         URL(
             string: "https://image.tmdb.org/t/p/w780\(path)"

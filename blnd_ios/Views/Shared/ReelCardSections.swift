@@ -16,22 +16,47 @@ extension ReelCardView {
                 if let pct = movie.scorePercent {
                     matchBadge(pct)
                 }
+
+                Spacer()
+
+                hideButton
             }
 
-            if hasDetail {
-                metaLine
+            metaLine
+        }
+    }
+
+    var hideButton: some View {
+        Button {
+            if isHidden {
+                Task { await unhideMovie() }
             } else {
-                HStack(spacing: 8) {
-                    if !movie.yearString.isEmpty {
-                        Text(movie.yearString)
-                            .font(.system(size: 14))
-                            .foregroundStyle(
-                                AppTheme.textMuted
-                            )
-                    }
-                    SkeletonRect(width: 80, height: 12)
-                }
+                showHideConfirm = true
             }
+        } label: {
+            Image(
+                systemName: isHidden
+                    ? "hand.thumbsdown.fill"
+                    : "hand.thumbsdown"
+            )
+            .font(.system(size: 16))
+            .foregroundStyle(
+                isHidden ? .red : AppTheme.textDim
+            )
+        }
+        .confirmationDialog(
+            "Not interested?",
+            isPresented: $showHideConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Not for me", role: .destructive) {
+                Task { await hideMovie() }
+            }
+        } message: {
+            Text(
+                "This movie won't show in your "
+                    + "recommendations."
+            )
         }
     }
 
@@ -68,15 +93,13 @@ extension ReelCardView {
         if !movie.yearString.isEmpty {
             parts.append(movie.yearString)
         }
-        if let runtime = fullDetail?.runtimeFormatted {
+        if let runtime = movie.runtimeFormatted {
             parts.append(runtime)
         }
-        if let vote = fullDetail?.voteAverage, vote > 0 {
-            parts.append(
-                "★ \(String(format: "%.1f", vote))"
-            )
+        if let vote = movie.voteAverage, vote > 0 {
+            parts.append("★ \(String(format: "%.1f", vote))")
         }
-        if let director = fullDetail?.director {
+        if let director = movie.director {
             parts.append(director)
         }
         return parts
@@ -115,39 +138,34 @@ extension ReelCardView {
 
     var detailsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            if hasDetail {
-                if !genres.isEmpty {
-                    genrePills
-                }
+            if !genres.isEmpty {
+                genrePills
+            }
 
-                cardTagline
+            cardTagline
 
-                cardOverview
+            cardOverview
 
-                if !overviewExpanded {
-                    compactCastSection
-                    compactFriendsSection
-                }
-            } else {
-                skeletonDetails
+            if !overviewExpanded {
+                compactCastSection
+                compactFriendsSection
             }
         }
     }
 
-    // MARK: - Friends Who Watched (Compact)
+    // MARK: - Friends Who Watched (Compact, always visible)
 
-    @ViewBuilder
     var compactFriendsSection: some View {
-        if !friendsWhoWatched.isEmpty {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Watched by")
-                    .font(.system(
-                        size: 13, weight: .semibold
-                    ))
-                    .foregroundStyle(
-                        AppTheme.textMuted
-                    )
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Watched by")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(AppTheme.textMuted)
 
+            if friendsWhoWatched.isEmpty {
+                Text("No friends have seen this movie")
+                    .font(.system(size: 12))
+                    .foregroundStyle(AppTheme.textDim)
+            } else {
                 ScrollView(
                     .horizontal,
                     showsIndicators: false
@@ -201,7 +219,7 @@ extension ReelCardView {
 
     @ViewBuilder
     var cardTagline: some View {
-        if let tagline = fullDetail?.tagline, !tagline.isEmpty {
+        if let tagline = movie.tagline, !tagline.isEmpty {
             Text(tagline)
                 .font(.system(
                     size: 13, weight: .medium
@@ -214,37 +232,55 @@ extension ReelCardView {
 
     // MARK: - Overview (Expandable)
 
+    private var overviewMaxHeight: CGFloat {
+        80 // ~5 lines at 13pt font + 3pt lineSpacing
+    }
+
     @ViewBuilder
     var cardOverview: some View {
-        let text = fullDetail?.overview ?? movie.overview
-        if let text, !text.isEmpty {
+        if let text = movie.overview, !text.isEmpty {
             VStack(alignment: .leading, spacing: 4) {
                 Text(text)
                     .font(.system(size: 13))
                     .foregroundStyle(AppTheme.textMuted)
                     .lineSpacing(3)
-                    .lineLimit(overviewExpanded ? nil : 3)
-                    .background(
-                        Text(text).font(.system(size: 13)).lineSpacing(3)
-                            .fixedSize(horizontal: false, vertical: true).hidden()
-                            .background(GeometryReader { geo in
-                                Color.clear.preference(key: OverviewFullH.self, value: geo.size.height)
-                            })
+                    .frame(
+                        maxWidth: .infinity,
+                        maxHeight: overviewExpanded
+                            ? .infinity : overviewMaxHeight,
+                        alignment: .topLeading
                     )
-                    .background(GeometryReader { geo in
-                        Color.clear.preference(key: OverviewTruncH.self, value: geo.size.height)
-                    })
-                    .onPreferenceChange(OverviewFullH.self) { overviewFullHeight = $0 }
-                    .onPreferenceChange(OverviewTruncH.self) { overviewTruncatedHeight = $0 }
+                    .clipped()
+                    .overlay {
+                        Text(text)
+                            .font(.system(size: 13))
+                            .lineSpacing(3)
+                            .fixedSize(
+                                horizontal: false,
+                                vertical: true
+                            )
+                            .hidden()
+                            .background(GeometryReader { geo in
+                                Color.clear.preference(
+                                    key: OverviewFullH.self,
+                                    value: geo.size.height
+                                )
+                            })
+                    }
+                    .onPreferenceChange(OverviewFullH.self) {
+                        overviewFullHeight = $0
+                    }
 
-                if overviewFullHeight > overviewTruncatedHeight + 1 {
+                if overviewExpanded || overviewFullHeight > overviewMaxHeight + 1 {
                     Button {
                         withAnimation(.easeInOut(duration: 0.2)) {
                             overviewExpanded.toggle()
                         }
                     } label: {
                         Text(overviewExpanded ? "less" : "more")
-                            .font(.system(size: 13, weight: .medium))
+                            .font(.system(
+                                size: 13, weight: .medium
+                            ))
                             .foregroundStyle(.white)
                     }
                 }
@@ -256,14 +292,14 @@ extension ReelCardView {
 
     @ViewBuilder
     var compactCastSection: some View {
-        if let cast = fullDetail?.cast, !cast.isEmpty {
+        if !movie.cast.isEmpty {
             ScrollView(
                 .horizontal, showsIndicators: false
             ) {
                 HStack(spacing: 10) {
                     ForEach(
                         Array(
-                            cast.prefix(8)
+                            movie.cast.prefix(5)
                                 .enumerated()
                         ),
                         id: \.offset
@@ -328,24 +364,6 @@ extension ReelCardView {
                         )
                         .clipShape(Capsule())
                 }
-            }
-        }
-    }
-
-    // MARK: - Skeleton
-
-    var skeletonDetails: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 6) {
-                SkeletonRect(width: 60, height: 24)
-                SkeletonRect(width: 80, height: 24)
-                SkeletonRect(width: 55, height: 24)
-            }
-
-            VStack(alignment: .leading, spacing: 6) {
-                SkeletonRect(height: 12)
-                SkeletonRect(height: 12)
-                SkeletonRect(width: 200, height: 12)
             }
         }
     }

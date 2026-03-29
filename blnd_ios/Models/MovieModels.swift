@@ -20,9 +20,21 @@ struct CastMember: Codable, Identifiable {
     let character: String?
     let profilePath: String?
 
+    var stableId: String {
+        "\(id)-\(name)"
+    }
+
     enum CodingKeys: String, CodingKey {
         case id, name, character
         case profilePath = "profile_path"
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = (try? container.decode(Int.self, forKey: .id)) ?? 0
+        name = try container.decode(String.self, forKey: .name)
+        character = try container.decodeIfPresent(String.self, forKey: .character)
+        profilePath = try container.decodeIfPresent(String.self, forKey: .profilePath)
     }
 }
 
@@ -104,10 +116,14 @@ struct RecommendedMovieResponse: Codable, Identifiable {
     let overview: String?
     let posterPath: String?
     let genres: [Genre]
-    let director: String?
+    let runtime: Int?
+    let voteAverage: Double?
     let trailerUrl: String?
-    let similarity: Double
-    let score: Double
+    let director: String?
+    let cast: [CastMember]
+    let tagline: String?
+    let backdropPath: String?
+    let matchScore: Double
 
     var id: Int {
         tmdbId
@@ -118,16 +134,29 @@ struct RecommendedMovieResponse: Codable, Identifiable {
     }
 
     var scorePercent: Int {
-        Int(score * 100)
+        Int(matchScore * 100)
+    }
+
+    var runtimeFormatted: String? {
+        guard let runtime, runtime > 0 else { return nil }
+        let hours = runtime / 60
+        let minutes = runtime % 60
+        if hours > 0 {
+            return "\(hours)h \(minutes)m"
+        }
+        return "\(minutes)m"
     }
 
     enum CodingKeys: String, CodingKey {
         case tmdbId = "tmdb_id"
         case title, year, overview
         case posterPath = "poster_path"
-        case genres, director
+        case genres, runtime
+        case voteAverage = "vote_average"
         case trailerUrl = "trailer_url"
-        case similarity, score
+        case director, cast, tagline
+        case backdropPath = "backdrop_path"
+        case matchScore = "match_score"
     }
 }
 

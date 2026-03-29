@@ -6,12 +6,7 @@ struct ReelsFeedView: View {
     var onLoadMore: (() async -> Void)?
     var onRefresh: (() async -> Void)?
 
-    private var cache: UserActionCache {
-        UserActionCache.shared
-    }
-
     @State private var currentId: Int?
-    @State private var prefetchTask: Task<Void, Never>?
     @State private var toastMessage: String?
     @State private var showWatchlistPicker = false
     @State private var watchlistTmdbId: Int?
@@ -64,11 +59,6 @@ struct ReelsFeedView: View {
             .scrollPosition(id: $currentId)
             .scrollIndicators(.hidden)
         }
-        .onChange(of: currentId) { _, newId in
-            if let newId {
-                prefetchNeighbors(for: newId)
-            }
-        }
         .onChange(of: movies) { _, newMovies in
             if currentId == nil, let first = newMovies.first {
                 currentId = first.tmdbId
@@ -77,7 +67,6 @@ struct ReelsFeedView: View {
         .onAppear {
             if currentId == nil, let first = movies.first {
                 currentId = first.tmdbId
-                prefetchNeighbors(for: first.tmdbId)
             }
         }
         .overlay(alignment: .bottom) {
@@ -116,52 +105,6 @@ struct ReelsFeedView: View {
                     .presentationDetents([.medium, .large])
                     .presentationDragIndicator(.visible)
                     .presentationBackground(AppTheme.card)
-            }
-        }
-    }
-
-    // MARK: - Prefetch
-
-    private func prefetchNeighbors(for tmdbId: Int) {
-        prefetchTask?.cancel()
-        prefetchTask = Task(priority: .utility) {
-            guard let idx = movies.firstIndex(where: {
-                $0.tmdbId == tmdbId
-            }) else { return }
-
-            let low = max(0, idx - 3)
-            let high = min(movies.count - 1, idx + 3)
-            let window = movies[low ... high]
-
-            let idsToFetch = await MainActor.run {
-                window.filter { cache.shouldFetchDetail($0.tmdbId) }
-                    .map(\.tmdbId)
-            }
-
-            await withTaskGroup(
-                of: (Int, MovieResponse?).self
-            ) { group in
-                for tmdbId in idsToFetch {
-                    group.addTask {
-                        do {
-                            let detail =
-                                try await MoviesAPI.getMovie(
-                                    tmdbId: tmdbId
-                                )
-                            return (tmdbId, detail)
-                        } catch {
-                            return (tmdbId, nil)
-                        }
-                    }
-                }
-                for await (tid, detail) in group {
-                    if Task.isCancelled { break }
-                    if let detail {
-                        await cache.cacheMovieDetail(detail)
-                    } else {
-                        await cache.clearPendingDetail(tid)
-                    }
-                }
             }
         }
     }

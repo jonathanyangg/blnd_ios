@@ -21,30 +21,24 @@ struct ReelCardView: View {
     @State var overviewFullHeight: CGFloat = 0
     @State var overviewTruncatedHeight: CGFloat = 0
     @State var friendsWhoWatched: [FriendWatchedResponse] = []
+    @State var isHidden = false
+    @State var showHideConfirm = false
 
     let swipeThreshold: CGFloat = 120
 
-    @State var fullDetail: MovieResponse?
-
     var trailerVideoId: String? {
-        let url = fullDetail?.trailerUrl ?? movie.trailerUrl
-        return url.flatMap {
+        movie.trailerUrl.flatMap {
             YouTubePlayerView.extractVideoId(from: $0)
         }
     }
 
     var genres: [Genre] {
-        let list = fullDetail?.genres ?? movie.genres
-        return list.filter { $0.name != nil }
+        movie.genres.filter { $0.name != nil }
     }
 
     var showTrailer: Bool {
         isActive && trailerReady && !showRating
             && trailerVideoId != nil
-    }
-
-    var hasDetail: Bool {
-        fullDetail != nil
     }
 
     var body: some View {
@@ -76,17 +70,6 @@ struct ReelCardView: View {
                 ratingOverlay
             }
         }
-        .task {
-            if let cached = UserActionCache.shared.movieDetails[movie.tmdbId] {
-                fullDetail = cached
-            } else {
-                do {
-                    let detail = try await MoviesAPI.getMovie(tmdbId: movie.tmdbId)
-                    UserActionCache.shared.cacheMovieDetail(detail)
-                    fullDetail = detail
-                } catch {}
-            }
-        }
         .onAppear {
             if isActive {
                 trailerReady = true
@@ -102,31 +85,5 @@ struct ReelCardView: View {
                 overviewExpanded = false
             }
         }
-    }
-}
-
-// MARK: - Skeleton Rect
-
-struct SkeletonRect: View {
-    var width: CGFloat?
-    var height: CGFloat = 14
-
-    @State private var shimmer = false
-
-    var body: some View {
-        RoundedRectangle(cornerRadius: 4)
-            .fill(AppTheme.card)
-            .frame(
-                maxWidth: width ?? .infinity,
-                minHeight: height,
-                maxHeight: height
-            )
-            .opacity(shimmer ? 0.4 : 1.0)
-            .animation(
-                .easeInOut(duration: 1.0)
-                    .repeatForever(autoreverses: true),
-                value: shimmer
-            )
-            .onAppear { shimmer = true }
     }
 }
