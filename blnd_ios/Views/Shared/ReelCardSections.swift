@@ -110,14 +110,14 @@ extension ReelCardView {
     var mediaSection: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 14)
-                .fill(AppTheme.card)
+                .fill(AppTheme.posterGradient)
                 .aspectRatio(16 / 9, contentMode: .fit)
                 .overlay {
                     if !showTrailer {
                         Image(systemName: "play.fill")
                             .font(.system(size: 28))
                             .foregroundStyle(
-                                AppTheme.textDim
+                                .white.opacity(0.5)
                             )
                     }
                 }
@@ -233,7 +233,29 @@ extension ReelCardView {
     // MARK: - Overview (Expandable)
 
     private var overviewMaxHeight: CGFloat {
-        80 // ~5 lines at 13pt font + 3pt lineSpacing
+        guard cardSize.height > 0,
+              cardSize.width > 0
+        else { return 80 }
+        let mediaH = (cardSize.width - 32) * 9 / 16
+        // Estimate fixed content heights
+        var fixedH: CGFloat = 81 + mediaH + 14
+        var items = 1 // overview
+        if !genres.isEmpty {
+            fixedH += 30
+            items += 1
+        }
+        if let tag = movie.tagline, !tag.isEmpty {
+            fixedH += 16
+            items += 1
+        }
+        if !movie.cast.isEmpty {
+            fixedH += 51
+            items += 1
+        }
+        fixedH += 90 // friends section
+        items += 1
+        fixedH += CGFloat(items - 1) * 12
+        return max(80, cardSize.height - fixedH - 40)
     }
 
     @ViewBuilder
@@ -244,10 +266,14 @@ extension ReelCardView {
                     .font(.system(size: 13))
                     .foregroundStyle(AppTheme.textMuted)
                     .lineSpacing(3)
+                    .fixedSize(
+                        horizontal: false,
+                        vertical: overviewExpanded
+                    )
                     .frame(
                         maxWidth: .infinity,
                         maxHeight: overviewExpanded
-                            ? .infinity : overviewMaxHeight,
+                            ? nil : overviewMaxHeight,
                         alignment: .topLeading
                     )
                     .clipped()

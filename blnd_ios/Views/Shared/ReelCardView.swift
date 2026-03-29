@@ -21,6 +21,7 @@ struct ReelCardView: View {
     @State var overviewFullHeight: CGFloat = 0
     @State var overviewTruncatedHeight: CGFloat = 0
     @State var friendsWhoWatched: [FriendWatchedResponse] = []
+    @State var cardSize: CGSize = .zero
     @State var isHidden = false
     @State var showHideConfirm = false
 
@@ -59,6 +60,11 @@ struct ReelCardView: View {
         }
         .frame(maxWidth: .infinity)
         .background(Color.black)
+        .background(GeometryReader { geo in
+            Color.clear.onAppear {
+                cardSize = geo.size
+            }
+        })
         .offset(x: swipeOffset)
         .rotationEffect(
             .degrees(Double(swipeOffset) * 0.02)

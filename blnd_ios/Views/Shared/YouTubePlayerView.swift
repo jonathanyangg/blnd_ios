@@ -69,6 +69,10 @@ struct YouTubePlayerView: View {
 private struct YouTubeWebView: UIViewRepresentable {
     let videoId: String
 
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.allowsInlineMediaPlayback = true
@@ -78,51 +82,76 @@ private struct YouTubeWebView: UIViewRepresentable {
         webView.backgroundColor = .black
         webView.scrollView.isScrollEnabled = false
         webView.scrollView.bounces = false
-
-        let nocookie = "https://www.youtube-nocookie.com"
-        let embedURL = "\(nocookie)/embed/\(videoId)"
-            + "?playsinline=1&rel=0&autoplay=1"
-            + "&origin=\(nocookie)"
-        let html = """
-        <html>
-        <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <style>
-        * { margin: 0; padding: 0; }
-        body { background: #000; }
-        .wrap {
-            position: relative;
-            padding-bottom: 56.25%;
-        }
-        iframe {
-            width: 100%;
-            height: 100%;
-            position: absolute;
-            top: 0; left: 0;
-            border: 0;
-            border-radius: 14px;
-        }
-        </style>
-        </head>
-        <body>
-        <div class="wrap">
-        <iframe
-            src="\(embedURL)"
-            referrerpolicy="strict-origin-when-cross-origin"
-            allowfullscreen
-            allow="autoplay; encrypted-media">
-        </iframe>
-        </div>
-        </body>
-        </html>
-        """
+        webView.navigationDelegate = context.coordinator
+        webView.uiDelegate = context.coordinator
         webView.loadHTMLString(
-            html,
+            embedHTML,
             baseURL: URL(string: "https://www.youtube-nocookie.com")
         )
-
         return webView
     }
 
+    private var embedHTML: String {
+        let nocookie = "https://www.youtube-nocookie.com"
+        let src = "\(nocookie)/embed/\(videoId)"
+            + "?playsinline=1&rel=0&autoplay=1"
+            + "&origin=\(nocookie)"
+        return """
+        <html><head>
+        <meta name="viewport" \
+        content="width=device-width, initial-scale=1">
+        <style>
+        *{margin:0;padding:0}body{background:#000}
+        .wrap{position:relative;padding-bottom:56.25%}
+        iframe{width:100%;height:100%;position:absolute;\
+        top:0;left:0;border:0;border-radius:14px}
+        </style></head><body>
+        <div class="wrap"><iframe src="\(src)"
+        referrerpolicy="strict-origin-when-cross-origin"
+        allowfullscreen
+        allow="autoplay; encrypted-media"></iframe>
+        </div></body></html>
+        """
+    }
+
     func updateUIView(_ webView: WKWebView, context: Context) {}
+
+    class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
+        func webView(
+            _ webView: WKWebView,
+            createWebViewWith configuration: WKWebViewConfiguration,
+            for action: WKNavigationAction,
+            windowFeatures: WKWindowFeatures
+        ) -> WKWebView? {
+            if let url = action.request.url {
+                UIApplication.shared.open(url)
+            }
+            return nil
+        }
+
+        func webView(
+            _ webView: WKWebView,
+            decidePolicyFor action: WKNavigationAction,
+            decisionHandler: @escaping (
+                WKNavigationActionPolicy
+            ) -> Void
+        ) {
+            guard let url = action.request.url else {
+                decisionHandler(.allow)
+                return
+            }
+            let host = url.host ?? ""
+            let isYouTube = (
+                host.contains("youtube.com")
+                    || host.contains("youtu.be")
+            ) && !host.contains("youtube-nocookie.com")
+
+            if isYouTube {
+                UIApplication.shared.open(url)
+                decisionHandler(.cancel)
+            } else {
+                decisionHandler(.allow)
+            }
+        }
+    }
 }

@@ -157,12 +157,13 @@ final class TrailerPlayer {
 
     // MARK: - Coordinator
 
-    private class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
+    private class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler {
         weak var player: TrailerPlayer?
 
         init(player: TrailerPlayer) {
             self.player = player
             super.init()
+            player.webView.uiDelegate = self
             player.webView.configuration.userContentController
                 .add(self, name: "playerReady")
         }
@@ -174,6 +175,18 @@ final class TrailerPlayer {
             if message.name == "playerReady" {
                 player?.markReady()
             }
+        }
+
+        func webView(
+            _ webView: WKWebView,
+            createWebViewWith configuration: WKWebViewConfiguration,
+            for action: WKNavigationAction,
+            windowFeatures: WKWindowFeatures
+        ) -> WKWebView? {
+            if let url = action.request.url {
+                UIApplication.shared.open(url)
+            }
+            return nil
         }
 
         func webView(

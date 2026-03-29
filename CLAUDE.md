@@ -259,13 +259,16 @@ blnd_ios/blnd_ios/
 79. TMDB rating on reel cards: `★ 4.3` in meta line from `fullDetail.voteAverage`.
 80. YouTube link fix: navigation delegate intercepts all `youtube.com`/`youtu.be` URLs → opens in Safari.
 81. Toast: moved from top to bottom of screen, duration reduced to 1.2s.
+82. Dynamic overview height: `overviewMaxHeight` computed from card geometry (card height minus title, media, genres, tagline, cast, friends heights). Overview fills available space instead of hardcoded 80pt cap. "more" only shows when text still overflows. Expanded overview uses `.fixedSize(vertical: true)` so "less" button sits right below last line.
+83. YouTube button fix: added `WKUIDelegate` + `createWebViewWith` to both `TrailerPlayer.Coordinator` (ReelTrailerView) and `YouTubeWebView.Coordinator` (YouTubePlayerView). YouTube logo `target="_blank"` / `window.open()` now opens in Safari/YouTube app instead of silently failing.
+84. Reel media gradient: trailer placeholder uses `AppTheme.posterGradient` (blue-to-red) instead of flat `AppTheme.card`, matching MovieDetailView's `heroPlaceholder` style.
 
 ## Next Steps
 
-82. Letterboxd import (POST /import/letterboxd — file upload in settings)
-83. Add avatar_url to backend GroupMemberResponse so group member avatars show
-84. Profile edit UI (taste bio — backend already wired)
-85. Polish: empty states, error handling
+85. Letterboxd import (POST /import/letterboxd — file upload in settings)
+86. Add avatar_url to backend GroupMemberResponse so group member avatars show
+87. Profile edit UI (taste bio — backend already wired)
+88. Polish: empty states, error handling
 
 ## Linting
 
@@ -282,4 +285,4 @@ blnd_ios/blnd_ios/
 
 ## Last Updated
 
-2026-03-24
+2026-03-29
