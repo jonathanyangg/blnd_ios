@@ -79,9 +79,7 @@ struct GroupsListView: View {
             groups = result.groups
         } catch is CancellationError {
             return
-        } catch {
-            print("[GroupsListView] Load failed: \(error)")
-        }
+        } catch {}
         isLoading = false
     }
 }

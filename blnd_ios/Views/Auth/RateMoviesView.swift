@@ -158,9 +158,7 @@ struct RateMoviesView: View {
         do {
             let result = try await MoviesAPI.discover(genres: genres)
             movies = Array(result.results.prefix(movieCount))
-        } catch {
-            print("[RateMoviesView] Discover failed: \(error)")
-        }
+        } catch {}
         isLoading = false
     }
 

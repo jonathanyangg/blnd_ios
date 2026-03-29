@@ -203,10 +203,6 @@ final class APIClient: @unchecked Sendable {
             do {
                 return try decoder.decode(T.self, from: data)
             } catch {
-                print("[APIClient] Decoding \(T.self) failed: \(error)")
-                if let raw = String(data: data, encoding: .utf8) {
-                    print("[APIClient] Raw response: \(raw.prefix(500))")
-                }
                 throw APIError.decodingError
             }
         default:

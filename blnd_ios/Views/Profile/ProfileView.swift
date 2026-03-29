@@ -273,9 +273,7 @@ struct ProfileView: View {
             watchedTotal = response.total
         } catch is CancellationError {
             return
-        } catch {
-            print("[ProfileView] loadWatched error: \(error)")
-        }
+        } catch {}
         isLoadingWatched = false
     }
 
@@ -295,9 +293,7 @@ struct ProfileView: View {
             watchlistTotal = response.total
         } catch is CancellationError {
             return
-        } catch {
-            print("[ProfileView] loadWatchlist error: \(error)")
-        }
+        } catch {}
         isLoadingWatchlist = false
     }
 
@@ -307,9 +303,7 @@ struct ProfileView: View {
             genreTaste = try await ProfileAPI.getGenreTaste()
         } catch is CancellationError {
             return
-        } catch {
-            print("[ProfileView] loadTaste error: \(error)")
-        }
+        } catch {}
         isLoadingTaste = false
     }
 }

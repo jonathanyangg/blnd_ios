@@ -191,9 +191,7 @@ struct FriendsListView: View {
             UserActionCache.shared.invalidateFriends()
             await loadData()
             await tabState.refreshPendingCount()
-        } catch {
-            print("[FriendsListView] Accept failed: \(error)")
-        }
+        } catch {}
     }
 
     private func handleReject(_ request: FriendRequestResponse) async {
@@ -204,9 +202,7 @@ struct FriendsListView: View {
             UserActionCache.shared.invalidateFriends()
             await loadData()
             await tabState.refreshPendingCount()
-        } catch {
-            print("[FriendsListView] Reject failed: \(error)")
-        }
+        } catch {}
     }
 }
 

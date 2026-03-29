@@ -154,9 +154,7 @@ struct FriendProfileView: View {
             watchedTotal = watchedResult.total
         } catch is CancellationError {
             return
-        } catch {
-            print("[FriendProfileView] loadData error: \(error)")
-        }
+        } catch {}
         isLoading = false
     }
 
@@ -172,9 +170,7 @@ struct FriendProfileView: View {
             watchedMovies.append(contentsOf: next.results)
         } catch is CancellationError {
             return
-        } catch {
-            print("[FriendProfileView] loadMoreWatched error: \(error)")
-        }
+        } catch {}
         isLoadingMore = false
     }
 
@@ -186,9 +182,7 @@ struct FriendProfileView: View {
             friendsList = response.friends
         } catch is CancellationError {
             return
-        } catch {
-            print("[FriendProfileView] loadFriends error: \(error)")
-        }
+        } catch {}
         isLoadingFriends = false
     }
 
@@ -198,9 +192,7 @@ struct FriendProfileView: View {
         do {
             try await FriendsAPI.removeFriend(friendshipId: friendshipId)
             dismiss()
-        } catch {
-            print("[FriendProfileView] Remove failed: \(error)")
-        }
+        } catch {}
         isRemoving = false
     }
 }

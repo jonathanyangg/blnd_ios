@@ -167,9 +167,7 @@ struct AddGroupMemberSheet: View {
         do {
             let response = try await FriendsAPI.listFriends()
             friends = response.friends
-        } catch {
-            print("[AddGroupMemberSheet] Failed to load friends: \(error)")
-        }
+        } catch {}
         isLoadingFriends = false
     }
 

@@ -183,9 +183,7 @@ extension MovieDetailView {
             isWatched = false
             userRating = nil
             UserActionCache.shared.didUnwatch(tmdbId)
-        } catch {
-            print("[MovieDetailView] unwatch error: \(error)")
-        }
+        } catch {}
     }
 
     func loadFriendsWhoWatched() async {
@@ -194,12 +192,7 @@ extension MovieDetailView {
                 tmdbId: tmdbId
             )
             friendsWhoWatched = response.results
-        } catch {
-            print(
-                "[MovieDetailView] friends who watched error: "
-                    + "\(error)"
-            )
-        }
+        } catch {}
     }
 
     func checkHiddenStatus() async {
@@ -220,9 +213,7 @@ extension MovieDetailView {
             )
             isHidden = true
             onHide?()
-        } catch {
-            print("[MovieDetailView] hide error: \(error)")
-        }
+        } catch {}
     }
 
     func unhideMovie() async {
@@ -231,9 +222,7 @@ extension MovieDetailView {
                 tmdbId: tmdbId
             )
             isHidden = false
-        } catch {
-            print("[MovieDetailView] unhide error: \(error)")
-        }
+        } catch {}
     }
 
     func toggleWatchlist() async {
@@ -250,11 +239,7 @@ extension MovieDetailView {
                 )
                 isInWatchlist = true
             }
-        } catch {
-            print(
-                "[MovieDetailView] watchlist toggle error: \(error)"
-            )
-        }
+        } catch {}
         isWatchlistLoading = false
     }
 }

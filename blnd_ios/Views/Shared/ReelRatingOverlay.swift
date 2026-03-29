@@ -131,12 +131,7 @@ struct ReelRatingOverlay: View {
                 tmdbId, rating: rating
             )
             onSaved(rating)
-        } catch {
-            print(
-                "[ReelRatingOverlay] save error: "
-                    + "\(error)"
-            )
-        }
+        } catch {}
         isSaving = false
     }
 }

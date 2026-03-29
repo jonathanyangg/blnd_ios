@@ -203,9 +203,7 @@ struct GroupMembersSheet: View {
                 groupId: groupId
             )
             group = updated
-        } catch {
-            print("[GroupMembersSheet] Remove failed: \(error)")
-        }
+        } catch {}
         removingId = nil
     }
 
@@ -216,9 +214,7 @@ struct GroupMembersSheet: View {
             UserActionCache.shared.invalidateGroups()
             dismiss()
             onGroupDeleted?()
-        } catch {
-            print("[GroupMembersSheet] Leave failed: \(error)")
-        }
+        } catch {}
         isLeaving = false
     }
 
@@ -229,9 +225,7 @@ struct GroupMembersSheet: View {
             UserActionCache.shared.invalidateGroups()
             dismiss()
             onGroupDeleted?()
-        } catch {
-            print("[GroupMembersSheet] Delete failed: \(error)")
-        }
+        } catch {}
         isDeleting = false
     }
 }

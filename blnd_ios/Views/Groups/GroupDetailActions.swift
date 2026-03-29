@@ -29,9 +29,7 @@ extension GroupDetailView {
                 showToast(
                     "Woah, slow down! Try again in a minute"
                 )
-            } else if group == nil {
-                print("[GroupDetailView] Load failed: \(error)")
-            } else {
+            } else if group == nil {} else {
                 showToast(error.localizedDescription)
             }
         }

@@ -211,9 +211,7 @@ struct WatchlistPickerSheet: View {
                     try await TrackingAPI.removeFromWatchlist(tmdbId: tmdbId)
                     cache.didRemoveFromWatchlist(tmdbId)
                 }
-            } catch {
-                print("[WatchlistPicker] Personal watchlist error: \(error)")
-            }
+            } catch {}
         }
 
         // Group watchlist changes
@@ -230,9 +228,7 @@ struct WatchlistPickerSheet: View {
                         groupId: groupId, tmdbId: tmdbId
                     )
                 }
-            } catch {
-                print("[WatchlistPicker] Group \(groupId) error: \(error)")
-            }
+            } catch {}
         }
 
         onDismiss(personalChecked && !isWatched)
