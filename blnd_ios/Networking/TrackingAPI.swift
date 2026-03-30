@@ -29,15 +29,13 @@ enum TrackingAPI {
     }
 
     /// GET /tracking/{tmdb_id} — check if a movie has been watched (nil if 404)
-    static func getWatchedMovie(tmdbId: Int) async -> WatchedMovieResponse? {
+    static func getWatchedMovie(tmdbId: Int) async throws -> WatchedMovieResponse? {
         do {
             return try await APIClient.shared.request(
                 endpoint: "/tracking/\(tmdbId)",
                 authenticated: true
             )
         } catch APIError.notFound {
-            return nil
-        } catch {
             return nil
         }
     }

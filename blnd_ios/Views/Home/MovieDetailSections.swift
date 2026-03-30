@@ -170,10 +170,14 @@ extension MovieDetailView {
         if cache.isWatched(tmdbId) {
             isWatched = true
             userRating = cache.rating(for: tmdbId)
-        } else if let watched = await TrackingAPI.getWatchedMovie(tmdbId: tmdbId) {
+        } else if let watched = try? await TrackingAPI.getWatchedMovie(tmdbId: tmdbId) {
             isWatched = true
             userRating = watched.rating
-            cache.didRate(tmdbId, rating: watched.rating ?? 0)
+            if let rating = watched.rating {
+                cache.didRate(tmdbId, rating: rating)
+            } else {
+                cache.didWatch(tmdbId)
+            }
         }
     }
 

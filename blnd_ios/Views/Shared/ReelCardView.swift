@@ -22,6 +22,7 @@ struct ReelCardView: View {
     @State var overviewTruncatedHeight: CGFloat = 0
     @State var friendsWhoWatched: [FriendWatchedResponse] = []
     @State var cardSize: CGSize = .zero
+    @State var fullDetail: MovieResponse?
     @State var isHidden = false
     @State var showHideConfirm = false
 
