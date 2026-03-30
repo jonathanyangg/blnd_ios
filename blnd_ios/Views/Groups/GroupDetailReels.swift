@@ -29,9 +29,7 @@ extension GroupDetailView {
                 Spacer()
             } else {
                 ReelsFeedView(
-                    movies: watchlist.map {
-                        ReelMovie(from: $0)
-                    },
+                    movies: watchlistReelMovies,
                     groupContext: groupContext
                 )
             }

@@ -14,6 +14,7 @@ struct GroupDetailView: View {
     @State var seenRecIds: Set<Int> = []
     @State var isLoadingMoreRecs = false
     @State var watchlist: [WatchlistMovieResponse] = []
+    @State var watchlistReelMovies: [ReelMovie] = []
     @State var isLoading = true
     @State var showMembers = false
     @State var selectedTab: GroupTab = .blendPicks
