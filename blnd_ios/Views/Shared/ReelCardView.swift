@@ -22,7 +22,6 @@ struct ReelCardView: View {
     @State var overviewTruncatedHeight: CGFloat = 0
     @State var friendsWhoWatched: [FriendWatchedResponse] = []
     @State var cardSize: CGSize = .zero
-    @State var fullDetail: MovieResponse?
     @State var isHidden = false
     @State var showHideConfirm = false
 
@@ -75,17 +74,6 @@ struct ReelCardView: View {
         .overlay {
             if showRating {
                 ratingOverlay
-            }
-        }
-        .task {
-            if let cached = UserActionCache.shared.movieDetails[movie.tmdbId] {
-                fullDetail = cached
-            } else {
-                do {
-                    let detail = try await MoviesAPI.getMovie(tmdbId: movie.tmdbId)
-                    UserActionCache.shared.cacheMovieDetail(detail)
-                    fullDetail = detail
-                } catch { /* Non-critical — skeleton stays visible */ }
             }
         }
         .onAppear {
