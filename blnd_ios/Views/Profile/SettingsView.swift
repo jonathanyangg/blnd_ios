@@ -1,7 +1,7 @@
 import SwiftUI
 
 private enum SettingsDestination: Hashable {
-    case account, notifications, privacy, about
+    case account, notifications, about
 }
 
 struct SettingsView: View {
@@ -21,8 +21,10 @@ struct SettingsView: View {
                             destination = .notifications
                         }
                         Divider().background(AppTheme.cardSecondary)
-                        settingsRow("Privacy", icon: "lock") {
-                            destination = .privacy
+                        settingsRow("Support", icon: "questionmark.circle") {
+                            if let url = URL(string: "https://www.blnd.movie/support") {
+                                UIApplication.shared.open(url)
+                            }
                         }
                         Divider().background(AppTheme.cardSecondary)
                         settingsRow("About", icon: "info.circle") {
@@ -65,8 +67,6 @@ struct SettingsView: View {
                 AccountSettingsView()
             case .notifications:
                 NotificationsSettingsView()
-            case .privacy:
-                PrivacySettingsView()
             case .about:
                 AboutSettingsView()
             }
