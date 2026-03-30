@@ -183,7 +183,7 @@ extension MovieDetailView {
             isWatched = false
             userRating = nil
             UserActionCache.shared.didUnwatch(tmdbId)
-        } catch {}
+        } catch { errorMessage = error.localizedDescription }
     }
 
     func loadFriendsWhoWatched() async {
@@ -192,7 +192,7 @@ extension MovieDetailView {
                 tmdbId: tmdbId
             )
             friendsWhoWatched = response.results
-        } catch {}
+        } catch { /* Non-critical — friends section stays hidden */ }
     }
 
     func checkHiddenStatus() async {
@@ -213,7 +213,7 @@ extension MovieDetailView {
             )
             isHidden = true
             onHide?()
-        } catch {}
+        } catch { errorMessage = error.localizedDescription }
     }
 
     func unhideMovie() async {
@@ -222,7 +222,7 @@ extension MovieDetailView {
                 tmdbId: tmdbId
             )
             isHidden = false
-        } catch {}
+        } catch { errorMessage = error.localizedDescription }
     }
 
     func toggleWatchlist() async {
@@ -239,7 +239,7 @@ extension MovieDetailView {
                 )
                 isInWatchlist = true
             }
-        } catch {}
+        } catch { errorMessage = error.localizedDescription }
         isWatchlistLoading = false
     }
 }

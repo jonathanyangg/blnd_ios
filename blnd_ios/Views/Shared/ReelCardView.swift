@@ -76,6 +76,17 @@ struct ReelCardView: View {
                 ratingOverlay
             }
         }
+        .task {
+            if let cached = UserActionCache.shared.movieDetails[movie.tmdbId] {
+                fullDetail = cached
+            } else {
+                do {
+                    let detail = try await MoviesAPI.getMovie(tmdbId: movie.tmdbId)
+                    UserActionCache.shared.cacheMovieDetail(detail)
+                    fullDetail = detail
+                } catch { /* Non-critical — skeleton stays visible */ }
+            }
+        }
         .onAppear {
             if isActive {
                 trailerReady = true

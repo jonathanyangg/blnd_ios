@@ -79,7 +79,7 @@ struct GroupsListView: View {
             groups = result.groups
         } catch is CancellationError {
             return
-        } catch {}
+        } catch { /* Non-critical — empty state shown */ }
         isLoading = false
     }
 }

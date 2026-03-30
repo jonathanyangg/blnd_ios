@@ -273,7 +273,7 @@ struct ProfileView: View {
             watchedTotal = response.total
         } catch is CancellationError {
             return
-        } catch {}
+        } catch { /* Non-critical — empty state shown */ }
         isLoadingWatched = false
     }
 
@@ -293,7 +293,7 @@ struct ProfileView: View {
             watchlistTotal = response.total
         } catch is CancellationError {
             return
-        } catch {}
+        } catch { /* Non-critical — empty state shown */ }
         isLoadingWatchlist = false
     }
 
@@ -303,7 +303,7 @@ struct ProfileView: View {
             genreTaste = try await ProfileAPI.getGenreTaste()
         } catch is CancellationError {
             return
-        } catch {}
+        } catch { /* Non-critical — "rate more movies" fallback shown */ }
         isLoadingTaste = false
     }
 }

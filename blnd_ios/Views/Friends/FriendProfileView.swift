@@ -154,7 +154,7 @@ struct FriendProfileView: View {
             watchedTotal = watchedResult.total
         } catch is CancellationError {
             return
-        } catch {}
+        } catch { /* Non-critical — empty state shown */ }
         isLoading = false
     }
 
@@ -170,7 +170,7 @@ struct FriendProfileView: View {
             watchedMovies.append(contentsOf: next.results)
         } catch is CancellationError {
             return
-        } catch {}
+        } catch { /* Non-critical — pagination stops */ }
         isLoadingMore = false
     }
 
@@ -182,7 +182,7 @@ struct FriendProfileView: View {
             friendsList = response.friends
         } catch is CancellationError {
             return
-        } catch {}
+        } catch { /* Non-critical — empty list shown */ }
         isLoadingFriends = false
     }
 
@@ -192,7 +192,7 @@ struct FriendProfileView: View {
         do {
             try await FriendsAPI.removeFriend(friendshipId: friendshipId)
             dismiss()
-        } catch {}
+        } catch { /* Non-critical — user can retry */ }
         isRemoving = false
     }
 }

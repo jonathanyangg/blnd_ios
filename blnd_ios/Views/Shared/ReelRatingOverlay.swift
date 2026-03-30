@@ -131,7 +131,7 @@ struct ReelRatingOverlay: View {
                 tmdbId, rating: rating
             )
             onSaved(rating)
-        } catch {}
+        } catch { /* Non-critical — overlay dismisses, user can retry */ }
         isSaving = false
     }
 }

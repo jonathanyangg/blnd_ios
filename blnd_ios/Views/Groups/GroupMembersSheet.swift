@@ -203,7 +203,7 @@ struct GroupMembersSheet: View {
                 groupId: groupId
             )
             group = updated
-        } catch {}
+        } catch { /* Non-critical — member list unchanged */ }
         removingId = nil
     }
 
@@ -214,7 +214,7 @@ struct GroupMembersSheet: View {
             UserActionCache.shared.invalidateGroups()
             dismiss()
             onGroupDeleted?()
-        } catch {}
+        } catch { /* Non-critical — user can retry */ }
         isLeaving = false
     }
 
@@ -225,7 +225,7 @@ struct GroupMembersSheet: View {
             UserActionCache.shared.invalidateGroups()
             dismiss()
             onGroupDeleted?()
-        } catch {}
+        } catch { /* Non-critical — user can retry */ }
         isDeleting = false
     }
 }

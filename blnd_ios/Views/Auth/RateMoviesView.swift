@@ -158,7 +158,7 @@ struct RateMoviesView: View {
         do {
             let result = try await MoviesAPI.discover(genres: genres)
             movies = Array(result.results.prefix(movieCount))
-        } catch {}
+        } catch { /* Non-critical — "No movies found" empty state shown */ }
         isLoading = false
     }
 

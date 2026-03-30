@@ -167,7 +167,7 @@ struct AddGroupMemberSheet: View {
         do {
             let response = try await FriendsAPI.listFriends()
             friends = response.friends
-        } catch {}
+        } catch { errorMessage = error.localizedDescription }
         isLoadingFriends = false
     }
 
