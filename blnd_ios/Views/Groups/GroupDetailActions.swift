@@ -64,6 +64,37 @@ extension GroupDetailView {
         isLoadingMoreRecs = false
     }
 
+    func saveGroupName() {
+        let trimmed = editedName
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            showToast("Name can't be empty")
+            isEditingName = false
+            return
+        }
+        guard trimmed.count <= 50 else {
+            showToast("Name must be 50 characters or less")
+            return
+        }
+        guard trimmed != group?.name else {
+            isEditingName = false
+            return
+        }
+        isEditingName = false
+        let oldName = group?.name ?? ""
+        group?.name = trimmed
+        Task {
+            do {
+                _ = try await GroupsAPI.updateGroup(
+                    groupId: groupId, name: trimmed
+                )
+            } catch {
+                group?.name = oldName
+                showToast("Failed to rename group")
+            }
+        }
+    }
+
     func showToast(_ message: String) {
         toastMessage = message
         Task {

@@ -89,17 +89,17 @@ struct ReelMovie: Identifiable, Equatable {
     init(from movie: WatchlistMovieResponse) {
         tmdbId = movie.tmdbId
         title = movie.title
-        yearString = ""
+        yearString = movie.yearString
         posterPath = movie.posterPath
-        overview = nil
+        overview = movie.overview
         scorePercent = movie.matchPercent
-        genres = []
+        genres = movie.genres
         trailerUrl = movie.trailerUrl
-        backdropPath = nil
-        runtime = nil
-        voteAverage = nil
-        director = nil
-        cast = []
-        tagline = nil
+        backdropPath = movie.backdropPath
+        runtime = movie.runtime
+        voteAverage = movie.voteAverage
+        director = movie.director
+        cast = movie.cast
+        tagline = movie.tagline
     }
 }

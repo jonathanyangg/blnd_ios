@@ -48,7 +48,6 @@ struct MainTabView: View {
             await tabState.refreshPendingCount()
         }
         .onChange(of: tabState.selectedTab) { _, tab in
-            TrailerPlayer.shared.stop()
             if tab == 1 {
                 Task {
                     await tabState.refreshPendingCount()

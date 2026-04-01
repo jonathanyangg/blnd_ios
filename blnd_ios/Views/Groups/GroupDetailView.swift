@@ -19,6 +19,8 @@ struct GroupDetailView: View {
     @State var selectedTab: GroupTab = .blendPicks
     @State var viewMode: ViewMode = .reels
     @State var toastMessage: String?
+    @State var isEditingName = false
+    @State var editedName = ""
     @Namespace var tabNamespace
     @Environment(\.dismiss) var dismiss
     @Environment(TabState.self) var tabState
@@ -97,11 +99,7 @@ struct GroupDetailView: View {
             if let group {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(group.name)
-                            .font(.system(
-                                size: 18, weight: .bold
-                            ))
-                            .foregroundStyle(.white)
+                        groupNameRow(group)
 
                         Button {
                             showMembers = true
@@ -189,6 +187,60 @@ struct GroupDetailView: View {
                             )
                             .frame(height: 2)
                     }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    func groupNameRow(
+        _ group: GroupDetailResponse
+    ) -> some View {
+        if isEditingName {
+            HStack(spacing: 8) {
+                TextField("Group name", text: $editedName)
+                    .font(.system(
+                        size: 18, weight: .bold
+                    ))
+                    .foregroundStyle(.white)
+                    .textFieldStyle(.plain)
+                    .autocorrectionDisabled()
+                    .onSubmit { saveGroupName() }
+
+                Button {
+                    saveGroupName()
+                } label: {
+                    Image(systemName: "checkmark")
+                        .font(.system(
+                            size: 14, weight: .bold
+                        ))
+                        .foregroundStyle(.white)
+                }
+
+                Button {
+                    isEditingName = false
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(
+                            size: 14, weight: .bold
+                        ))
+                        .foregroundStyle(AppTheme.textMuted)
+                }
+            }
+        } else {
+            Button {
+                editedName = group.name
+                isEditingName = true
+            } label: {
+                HStack(spacing: 6) {
+                    Text(group.name)
+                        .font(.system(
+                            size: 18, weight: .bold
+                        ))
+                        .foregroundStyle(.white)
+                    Image(systemName: "pencil")
+                        .font(.system(size: 12))
+                        .foregroundStyle(AppTheme.textDim)
                 }
             }
         }

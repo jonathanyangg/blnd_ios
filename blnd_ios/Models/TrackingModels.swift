@@ -60,8 +60,17 @@ struct WatchlistMovieResponse: Decodable, Identifiable {
     let id: Int
     let tmdbId: Int
     let title: String
+    let year: Int?
+    let overview: String?
     let posterPath: String?
+    let backdropPath: String?
+    let genres: [Genre]
+    let runtime: Int?
+    let voteAverage: Double?
     let trailerUrl: String?
+    let director: String?
+    let cast: [CastMember]
+    let tagline: String?
     let addedBy: String?
     let addedDate: String?
     let createdAt: String
@@ -72,12 +81,20 @@ struct WatchlistMovieResponse: Decodable, Identifiable {
         return Int(matchScore * 100)
     }
 
+    var yearString: String {
+        year.map { String($0) } ?? ""
+    }
+
     enum CodingKeys: String, CodingKey {
         case id
         case tmdbId = "tmdb_id"
-        case title
+        case title, year, overview
         case posterPath = "poster_path"
+        case backdropPath = "backdrop_path"
+        case genres, runtime
+        case voteAverage = "vote_average"
         case trailerUrl = "trailer_url"
+        case director, cast, tagline
         case addedBy = "added_by"
         case addedDate = "added_date"
         case createdAt = "created_at"
