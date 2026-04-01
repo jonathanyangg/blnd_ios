@@ -1,4 +1,5 @@
 import SwiftUI
+import UserNotifications
 
 /// Root view that gates on authentication phase.
 /// Shows a splash screen during cold-launch session check, then routes
@@ -23,6 +24,22 @@ struct ContentView: View {
         .task {
             if authState.isCheckingSession {
                 await authState.checkSession()
+            }
+        }
+        .onChange(of: authState.phase) { _, newPhase in
+            if newPhase == .authenticated {
+                requestNotificationPermission()
+            }
+        }
+    }
+
+    /// Soft-ask for notification permission, then register for APNs if granted.
+    private func requestNotificationPermission() {
+        let center = UNUserNotificationCenter.current()
+        center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
+            guard granted else { return }
+            DispatchQueue.main.async {
+                UIApplication.shared.registerForRemoteNotifications()
             }
         }
     }
