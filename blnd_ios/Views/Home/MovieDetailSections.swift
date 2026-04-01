@@ -191,10 +191,14 @@ extension MovieDetailView {
         if cache.isWatched(tmdbId) {
             isWatched = true
             userRating = cache.rating(for: tmdbId)
-        } else if let watched = await TrackingAPI.getWatchedMovie(tmdbId: tmdbId) {
+        } else if let watched = try? await TrackingAPI.getWatchedMovie(tmdbId: tmdbId) {
             isWatched = true
             userRating = watched.rating
-            cache.didRate(tmdbId, rating: watched.rating ?? 0)
+            if let rating = watched.rating {
+                cache.didRate(tmdbId, rating: rating)
+            } else {
+                cache.didWatch(tmdbId)
+            }
         }
     }
 
@@ -204,7 +208,7 @@ extension MovieDetailView {
             isWatched = false
             userRating = nil
             UserActionCache.shared.didUnwatch(tmdbId)
-        } catch {}
+        } catch { errorMessage = error.localizedDescription }
     }
 
     func loadFriendsWhoWatched() async {
@@ -213,7 +217,7 @@ extension MovieDetailView {
                 tmdbId: tmdbId
             )
             friendsWhoWatched = response.results
-        } catch {}
+        } catch { /* Non-critical — friends section stays hidden */ }
     }
 
     func checkHiddenStatus() async {
@@ -234,7 +238,7 @@ extension MovieDetailView {
             )
             isHidden = true
             onHide?()
-        } catch {}
+        } catch { errorMessage = error.localizedDescription }
     }
 
     func unhideMovie() async {
@@ -243,7 +247,7 @@ extension MovieDetailView {
                 tmdbId: tmdbId
             )
             isHidden = false
-        } catch {}
+        } catch { errorMessage = error.localizedDescription }
     }
 
     func toggleWatchlist() async {
@@ -260,7 +264,7 @@ extension MovieDetailView {
                 )
                 isInWatchlist = true
             }
-        } catch {}
+        } catch { errorMessage = error.localizedDescription }
         isWatchlistLoading = false
     }
 }

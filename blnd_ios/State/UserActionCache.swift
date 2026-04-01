@@ -25,6 +25,9 @@ final class UserActionCache {
     /// Cached friends-who-watched per movie (persists across card recycling)
     private(set) var friendsWhoWatched: [Int: [FriendWatchedResponse]] = [:]
 
+    /// Cached full movie details (persists across reel card recycling)
+    private(set) var movieDetails: [Int: MovieResponse] = [:]
+
     /// Whether initial data has been loaded
     private(set) var didLoadInitial = false
 
@@ -109,6 +112,10 @@ final class UserActionCache {
         friendsWhoWatched[tmdbId]
     }
 
+    func cacheMovieDetail(_ detail: MovieResponse) {
+        movieDetails[detail.tmdbId] = detail
+    }
+
     // MARK: - Queries
 
     func isWatched(_ tmdbId: Int) -> Bool {
@@ -127,6 +134,11 @@ final class UserActionCache {
 
     func didRate(_ tmdbId: Int, rating: Double) {
         ratings[tmdbId] = rating
+    }
+
+    /// Mark a movie as watched without a rating.
+    func didWatch(_ tmdbId: Int) {
+        ratings[tmdbId] = nil as Double?
     }
 
     func didWatchlist(_ tmdbId: Int) {
@@ -151,6 +163,7 @@ final class UserActionCache {
         pendingRequests = nil
         didLoadFriends = false
         friendsWhoWatched.removeAll()
+        movieDetails.removeAll()
         didLoadInitial = false
     }
 }

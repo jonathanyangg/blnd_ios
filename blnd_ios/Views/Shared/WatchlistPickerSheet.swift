@@ -211,7 +211,7 @@ struct WatchlistPickerSheet: View {
                     try await TrackingAPI.removeFromWatchlist(tmdbId: tmdbId)
                     cache.didRemoveFromWatchlist(tmdbId)
                 }
-            } catch {}
+            } catch { /* Non-critical — watchlist state may be stale */ }
         }
 
         // Group watchlist changes
@@ -228,7 +228,7 @@ struct WatchlistPickerSheet: View {
                         groupId: groupId, tmdbId: tmdbId
                     )
                 }
-            } catch {}
+            } catch { /* Non-critical — group watchlist state may be stale */ }
         }
 
         onDismiss(personalChecked && !isWatched)

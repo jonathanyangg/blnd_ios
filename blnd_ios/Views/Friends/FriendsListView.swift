@@ -191,7 +191,7 @@ struct FriendsListView: View {
             UserActionCache.shared.invalidateFriends()
             await loadData()
             await tabState.refreshPendingCount()
-        } catch {}
+        } catch { /* Non-critical — list will refresh on next pull */ }
     }
 
     private func handleReject(_ request: FriendRequestResponse) async {
@@ -202,7 +202,7 @@ struct FriendsListView: View {
             UserActionCache.shared.invalidateFriends()
             await loadData()
             await tabState.refreshPendingCount()
-        } catch {}
+        } catch { /* Non-critical — list will refresh on next pull */ }
     }
 }
 

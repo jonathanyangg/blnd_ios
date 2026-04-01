@@ -98,6 +98,7 @@ struct OnboardingCompleteView: View {
         // Ensure loader shows for at least 3 seconds total
         try? await Task.sleep(for: .seconds(1))
 
+        await UserActionCache.shared.bootstrap()
         onboardingState.reset()
         authState.phase = .authenticated
     }

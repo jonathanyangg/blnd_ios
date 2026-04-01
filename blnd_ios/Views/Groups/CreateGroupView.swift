@@ -13,6 +13,7 @@ struct CreateGroupView: View {
         if let group = createdGroup {
             AddGroupMemberSheet(
                 groupId: group.id,
+                existingMemberIds: Set(group.members.map(\.id)),
                 onMemberAdded: { _ in }
             )
             .background(AppTheme.background)

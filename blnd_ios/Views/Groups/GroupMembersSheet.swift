@@ -36,7 +36,10 @@ struct GroupMembersSheet: View {
             }
         }
         .sheet(isPresented: $showAddMember) {
-            AddGroupMemberSheet(groupId: groupId) { updated in
+            AddGroupMemberSheet(
+                groupId: groupId,
+                existingMemberIds: Set(group?.members.map(\.id) ?? [])
+            ) { updated in
                 group = updated
             }
             .presentationDetents([.large])
@@ -126,7 +129,7 @@ struct GroupMembersSheet: View {
                 Text("Owner")
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(AppTheme.textDim)
-            } else if member.id != currentUserId {
+            } else if isOwner, member.id != currentUserId {
                 if removingId == member.id {
                     ProgressView()
                         .tint(.white)
@@ -203,7 +206,7 @@ struct GroupMembersSheet: View {
                 groupId: groupId
             )
             group = updated
-        } catch {}
+        } catch { /* Non-critical — member list unchanged */ }
         removingId = nil
     }
 
@@ -214,7 +217,7 @@ struct GroupMembersSheet: View {
             UserActionCache.shared.invalidateGroups()
             dismiss()
             onGroupDeleted?()
-        } catch {}
+        } catch { /* Non-critical — user can retry */ }
         isLeaving = false
     }
 
@@ -225,7 +228,7 @@ struct GroupMembersSheet: View {
             UserActionCache.shared.invalidateGroups()
             dismiss()
             onGroupDeleted?()
-        } catch {}
+        } catch { /* Non-critical — user can retry */ }
         isDeleting = false
     }
 }

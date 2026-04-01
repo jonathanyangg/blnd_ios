@@ -2,6 +2,7 @@ import SwiftUI
 
 struct AddGroupMemberSheet: View {
     let groupId: Int
+    var existingMemberIds: Set<String> = []
     let onMemberAdded: (GroupDetailResponse) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -166,8 +167,10 @@ struct AddGroupMemberSheet: View {
     private func loadFriends() async {
         do {
             let response = try await FriendsAPI.listFriends()
-            friends = response.friends
-        } catch {}
+            friends = response.friends.filter {
+                !existingMemberIds.contains($0.id)
+            }
+        } catch { errorMessage = error.localizedDescription }
         isLoadingFriends = false
     }
 
