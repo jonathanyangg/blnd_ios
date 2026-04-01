@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct MainTabView: View {
+    @Environment(DeepLinkState.self) private var deepLinkState
     @State private var tabState = TabState()
 
     var body: some View {
@@ -52,6 +53,17 @@ struct MainTabView: View {
                 Task {
                     await tabState.refreshPendingCount()
                 }
+            }
+        }
+        .onChange(of: deepLinkState.pending) { _, newValue in
+            guard let link = newValue else { return }
+            switch link {
+            case .friendRequests:
+                tabState.selectedTab = 1
+            case .groupDetail:
+                tabState.selectedTab = 2
+            case .movieDetail:
+                tabState.selectedTab = 0
             }
         }
     }
