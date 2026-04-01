@@ -65,8 +65,8 @@ struct ReelsFeedView: View {
             }
         }
         .onChange(of: movies) { _, newMovies in
-            if currentId == nil, let first = newMovies.first {
-                currentId = first.tmdbId
+            if currentId.flatMap({ cid in newMovies.contains { $0.tmdbId == cid } }) != true {
+                currentId = newMovies.first?.tmdbId
             }
         }
         .onAppear {
