@@ -38,6 +38,27 @@ extension MovieDetailView {
         .padding(.horizontal, 24)
     }
 
+    var watchNowButton: some View {
+        Button { showStreamingSheet = true } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "play.circle.fill")
+                    .font(.system(size: 14, weight: .semibold))
+                Text("Watch Now")
+            }
+            .font(.system(size: 15, weight: .semibold))
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 13)
+            .background(.white)
+            .foregroundStyle(.black)
+            .clipShape(
+                RoundedRectangle(
+                    cornerRadius: AppTheme.cornerRadiusMedium
+                )
+            )
+        }
+        .padding(.bottom, 8)
+    }
+
     var actionButtons: some View {
         HStack(spacing: 10) {
             Button {

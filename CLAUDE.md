@@ -230,7 +230,7 @@ blnd_ios/blnd_ios/
 50. Reels inline detail: removed tap-to-navigate in reels mode (grid mode unaffected), expanded reel cards with tagline, expandable overview ("more" button), compact cast section (36x36 avatars, max 8). ReelCardView split into extensions (ReelCardSections.swift for view sections). Removed onNavigateToDetail from entire chain (8 files).
 51. YouTube autoplay fix: replaced plain iframe embed with YouTube IFrame Player API in ReelTrailerView — uses onReady callback with explicit mute() + playVideo() for reliable autoplay on iOS WKWebView.
 52. Screenshot mode: `APIConfig.screenshotMode` flag + `.posterBlur()` ViewModifier blurs all TMDB images (posters, backdrops, cast photos) across 7 files when enabled. For taking App Store screenshots without copyrighted movie art. No-op when false.
-53. Infinite scroll for FYP: `RecommendationsAPI.getFeed(exclude:limit:)` POST endpoint, `HomeView` tracks `seenFYPIds`, `loadMoreFYP()` sends exclude list for fresh batches. Triggers at last 4 items in both reels and grid modes. No auto-rebuild of taste profile on rating — only on explicit refresh, genre update, or onboarding.
+53. Infinite scroll for FYP: `RecommendationsAPI.getFeed(exclude:limit:)` POST endpoint, `HomeView` tracks `seenFYPIds`, `loadMoreFYP()` sends exclude list for fresh batches. Default batch size: 20. Triggers at last 4 items in both reels and grid modes. Backend rebuilds taste profile every 5 actions (rate/hide/watchlist) in background.
 54. Infinite scroll for Discover: replace page-based pagination with exclude-based (`seenIds` set). `MoviesAPI.trending(exclude:)`, `.topRated(exclude:)`, `.discover(genres:exclude:)` — backend softmax-samples 20 from 100 TMDB movies per call, exclude ensures no duplicates across batches.
 55. Infinite scroll for Groups: `GroupsAPI.getFeed(groupId:exclude:limit:)` POST endpoint, `GroupDetailView` tracks `seenRecIds`, `loadMoreRecs()` in both reels and grid modes.
 56. No re-fetch on navigate back: `loadForYou()` guards on `recommendations.isEmpty`, `loadMovies()` guards on `movies.isEmpty`, `loadAll()` guards on `group == nil`. Rating a movie does not trigger taste rebuild or page refresh.
@@ -241,7 +241,7 @@ blnd_ios/blnd_ios/
 61. UserActionCache: singleton in-memory cache bootstrapped on login. Tracks watched ratings + watchlisted IDs. Updated inline on all rate/watchlist/unwatch actions. Eliminates redundant status API calls.
 62. Tutorial overlay: 3-step walkthrough (scroll, swipe-left watchlist, swipe-right rate) with progress dots + Next/Skip/Got it. Persisted via UserDefaults, shown once per install.
 63. Smoother swipe gestures: spring snap-back animation, haptic on threshold cross, optimistic watchlist toast. `@State swipeOffset` replaces `@GestureState` for animated reset.
-64. YouTube trailer optimizations: `controls: 0` for faster load, CSS opacity mask (invisible until playing state 1), no artificial delay, `WKNavigationDelegate` for YouTube link handling.
+64. YouTube trailer optimizations: `controls: 1` (native YouTube controls for seeking/progress), CSS opacity mask (invisible until playing state 1), no artificial delay, `WKNavigationDelegate` for YouTube link handling.
 65. Swift 6 concurrency fixes: `Sendable` on KeychainManager/LoginResponse/RefreshTokenRequest, `@unchecked Sendable` on APIClient, `@MainActor` on TokenRefresher task.
 66. Cleaner Letterboxd import page: left-aligned header, step titles + descriptions, privacy note, split into extension file.
 67. Cleaner rating overlay: minimal 3-element design (title, stars, capsule button), appear/dismiss animations.
@@ -262,13 +262,15 @@ blnd_ios/blnd_ios/
 82. Dynamic overview height: `overviewMaxHeight` computed from card geometry (card height minus title, media, genres, tagline, cast, friends heights). Overview fills available space instead of hardcoded 80pt cap. "more" only shows when text still overflows. Expanded overview uses `.fixedSize(vertical: true)` so "less" button sits right below last line.
 83. YouTube button fix: added `WKUIDelegate` + `createWebViewWith` to both `TrailerPlayer.Coordinator` (ReelTrailerView) and `YouTubeWebView.Coordinator` (YouTubePlayerView). YouTube logo `target="_blank"` / `window.open()` now opens in Safari/YouTube app instead of silently failing.
 84. Reel media gradient: trailer placeholder uses `AppTheme.posterGradient` (blue-to-red) instead of flat `AppTheme.card`, matching MovieDetailView's `heroPlaceholder` style.
+85. Reels paging fix: replaced `.scrollTargetBehavior(.paging)` with `.viewAligned(limitBehavior: .alwaysByOne)` to eliminate sub-pixel drift that skipped cards after ~10 swipes. Load-more moved from `onAppear` to `onChange(of: currentId)` to prevent array mutation during active scroll.
+86. Trailer tab isolation: `ReelsFeedView` accepts `isTabVisible` param. Home passes `tabState.selectedTab == 0`, Groups passes `tabState.selectedTab == 2`. When a tab is inactive, its reel cards become inactive → trailers stop → shared `TrailerPlayer` WebView is released for the active tab. `MainTabView` also calls `TrailerPlayer.shared.stop()` on tab switch.
 
 ## Next Steps
 
-85. Letterboxd import (POST /import/letterboxd — file upload in settings)
-86. Add avatar_url to backend GroupMemberResponse so group member avatars show
-87. Profile edit UI (taste bio — backend already wired)
-88. Polish: empty states, error handling
+87. Letterboxd import (POST /import/letterboxd — file upload in settings)
+88. Add avatar_url to backend GroupMemberResponse so group member avatars show
+89. Profile edit UI (taste bio — backend already wired)
+90. Polish: empty states, error handling
 
 ## Linting
 
@@ -285,4 +287,4 @@ blnd_ios/blnd_ios/
 
 ## Last Updated
 
-2026-03-29
+2026-04-01

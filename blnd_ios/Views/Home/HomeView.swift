@@ -13,7 +13,7 @@ enum HomeTab: String, CaseIterable {
 }
 
 struct HomeView: View {
-    @Environment(TabState.self) private var tabState
+    @Environment(TabState.self) var tabState
     @State var selectedTab: HomeTab = .forYou
     @State var showSearch = false
     @State var viewMode: ViewMode = .reels

@@ -21,6 +21,7 @@ struct GroupDetailView: View {
     @State var toastMessage: String?
     @Namespace var tabNamespace
     @Environment(\.dismiss) var dismiss
+    @Environment(TabState.self) var tabState
 
     var groupContext: ReelCardView.GroupContext? {
         guard let group else { return nil }

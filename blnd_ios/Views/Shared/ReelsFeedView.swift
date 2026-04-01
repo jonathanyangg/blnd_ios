@@ -3,6 +3,7 @@ import SwiftUI
 struct ReelsFeedView: View {
     let movies: [ReelMovie]
     var groupContext: ReelCardView.GroupContext?
+    var isTabVisible: Bool = true
     var onLoadMore: (() async -> Void)?
     var onRefresh: (() async -> Void)?
 
@@ -21,10 +22,11 @@ struct ReelsFeedView: View {
                     ForEach(
                         Array(movies.enumerated()),
                         id: \.element.id
-                    ) { index, movie in
+                    ) { _, movie in
                         ReelCardView(
                             movie: movie,
-                            isActive: movie.tmdbId == currentId,
+                            isActive: movie.tmdbId == currentId
+                                && isTabVisible,
                             groupContext: groupContext,
                             onWatchlistAdded: { msg in
                                 addedToWatchlist.insert(
@@ -44,20 +46,23 @@ struct ReelsFeedView: View {
                         )
                         .frame(height: cardHeight)
                         .id(movie.tmdbId)
-                        .onAppear {
-                            if index >= movies.count - 4 {
-                                Task {
-                                    await onLoadMore?()
-                                }
-                            }
-                        }
                     }
                 }
                 .scrollTargetLayout()
             }
-            .scrollTargetBehavior(.paging)
+            .scrollTargetBehavior(
+                .viewAligned(limitBehavior: .alwaysByOne)
+            )
             .scrollPosition(id: $currentId)
             .scrollIndicators(.hidden)
+        }
+        .onChange(of: currentId) { _, newId in
+            guard let newId else { return }
+            if let idx = movies.firstIndex(where: {
+                $0.tmdbId == newId
+            }), idx >= movies.count - 4 {
+                Task { await onLoadMore?() }
+            }
         }
         .onChange(of: movies) { _, newMovies in
             if currentId == nil, let first = newMovies.first {

@@ -17,6 +17,7 @@ struct DiscoverSectionView: View {
     let cardWidth: CGFloat
     let cardHeight: CGFloat
     var viewMode: ViewMode = .grid
+    var isTabVisible: Bool = true
 
     @State var activeFilter: DiscoverFilter = .trending
     @State var movies: [MovieResponse] = []
@@ -79,6 +80,7 @@ struct DiscoverSectionView: View {
         } else {
             ReelsFeedView(
                 movies: discoverReelMovies,
+                isTabVisible: isTabVisible,
                 onLoadMore: { await loadNextPage() },
                 onRefresh: { await refresh() }
             )

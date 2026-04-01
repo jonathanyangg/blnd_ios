@@ -196,6 +196,8 @@
 			mainGroup = 84CAD8BE2F56A2E7001B73F1;
 			minimizedProjectReferenceProxies = 1;
 			preferredProjectObjectVersion = 77;
+			packageReferences = (
+			);
 			productRefGroup = 84CAD8C82F56A2E7001B73F1 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -582,6 +584,7 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
 	};
 	rootObject = 84CAD8BF2F56A2E7001B73F1 /* Project object */;
 }

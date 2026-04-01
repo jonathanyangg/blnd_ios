@@ -105,7 +105,7 @@ final class TrailerPlayer {
                 playerVars: {
                     playsinline: 1,
                     autoplay: 0,
-                    controls: 0,
+                    controls: 1,
                     rel: 0,
                     showinfo: 0,
                     modestbranding: 1,

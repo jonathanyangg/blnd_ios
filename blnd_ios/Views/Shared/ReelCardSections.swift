@@ -19,10 +19,19 @@ extension ReelCardView {
 
                 Spacer()
 
+                streamingButton
                 hideButton
             }
 
             metaLine
+        }
+    }
+
+    var streamingButton: some View {
+        Button { showStreamingSheet = true } label: {
+            Image(systemName: "tv")
+                .font(.system(size: 15))
+                .foregroundStyle(AppTheme.textDim)
         }
     }
 

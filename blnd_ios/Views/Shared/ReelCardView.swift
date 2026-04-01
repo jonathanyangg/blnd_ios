@@ -24,6 +24,7 @@ struct ReelCardView: View {
     @State var cardSize: CGSize = .zero
     @State var isHidden = false
     @State var showHideConfirm = false
+    @State var showStreamingSheet = false
 
     let swipeThreshold: CGFloat = 120
 
@@ -75,6 +76,12 @@ struct ReelCardView: View {
             if showRating {
                 ratingOverlay
             }
+        }
+        .sheet(isPresented: $showStreamingSheet) {
+            StreamingSheet(tmdbId: movie.tmdbId, title: movie.title)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+                .presentationBackground(AppTheme.card)
         }
         .onAppear {
             if isActive {

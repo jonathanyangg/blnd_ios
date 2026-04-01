@@ -55,6 +55,16 @@ enum MoviesAPI {
             authenticated: true
         )
     }
+
+    static func getStreaming(
+        tmdbId: Int,
+        country: String = "us"
+    ) async throws -> StreamingAvailabilityResponse {
+        try await APIClient.shared.request(
+            endpoint: "/movies/\(tmdbId)/streaming?country=\(country)",
+            authenticated: true
+        )
+    }
 }
 
 /// Recommendation endpoints
@@ -62,7 +72,7 @@ enum RecommendationsAPI {
     /// POST /recommendations/me/feed — infinite scroll feed with exclude list
     static func getFeed(
         exclude: [Int] = [],
-        limit: Int = 50
+        limit: Int = 20
     ) async throws -> RecommendationsResponse {
         let body = FeedRequest(exclude: exclude, limit: limit)
         return try await APIClient.shared.request(

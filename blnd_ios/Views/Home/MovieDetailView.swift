@@ -19,6 +19,7 @@ struct MovieDetailView: View {
     @State var friendsWhoWatched: [FriendWatchedResponse] = []
     @State var isHidden = false
     @State var showHideConfirm = false
+    @State var showStreamingSheet = false
     @State var overviewExpanded = false
 
     private var displayTitle: String {
@@ -115,6 +116,12 @@ struct MovieDetailView: View {
             .presentationDragIndicator(.visible)
             .presentationBackground(AppTheme.card)
         }
+        .sheet(isPresented: $showStreamingSheet) {
+            StreamingSheet(tmdbId: tmdbId, title: displayTitle)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+                .presentationBackground(AppTheme.card)
+        }
         .task {
             await fetchMovie()
             async let watched: () = checkWatchedStatus()
@@ -176,6 +183,7 @@ struct MovieDetailView: View {
                 .overlay(AppTheme.border)
                 .padding(.bottom, 20)
 
+            watchNowButton
             actionButtons
             FriendsWhoWatchedSection(friends: friendsWhoWatched)
         }
