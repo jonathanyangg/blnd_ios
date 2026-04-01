@@ -2,9 +2,11 @@ import SwiftUI
 
 struct GroupsListView: View {
     @Environment(TabState.self) private var tabState
+    @Environment(DeepLinkState.self) private var deepLinkState
     @State private var groups: [GroupResponse] = []
     @State private var isLoading = true
     @State private var showCreateGroup = false
+    @State private var deepLinkGroupId: Int?
 
     var body: some View {
         NavigationStack {
@@ -67,6 +69,21 @@ struct GroupsListView: View {
             .onChange(of: showCreateGroup) {
                 if !showCreateGroup {
                     Task { await loadGroups() }
+                }
+            }
+            .navigationDestination(item: $deepLinkGroupId) { groupId in
+                GroupDetailView(groupId: groupId)
+            }
+            .onChange(of: deepLinkState.pending) { _, newValue in
+                if case let .groupDetail(groupId) = newValue {
+                    deepLinkGroupId = groupId
+                    deepLinkState.pending = nil
+                }
+            }
+            .onAppear {
+                if case let .groupDetail(groupId) = deepLinkState.pending {
+                    deepLinkGroupId = groupId
+                    deepLinkState.pending = nil
                 }
             }
         }

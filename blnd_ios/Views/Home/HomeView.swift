@@ -14,6 +14,7 @@ enum HomeTab: String, CaseIterable {
 
 struct HomeView: View {
     @Environment(TabState.self) private var tabState
+    @Environment(DeepLinkState.self) private var deepLinkState
     @State var selectedTab: HomeTab = .forYou
     @State var showSearch = false
     @State var viewMode: ViewMode = .reels
@@ -29,6 +30,7 @@ struct HomeView: View {
     @State var toastMessage: String?
     @State var showStickySearch = false
     @State var lastScrollOffset: CGFloat = 0
+    @State var deepLinkTmdbId: Int?
 
     private static let tutorialKey = "hasSeenReelsTutorial"
 
@@ -63,6 +65,21 @@ struct HomeView: View {
             }
             .onChange(of: tabState.homeRefreshTrigger) {
                 Task { await refreshFYP() }
+            }
+            .navigationDestination(item: $deepLinkTmdbId) { tmdbId in
+                MovieDetailView(tmdbId: tmdbId)
+            }
+            .onChange(of: deepLinkState.pending) { _, newValue in
+                if case let .movieDetail(tmdbId) = newValue {
+                    deepLinkTmdbId = tmdbId
+                    deepLinkState.pending = nil
+                }
+            }
+            .onAppear {
+                if case let .movieDetail(tmdbId) = deepLinkState.pending {
+                    deepLinkTmdbId = tmdbId
+                    deepLinkState.pending = nil
+                }
             }
             .overlay(alignment: .top) {
                 if let toast = toastMessage {
