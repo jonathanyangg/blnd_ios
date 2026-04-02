@@ -67,6 +67,26 @@ struct PublicFriendsListResponse: Decodable {
     let friends: [PublicFriendResponse]
 }
 
+// MARK: - Mutual Friends
+
+struct MutualFriendResponse: Decodable, Identifiable, Hashable {
+    let id: String
+    let username: String
+    let displayName: String?
+    let avatarUrl: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, username
+        case displayName = "display_name"
+        case avatarUrl = "avatar_url"
+    }
+}
+
+struct MutualFriendsResponse: Decodable {
+    let mutuals: [MutualFriendResponse]
+    let count: Int
+}
+
 // MARK: - Genre Taste
 
 /// A single genre score entry from the taste radar — returned inside GenreTasteResponse

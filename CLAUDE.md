@@ -263,14 +263,21 @@ blnd_ios/blnd_ios/
 83. YouTube button fix: added `WKUIDelegate` + `createWebViewWith` to both `TrailerPlayer.Coordinator` (ReelTrailerView) and `YouTubeWebView.Coordinator` (YouTubePlayerView). YouTube logo `target="_blank"` / `window.open()` now opens in Safari/YouTube app instead of silently failing.
 84. Reel media gradient: trailer placeholder uses `AppTheme.posterGradient` (blue-to-red) instead of flat `AppTheme.card`, matching MovieDetailView's `heroPlaceholder` style.
 85. Reels paging fix: replaced `.scrollTargetBehavior(.paging)` with `.viewAligned(limitBehavior: .alwaysByOne)` to eliminate sub-pixel drift that skipped cards after ~10 swipes. Load-more moved from `onAppear` to `onChange(of: currentId)` to prevent array mutation during active scroll.
-86. Trailer tab isolation: `ReelsFeedView` accepts `isTabVisible` param. Home passes `tabState.selectedTab == 0`, Groups passes `tabState.selectedTab == 2`. When a tab is inactive, its reel cards become inactive → trailers stop → shared `TrailerPlayer` WebView is released for the active tab. `MainTabView` also calls `TrailerPlayer.shared.stop()` on tab switch.
+86. Trailer tab isolation: `ReelsFeedView` accepts `isTabVisible` param. Home passes `tabState.selectedTab == 0`, Groups passes `tabState.selectedTab == 2`. When a tab is inactive, its reel cards become inactive → trailers stop and resources are freed for the active tab.
+87. Group rename: any member can tap pencil icon on group name to rename. Input sanitized (trim whitespace, reject empty, 50-char max). Optimistic UI update with rollback on API failure. `GroupDetailResponse.name` changed to `var`.
+88. Watchlist reels enrichment: backend `_watchlist_to_response` now returns full movie details (year, overview, genres, runtime, vote_average, director, cast, tagline, backdrop_path). iOS `WatchlistMovieResponse` + `ReelMovie(from:)` updated to map all fields. Group/personal watchlist reels now show full cards.
+89. Screenshot blur reduced from 20 → 5 for lighter obscuring of poster art.
+90. Refresh trailer fix: `ReelsFeedView.onChange(of: movies)` now resets `currentId` when the current movie is no longer in the list (e.g., after FYP refresh), so the first card becomes active and its trailer autoplays.
+91. Tutorial overlay: animated gesture demos replacing static SF Symbol icons. `ScrollDemo` (cards float up with chevron), `SwipeLeftDemo` (card slides left, bookmark fades in), `SwipeRightDemo` (card slides right, star fades in). All loop with `repeatForever(autoreverses: true)`.
+92. User search by display name: backend `search_users` now matches `username ILIKE 'q%'` OR `display_name ILIKE '%q%'`. No iOS changes needed.
+93. Onboarding swipe card poster fix: added `.id(currentIndex)` to front `SwipeCard` in `RateMoviesView` so `CachedAsyncImage` recreates on advance instead of showing stale poster from previous card.
 
 ## Next Steps
 
-87. Letterboxd import (POST /import/letterboxd — file upload in settings)
-88. Add avatar_url to backend GroupMemberResponse so group member avatars show
-89. Profile edit UI (taste bio — backend already wired)
-90. Polish: empty states, error handling
+94. Letterboxd import (POST /import/letterboxd — file upload in settings)
+95. Add avatar_url to backend GroupMemberResponse so group member avatars show
+96. Profile edit UI (taste bio — backend already wired)
+97. Polish: empty states, error handling
 
 ## Linting
 
@@ -287,4 +294,4 @@ blnd_ios/blnd_ios/
 
 ## Last Updated
 
-2026-04-01
+2026-04-02

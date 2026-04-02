@@ -55,4 +55,31 @@ enum FriendsAPI {
             authenticated: true
         )
     }
+
+    /// POST /friends/contacts — upload phone numbers for contact matching
+    static func uploadContacts(phoneNumbers: [String]) async throws {
+        let body = UploadContactsRequest(phoneNumbers: phoneNumbers)
+        try await APIClient.shared.requestVoid(
+            endpoint: "/friends/contacts",
+            method: "POST",
+            body: body,
+            authenticated: true
+        )
+    }
+
+    /// GET /friends/suggestions — contact matches + mutual friends
+    static func getSuggestions() async throws -> FriendSuggestionsResponse {
+        try await APIClient.shared.request(
+            endpoint: "/friends/suggestions",
+            authenticated: true
+        )
+    }
+
+    /// GET /friends/{userId}/mutuals — mutual friends with a specific user
+    static func getMutuals(userId: String) async throws -> MutualFriendsResponse {
+        try await APIClient.shared.request(
+            endpoint: "/friends/\(userId)/mutuals",
+            authenticated: true
+        )
+    }
 }

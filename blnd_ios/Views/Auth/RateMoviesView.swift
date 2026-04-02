@@ -67,6 +67,7 @@ struct RateMoviesView: View {
                                 year: movie.year.map { String($0) } ?? "",
                                 posterPath: movie.posterPath
                             )
+                            .id(currentIndex)
                             .offset(offset)
                             .rotationEffect(.degrees(Double(offset.width) * 0.04))
                             .gesture(

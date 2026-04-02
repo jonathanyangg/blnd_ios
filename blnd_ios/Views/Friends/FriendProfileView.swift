@@ -12,10 +12,15 @@ struct FriendProfileView: View {
     @State private var watchedTotal = 0
     @State private var isLoading = true
     @State private var isLoadingMore = false
+    @State private var watchedGated = false
 
     @State private var showFriendsList = false
     @State private var friendsList: [PublicFriendResponse] = []
     @State private var isLoadingFriends = false
+
+    @State private var mutualFriends: [MutualFriendResponse] = []
+    @State private var mutualCount = 0
+    @State private var showMutualsList = false
 
     @State private var selectedFriendOfFriend: PublicFriendResponse?
 
@@ -44,7 +49,13 @@ struct FriendProfileView: View {
                     StatsRow(items: [
                         StatItem(label: "Watched", value: profile.watchedCount, onTap: nil),
                         StatItem(label: "Friends", value: profile.friendsCount, onTap: { showFriendsList = true }),
-                        StatItem(label: "Blends", value: profile.blendsCount, onTap: nil),
+                        StatItem(
+                            label: "Mutual",
+                            value: mutualCount,
+                            onTap: mutualCount > 0
+                                ? { showMutualsList = true }
+                                : nil
+                        ),
                     ])
                 }
 
@@ -53,6 +64,18 @@ struct FriendProfileView: View {
                     ProgressView()
                         .tint(.white)
                         .padding(.top, 40)
+                } else if watchedGated {
+                    VStack(spacing: 12) {
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 28))
+                            .foregroundStyle(AppTheme.textDim)
+                        Text("Add \(friend.username) to see their watched movies")
+                            .font(.system(size: 14))
+                            .foregroundStyle(AppTheme.textMuted)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 40)
+                    }
+                    .padding(.top, 40)
                 } else if watchedMovies.isEmpty {
                     VStack(spacing: 12) {
                         Image(systemName: "film")
@@ -124,6 +147,14 @@ struct FriendProfileView: View {
             }
             .presentationBackground(AppTheme.background)
         }
+        .sheet(isPresented: $showMutualsList) {
+            MutualsListSheet(mutuals: mutualFriends) { selected in
+                selectedFriendOfFriend = selected
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+            .presentationBackground(AppTheme.background)
+        }
         .navigationDestination(item: $selectedFriendOfFriend) { friendOfFriend in
             FriendProfileView(friend: FriendResponse(
                 friendshipId: nil,
@@ -145,16 +176,33 @@ struct FriendProfileView: View {
 
     private func loadData() async {
         isLoading = true
+
+        // Profile + mutuals always load (no friendship required)
+        async let profile = ProfileAPI.getPublicProfile(userId: friend.id)
+        async let mutuals = FriendsAPI.getMutuals(userId: friend.id)
         do {
-            async let profile = ProfileAPI.getPublicProfile(userId: friend.id)
-            async let watched = ProfileAPI.getPublicWatched(userId: friend.id, limit: 20, offset: 0)
-            let (profileResult, watchedResult) = try await (profile, watched)
+            let (profileResult, mutualsResult) = try await (profile, mutuals)
             publicProfile = profileResult
+            mutualFriends = mutualsResult.mutuals
+            mutualCount = mutualsResult.count
+        } catch is CancellationError {
+            return
+        } catch { /* Non-critical */ }
+
+        // Watched movies require friendship — 403 means not friends yet
+        do {
+            let watchedResult = try await ProfileAPI.getPublicWatched(
+                userId: friend.id, limit: 20, offset: 0
+            )
             watchedMovies = watchedResult.results
             watchedTotal = watchedResult.total
         } catch is CancellationError {
             return
-        } catch { /* Non-critical — empty state shown */ }
+        } catch {
+            // 403 (not friends) or any other error → show gated state
+            watchedGated = true
+        }
+
         isLoading = false
     }
 
@@ -255,6 +303,78 @@ private struct FriendsListSheet: View {
             }
             .background(AppTheme.background)
             .navigationTitle("Friends")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") { dismiss() }
+                        .foregroundStyle(.white)
+                }
+            }
+            .toolbarBackground(AppTheme.background, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+        }
+    }
+}
+
+// MARK: - MutualsListSheet
+
+private struct MutualsListSheet: View {
+    let mutuals: [MutualFriendResponse]
+    let onSelectFriend: (PublicFriendResponse) -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                if mutuals.isEmpty {
+                    Text("No mutual friends")
+                        .font(.system(size: 14))
+                        .foregroundStyle(AppTheme.textMuted)
+                        .padding(.top, 40)
+                } else {
+                    LazyVStack(spacing: 0) {
+                        ForEach(mutuals) { mutual in
+                            Button {
+                                dismiss()
+                                let asFriend = PublicFriendResponse(
+                                    id: mutual.id,
+                                    username: mutual.username,
+                                    displayName: mutual.displayName,
+                                    avatarUrl: mutual.avatarUrl
+                                )
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                    onSelectFriend(asFriend)
+                                }
+                            } label: {
+                                HStack(spacing: 12) {
+                                    AvatarView(url: mutual.avatarUrl)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(mutual.displayName ?? mutual.username)
+                                            .font(.system(size: 16, weight: .medium))
+                                            .foregroundStyle(.white)
+                                        Text("@\(mutual.username)")
+                                            .font(.system(size: 13))
+                                            .foregroundStyle(AppTheme.textMuted)
+                                    }
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 14))
+                                        .foregroundStyle(AppTheme.textDim)
+                                }
+                                .padding(.vertical, 14)
+                                .padding(.horizontal, 24)
+                            }
+                            .buttonStyle(.plain)
+
+                            Divider()
+                                .background(AppTheme.cardSecondary)
+                                .padding(.horizontal, 24)
+                        }
+                    }
+                }
+            }
+            .background(AppTheme.background)
+            .navigationTitle("Mutual Friends")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {

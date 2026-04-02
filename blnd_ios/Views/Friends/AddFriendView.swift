@@ -7,12 +7,25 @@ struct AddFriendView: View {
     @State private var isSearching = false
     @State private var searchTask: Task<Void, Never>?
 
+    // Suggestions
+    @State private var contactSuggestions: [SuggestedFriendResponse] = []
+    @State private var mutualSuggestions: [SuggestedFriendResponse] = []
+    @State private var isSuggestionsLoading = true
+
     // Request state
     @State private var sendingTo: String?
     @State private var sentTo: Set<String> = []
     @State private var errorMessage: String?
 
     @FocusState private var isFieldFocused: Bool
+
+    private var showSuggestions: Bool {
+        query.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    private var hasSuggestions: Bool {
+        !contactSuggestions.isEmpty || !mutualSuggestions.isEmpty
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -29,17 +42,16 @@ struct AddFriendView: View {
                     .padding(.bottom, 8)
             }
 
-            ScrollView {
-                LazyVStack(spacing: 0) {
-                    ForEach(results) { user in
-                        userRow(user)
-                    }
-                }
+            if showSuggestions {
+                suggestionsContent
+            } else {
+                searchResults
             }
         }
         .background(AppTheme.background)
         .navigationBarHidden(true)
         .onAppear { isFieldFocused = true }
+        .task { await loadSuggestions() }
     }
 
     // MARK: - Header
@@ -99,7 +111,97 @@ struct AddFriendView: View {
         .clipShape(RoundedRectangle(cornerRadius: AppTheme.cornerRadiusMedium))
     }
 
-    // MARK: - User Row
+    // MARK: - Suggestions
+
+    private var suggestionsContent: some View {
+        Group {
+            if isSuggestionsLoading {
+                ProgressView()
+                    .tint(.white)
+                    .padding(.top, 40)
+                Spacer()
+            } else if hasSuggestions {
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        if !contactSuggestions.isEmpty {
+                            sectionHeader("FROM YOUR CONTACTS")
+                            ForEach(contactSuggestions) { suggestion in
+                                suggestionRow(suggestion)
+                            }
+                        }
+
+                        if !mutualSuggestions.isEmpty {
+                            sectionHeader("PEOPLE YOU MAY KNOW")
+                                .padding(.top, contactSuggestions.isEmpty ? 0 : 12)
+                            ForEach(mutualSuggestions) { suggestion in
+                                suggestionRow(suggestion)
+                            }
+                        }
+                    }
+                }
+            } else {
+                VStack(spacing: 8) {
+                    Text("Search for friends by username")
+                        .font(.system(size: 14))
+                        .foregroundStyle(AppTheme.textMuted)
+                }
+                .padding(.top, 40)
+                Spacer()
+            }
+        }
+    }
+
+    private func sectionHeader(_ title: String) -> some View {
+        HStack {
+            Text(title)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(AppTheme.textDim)
+            Spacer()
+        }
+        .padding(.horizontal, 24)
+        .padding(.top, 16)
+        .padding(.bottom, 8)
+    }
+
+    private func suggestionRow(_ suggestion: SuggestedFriendResponse) -> some View {
+        HStack(spacing: 12) {
+            AvatarView(url: suggestion.avatarUrl, size: 44)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(suggestion.displayName ?? suggestion.username)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white)
+
+                if suggestion.source == "mutual", suggestion.mutualCount > 0 {
+                    Text("\(suggestion.mutualCount) mutual friend\(suggestion.mutualCount == 1 ? "" : "s")")
+                        .font(.system(size: 13))
+                        .foregroundStyle(AppTheme.textMuted)
+                } else {
+                    Text("@\(suggestion.username)")
+                        .font(.system(size: 13))
+                        .foregroundStyle(AppTheme.textMuted)
+                }
+            }
+
+            Spacer()
+
+            addButton(id: suggestion.id, username: suggestion.username)
+        }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 10)
+    }
+
+    // MARK: - Search Results
+
+    private var searchResults: some View {
+        ScrollView {
+            LazyVStack(spacing: 0) {
+                ForEach(results) { user in
+                    userRow(user)
+                }
+            }
+        }
+    }
 
     private func userRow(_ user: UserSearchResult) -> some View {
         HStack(spacing: 12) {
@@ -116,41 +218,59 @@ struct AddFriendView: View {
 
             Spacer()
 
-            if sentTo.contains(user.id) {
-                Text("Sent")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(AppTheme.textMuted)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 7)
-                    .background(AppTheme.card)
-                    .clipShape(Capsule())
-            } else {
-                Button {
-                    Task { await sendRequest(to: user) }
-                } label: {
-                    if sendingTo == user.id {
-                        ProgressView()
-                            .tint(.black)
-                            .controlSize(.small)
-                            .frame(width: 50)
-                    } else {
-                        Text("Add")
-                            .font(.system(size: 13, weight: .semibold))
-                    }
-                }
-                .foregroundStyle(.black)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 7)
-                .background(.white)
-                .clipShape(Capsule())
-                .disabled(sendingTo != nil)
-            }
+            addButton(id: user.id, username: user.username)
         }
         .padding(.horizontal, 24)
         .padding(.vertical, 10)
     }
 
-    // MARK: - Search Logic
+    // MARK: - Shared Add Button
+
+    @ViewBuilder
+    private func addButton(id: String, username: String) -> some View {
+        if sentTo.contains(id) {
+            Text("Sent")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(AppTheme.textMuted)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 7)
+                .background(AppTheme.card)
+                .clipShape(Capsule())
+        } else {
+            Button {
+                Task { await sendRequest(id: id, username: username) }
+            } label: {
+                if sendingTo == id {
+                    ProgressView()
+                        .tint(.black)
+                        .controlSize(.small)
+                        .frame(width: 50)
+                } else {
+                    Text("Add")
+                        .font(.system(size: 13, weight: .semibold))
+                }
+            }
+            .foregroundStyle(.black)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 7)
+            .background(.white)
+            .clipShape(Capsule())
+            .disabled(sendingTo != nil)
+        }
+    }
+
+    // MARK: - Data
+
+    private func loadSuggestions() async {
+        do {
+            let response = try await FriendsAPI.getSuggestions()
+            contactSuggestions = response.contacts
+            mutualSuggestions = response.mutuals
+        } catch {
+            // Non-critical — just show empty state
+        }
+        isSuggestionsLoading = false
+    }
 
     private func debounceSearch(_ value: String) {
         searchTask?.cancel()
@@ -178,12 +298,15 @@ struct AddFriendView: View {
         }
     }
 
-    private func sendRequest(to user: UserSearchResult) async {
-        sendingTo = user.id
+    private func sendRequest(id: String, username: String) async {
+        sendingTo = id
         errorMessage = nil
         do {
-            _ = try await FriendsAPI.sendRequest(username: user.username)
-            sentTo.insert(user.id)
+            _ = try await FriendsAPI.sendRequest(username: username)
+            sentTo.insert(id)
+            // Remove from suggestions after sending
+            contactSuggestions.removeAll { $0.id == id }
+            mutualSuggestions.removeAll { $0.id == id }
         } catch let APIError.badRequest(message) {
             errorMessage = message
         } catch {
