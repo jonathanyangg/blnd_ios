@@ -88,15 +88,24 @@ struct ReelCardView: View {
         .onAppear {
             if isActive {
                 trailerReady = true
+                if let vid = trailerVideoId {
+                    TrailerPlayer.shared.play(videoId: vid)
+                }
             }
         }
         .onChange(of: isActive) { _, active in
             if active {
                 trailerReady = true
                 loadFriends()
+                if let vid = trailerVideoId {
+                    TrailerPlayer.shared.play(videoId: vid)
+                }
             } else {
                 trailerReady = false
                 overviewExpanded = false
+                // Don't call stop() here — loadVideo() on the next card
+                // implicitly replaces the current video. An explicit stop()
+                // races with the next card's play() and kills it.
             }
         }
         .onChange(of: cardSize) { _, size in

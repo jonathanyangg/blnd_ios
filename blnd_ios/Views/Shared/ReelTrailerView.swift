@@ -1,16 +1,66 @@
 import SwiftUI
 import WebKit
 
-/// Autoplay trailer for reels cards using YouTube IFrame Player API.
-/// Loads without controls for speed. Stays invisible until playing.
-struct ReelTrailerView: UIViewRepresentable {
-    let videoId: String
+/// Persistent YouTube player that reuses a single WKWebView across reel cards.
+/// Swaps video IDs via JavaScript instead of recreating the WebView each time.
+@MainActor
+final class TrailerPlayer {
+    static let shared = TrailerPlayer()
+
+    private(set) var webView: WKWebView
+    private(set) var isReady = false
+    private(set) var currentVideoId: String?
+    private var coordinator: Coordinator?
 
     private static let embedHost =
         "https://www.youtube-nocookie.com"
 
-    private var embedHTML: String {
-        let host = Self.embedHost
+    private init() {
+        let config = WKWebViewConfiguration()
+        config.allowsInlineMediaPlayback = true
+        config.mediaTypesRequiringUserActionForPlayback = []
+        let view = WKWebView(frame: .zero, configuration: config)
+        view.isOpaque = false
+        view.backgroundColor = .black
+        view.scrollView.isScrollEnabled = false
+        view.scrollView.bounces = false
+        webView = view
+
+        let coord = Coordinator(player: self)
+        coordinator = coord
+        view.navigationDelegate = coord
+        view.uiDelegate = coord
+
+        view.loadHTMLString(Self.embedHTML, baseURL: URL(string: Self.embedHost))
+    }
+
+    func play(videoId: String) {
+        let sanitized = videoId.replacingOccurrences(of: "'", with: "")
+            .replacingOccurrences(of: "\\", with: "")
+        currentVideoId = sanitized
+        if isReady {
+            webView.evaluateJavaScript("loadVideo('\(sanitized)');")
+        }
+    }
+
+    func stop() {
+        currentVideoId = nil
+        if isReady {
+            webView.evaluateJavaScript("stopVideo();")
+        }
+    }
+
+    private func markReady() {
+        isReady = true
+        if let vid = currentVideoId {
+            webView.evaluateJavaScript("loadVideo('\(vid)');")
+        }
+    }
+
+    // MARK: - HTML
+
+    private static var embedHTML: String {
+        let host = embedHost
         return """
         <html>
         <head>
@@ -27,6 +77,7 @@ struct ReelTrailerView: UIViewRepresentable {
             transition: opacity 0.2s ease-in;
         }
         .wrap.visible { opacity: 1; }
+        .wrap.hidden { opacity: 0; }
         #player {
             position: absolute;
             top: 0; left: 0;
@@ -45,35 +96,66 @@ struct ReelTrailerView: UIViewRepresentable {
         first.parentNode.insertBefore(tag, first);
 
         var player;
+        var wantPlaying = false;
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('player', {
                 host: '\(host)',
-                videoId: '\(videoId)',
                 playerVars: {
                     playsinline: 1,
-                    autoplay: 1,
+                    autoplay: 0,
                     controls: 1,
                     rel: 0,
                     showinfo: 0,
                     modestbranding: 1,
                     disablekb: 1,
                     iv_load_policy: 3,
-                    loop: 1,
-                    playlist: '\(videoId)',
                     origin: '\(host)'
                 },
                 events: {
-                    onReady: function(e) {
-                        e.target.playVideo();
+                    onReady: function() {
+                        window.webkit.messageHandlers.playerReady
+                            .postMessage('ready');
                     },
                     onStateChange: function(e) {
                         if (e.data === 1) {
                             document.getElementById('wrap')
                                 .classList.add('visible');
+                            document.getElementById('wrap')
+                                .classList.remove('hidden');
+                        } else if (e.data === 2 && wantPlaying) {
+                            wantPlaying = false;
+                            player.playVideo();
+                        } else if (e.data === 5 && wantPlaying) {
+                            player.playVideo();
                         }
+                    },
+                    onAutoplayBlocked: function() {
+                        player.playVideo();
                     }
                 }
             });
+        }
+
+        function loadVideo(videoId) {
+            document.getElementById('wrap')
+                .classList.remove('visible');
+            document.getElementById('wrap')
+                .classList.add('hidden');
+            wantPlaying = true;
+            player.loadVideoById({
+                videoId: videoId,
+                startSeconds: 0
+            });
+            player.setLoop(true);
+        }
+
+        function stopVideo() {
+            wantPlaying = false;
+            player.stopVideo();
+            document.getElementById('wrap')
+                .classList.remove('visible');
+            document.getElementById('wrap')
+                .classList.add('hidden');
         }
         </script>
         </body>
@@ -81,47 +163,39 @@ struct ReelTrailerView: UIViewRepresentable {
         """
     }
 
-    func makeCoordinator() -> Coordinator {
-        Coordinator()
-    }
+    // MARK: - Coordinator
 
-    func makeUIView(context: Context) -> WKWebView {
-        let config = WKWebViewConfiguration()
-        config.allowsInlineMediaPlayback = true
-        config.mediaTypesRequiringUserActionForPlayback = []
-        let webView = WKWebView(
-            frame: .zero,
-            configuration: config
-        )
-        webView.isOpaque = false
-        webView.backgroundColor = .black
-        webView.scrollView.isScrollEnabled = false
-        webView.scrollView.bounces = false
-        webView.navigationDelegate = context.coordinator
-        webView.loadHTMLString(
-            embedHTML,
-            baseURL: URL(string: Self.embedHost)
-        )
-        return webView
-    }
+    private class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler {
+        weak var player: TrailerPlayer?
 
-    func updateUIView(
-        _ webView: WKWebView,
-        context: Context
-    ) {}
+        init(player: TrailerPlayer) {
+            self.player = player
+            super.init()
+            player.webView.configuration.userContentController
+                .add(self, name: "playerReady")
+        }
 
-    static func dismantleUIView(
-        _ webView: WKWebView,
-        coordinator: Coordinator
-    ) {
-        webView.evaluateJavaScript(
-            "if(typeof player!=='undefined'){player.stopVideo();player.destroy()}"
-        )
-        webView.stopLoading()
-        webView.loadHTMLString("", baseURL: nil)
-    }
+        func userContentController(
+            _: WKUserContentController,
+            didReceive message: WKScriptMessage
+        ) {
+            if message.name == "playerReady" {
+                player?.markReady()
+            }
+        }
 
-    class Coordinator: NSObject, WKNavigationDelegate {
+        func webView(
+            _ webView: WKWebView,
+            createWebViewWith configuration: WKWebViewConfiguration,
+            for action: WKNavigationAction,
+            windowFeatures: WKWindowFeatures
+        ) -> WKWebView? {
+            if let url = action.request.url {
+                UIApplication.shared.open(url)
+            }
+            return nil
+        }
+
         func webView(
             _ webView: WKWebView,
             decidePolicyFor action: WKNavigationAction,
@@ -145,6 +219,39 @@ struct ReelTrailerView: UIViewRepresentable {
             } else {
                 decisionHandler(.allow)
             }
+        }
+    }
+}
+
+// MARK: - SwiftUI View
+
+struct ReelTrailerView: UIViewRepresentable {
+    let videoId: String
+
+    func makeUIView(context: Context) -> UIView {
+        UIView()
+    }
+
+    func updateUIView(_ container: UIView, context: Context) {
+        let trailerWebView = TrailerPlayer.shared.webView
+
+        if trailerWebView.superview != container {
+            trailerWebView.removeFromSuperview()
+            trailerWebView.frame = container.bounds
+            trailerWebView.autoresizingMask = [
+                .flexibleWidth, .flexibleHeight,
+            ]
+            container.addSubview(trailerWebView)
+        }
+    }
+
+    static func dismantleUIView(
+        _ container: UIView, coordinator: ()
+    ) {
+        let trailerWebView = TrailerPlayer.shared.webView
+        if trailerWebView.superview == container {
+            TrailerPlayer.shared.stop()
+            trailerWebView.removeFromSuperview()
         }
     }
 }
