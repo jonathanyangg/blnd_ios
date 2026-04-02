@@ -8,6 +8,7 @@ struct GroupMembersSheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var showAddMember = false
+    @State private var selectedMember: GroupMemberResponse?
     @State private var removingId: String?
     @State private var confirmRemoveId: String?
     @State private var showLeaveConfirm = false
@@ -26,13 +27,31 @@ struct GroupMembersSheet: View {
                 ScrollView {
                     LazyVStack(spacing: 0) {
                         ForEach(group.members) { member in
-                            memberRow(member, group: group)
+                            if member.id != currentUserId {
+                                Button { selectedMember = member } label: {
+                                    memberRow(member, group: group)
+                                }
+                                .buttonStyle(.plain)
+                            } else {
+                                memberRow(member, group: group)
+                            }
                         }
                     }
                 }
 
                 Divider().background(AppTheme.cardSecondary)
                 actionButtons
+            }
+        }
+        .fullScreenCover(item: $selectedMember) { member in
+            NavigationStack {
+                FriendProfileView(friend: FriendResponse(
+                    friendshipId: nil,
+                    id: member.id,
+                    username: member.username,
+                    displayName: member.displayName,
+                    avatarUrl: member.avatarUrl
+                ))
             }
         }
         .sheet(isPresented: $showAddMember) {

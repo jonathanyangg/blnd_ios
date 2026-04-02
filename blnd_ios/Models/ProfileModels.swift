@@ -11,6 +11,8 @@ struct PublicProfileResponse: Decodable {
     let watchedCount: Int
     let friendsCount: Int
     let blendsCount: Int
+    let friendshipStatus: String?
+    let friendshipId: Int?
 
     enum CodingKeys: String, CodingKey {
         case id, username
@@ -19,6 +21,8 @@ struct PublicProfileResponse: Decodable {
         case watchedCount = "watched_count"
         case friendsCount = "friends_count"
         case blendsCount = "blends_count"
+        case friendshipStatus = "friendship_status"
+        case friendshipId = "friendship_id"
     }
 }
 

@@ -5,6 +5,8 @@ struct FriendProfileView: View {
 
     @State private var showRemoveAlert = false
     @State private var isRemoving = false
+    @State private var isSendingRequest = false
+    @State private var friendshipAction: String?
     @Environment(\.dismiss) private var dismiss
 
     @State private var publicProfile: PublicProfileResponse?
@@ -48,7 +50,13 @@ struct FriendProfileView: View {
                 if let profile = publicProfile {
                     StatsRow(items: [
                         StatItem(label: "Watched", value: profile.watchedCount, onTap: nil),
-                        StatItem(label: "Friends", value: profile.friendsCount, onTap: { showFriendsList = true }),
+                        StatItem(
+                            label: "Friends",
+                            value: profile.friendsCount,
+                            onTap: profile.friendshipStatus == "accepted"
+                                ? { showFriendsList = true }
+                                : nil
+                        ),
                         StatItem(
                             label: "Mutual",
                             value: mutualCount,
@@ -120,31 +128,33 @@ struct FriendProfileView: View {
                 BackButton()
             }
             ToolbarItem(placement: .navigationBarTrailing) {
-                Menu {
-                    Button(role: .destructive) {
-                        showRemoveAlert = true
-                    } label: {
-                        Label("Remove Friend", systemImage: "person.badge.minus")
-                    }
-                } label: {
-                    Image(systemName: "ellipsis")
-                        .font(.system(size: 20))
-                        .foregroundStyle(AppTheme.textDim)
-                }
+                friendshipButton
             }
         }
-        .alert("Remove Friend", isPresented: $showRemoveAlert) {
+        .alert(
+            currentStatus == "accepted" ? "Remove Friend" : "Withdraw Request",
+            isPresented: $showRemoveAlert
+        ) {
             Button("Cancel", role: .cancel) {}
-            Button("Remove", role: .destructive) {
+            Button(
+                currentStatus == "accepted" ? "Remove" : "Withdraw",
+                role: .destructive
+            ) {
                 Task { await removeFriend() }
             }
         } message: {
-            Text("Remove @\(friend.username) from your friends?")
+            Text(
+                currentStatus == "accepted"
+                    ? "Remove @\(friend.username) from your friends?"
+                    : "Withdraw your friend request to @\(friend.username)?"
+            )
         }
         .sheet(isPresented: $showFriendsList) {
             FriendsListSheet(friends: friendsList, isLoading: isLoadingFriends) { selected in
                 selectedFriendOfFriend = selected
             }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
             .presentationBackground(AppTheme.background)
         }
         .sheet(isPresented: $showMutualsList) {
@@ -235,13 +245,77 @@ struct FriendProfileView: View {
     }
 
     private func removeFriend() async {
-        guard let friendshipId = friend.friendshipId else { return }
+        guard let fid = currentFriendshipId else { return }
         isRemoving = true
         do {
-            try await FriendsAPI.removeFriend(friendshipId: friendshipId)
-            dismiss()
+            try await FriendsAPI.removeFriend(friendshipId: fid)
+            if currentStatus == "accepted" {
+                dismiss()
+            } else {
+                friendshipAction = nil
+                publicProfile = nil
+                Task { await loadData() }
+            }
         } catch { /* Non-critical — user can retry */ }
         isRemoving = false
+    }
+
+    // MARK: - Friendship Button
+
+    private var currentStatus: String? {
+        friendshipAction ?? publicProfile?.friendshipStatus
+    }
+
+    private var currentFriendshipId: Int? {
+        friend.friendshipId ?? publicProfile?.friendshipId
+    }
+
+    @ViewBuilder
+    private var friendshipButton: some View {
+        let isSelf = friend.id == (KeychainManager.readString(key: "userId") ?? "")
+        if isSelf {
+            EmptyView()
+        } else if publicProfile == nil {
+            EmptyView()
+        } else {
+            Button {
+                if currentStatus == "accepted" || currentStatus == "pending" {
+                    showRemoveAlert = true
+                } else {
+                    Task { await sendFriendRequest() }
+                }
+            } label: {
+                if isSendingRequest {
+                    ProgressView().tint(.white).controlSize(.small)
+                } else {
+                    Text(friendshipLabel)
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(
+                            currentStatus == "accepted" ? .red
+                                : currentStatus == nil ? .white
+                                : AppTheme.textMuted
+                        )
+                }
+            }
+            .disabled(isSendingRequest)
+        }
+    }
+
+    private var friendshipLabel: String {
+        switch currentStatus {
+        case "accepted": "Remove"
+        case "pending": "Pending"
+        default: "Add Friend"
+        }
+    }
+
+    private func sendFriendRequest() async {
+        isSendingRequest = true
+        do {
+            _ = try await FriendsAPI.sendRequest(username: friend.username)
+            friendshipAction = "pending"
+        } catch { /* Non-critical */ }
+        isSendingRequest = false
     }
 }
 
