@@ -1,13 +1,7 @@
 import Foundation
 
 enum APIConfig {
-    static let baseURL: String = {
-        #if targetEnvironment(simulator)
-        return "http://localhost:8000"
-        #else
-        return "https://blnd-backend.onrender.com"
-        #endif
-    }()
+    static let baseURL = "https://blnd-backend.onrender.com"
 
     /// Set to true before taking App Store screenshots.
     /// Blurs movie posters to avoid copyright issues.

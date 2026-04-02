@@ -4,5 +4,7 @@
 <dict>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>blnd needs access to your photo library to set a profile picture.</string>
+	<key>NSContactsUsageDescription</key>
+	<string>blnd uses your contacts to help you find friends who are already on the app.</string>
 </dict>
 </plist>
