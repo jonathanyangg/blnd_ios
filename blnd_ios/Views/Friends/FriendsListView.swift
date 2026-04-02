@@ -124,11 +124,29 @@ struct FriendsListView: View {
             if !incoming.isEmpty {
                 sectionHeader("Incoming")
                 ForEach(incoming) { request in
-                    IncomingRequestRow(request: request) {
-                        await handleAccept(request)
-                    } onReject: {
-                        await handleReject(request)
+                    NavigationLink {
+                        FriendProfileView(
+                            friend: FriendResponse(
+                                friendshipId: nil,
+                                id: request.requester.id,
+                                username: request.requester
+                                    .username,
+                                displayName: request.requester
+                                    .displayName,
+                                avatarUrl: request.requester
+                                    .avatarUrl
+                            )
+                        )
+                    } label: {
+                        IncomingRequestRow(
+                            request: request
+                        ) {
+                            await handleAccept(request)
+                        } onReject: {
+                            await handleReject(request)
+                        }
                     }
+                    .buttonStyle(.plain)
 
                     Divider()
                         .background(AppTheme.cardSecondary)
@@ -139,7 +157,25 @@ struct FriendsListView: View {
             if !outgoing.isEmpty {
                 sectionHeader("Sent")
                 ForEach(outgoing) { request in
-                    OutgoingRequestRow(request: request)
+                    NavigationLink {
+                        FriendProfileView(
+                            friend: FriendResponse(
+                                friendshipId: nil,
+                                id: request.addressee.id,
+                                username: request.addressee
+                                    .username,
+                                displayName: request.addressee
+                                    .displayName,
+                                avatarUrl: request.addressee
+                                    .avatarUrl
+                            )
+                        )
+                    } label: {
+                        OutgoingRequestRow(
+                            request: request
+                        )
+                    }
+                    .buttonStyle(.plain)
 
                     Divider()
                         .background(AppTheme.cardSecondary)

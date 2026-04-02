@@ -2,5 +2,8 @@
 
 Before pushing to TestFlight, verify the following:
 
-- [ ] **APIConfig.swift** — Switch `baseURL` back to `https://blnd-backend.onrender.com`
-- [ ] **Info.plist** — Remove `NSAppTransportSecurity` block (or delete the file entirely)
+- [x] **APIConfig.swift** — Switch `baseURL` to `https://blnd-backend.onrender.com`
+- [x] **Info.plist** — No `NSAppTransportSecurity` block (already clean)
+- [x] **PrivacyInfo.xcprivacy** — Added to project (email, phone, contacts, user ID, usage data, UserDefaults)
+- [ ] **PrivacyInfo.xcprivacy** — Add to Xcode target (drag into project navigator or Build Phases → Copy Bundle Resources)
+- [ ] **Push migrations** — `supabase db push` (actions_since_rebuild, missing indexes, phone/contacts)

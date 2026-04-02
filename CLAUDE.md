@@ -272,12 +272,27 @@ blnd_ios/blnd_ios/
 92. User search by display name: backend `search_users` now matches `username ILIKE 'q%'` OR `display_name ILIKE '%q%'`. No iOS changes needed.
 93. Onboarding swipe card poster fix: added `.id(currentIndex)` to front `SwipeCard` in `RateMoviesView` so `CachedAsyncImage` recreates on advance instead of showing stale poster from previous card.
 
+94. Find Friends from Contacts: onboarding step 5/5 (`FindFriendsView`), requests contacts permission, uploads phone numbers via `FriendsAPI.uploadContacts()`, shows sync count. Skip option. Auth finalization moved here from OnboardingCompleteView.
+95. Change Password: `ChangePasswordView` in Account Settings, validates 8+ chars + 1 uppercase + confirm match, calls `AuthAPI.changePassword()`. NavigationLink from AccountSettingsView.
+96. Tutorial overlay per-user: `@AppStorage("hasSeenReelsTutorial")` / `hasSeenBlendsTutorial` — one flag per device (not per-user). Tutorial only shows when feed is loaded (`!isLoadingFYP, !fypReelMovies.isEmpty`).
+97. For You tutorial animation: replaced scroll-up demo with `ForYouTasteDemo` (film icons converging into sparkle) to match blends tutorial style.
+98. Fix loadFriends() race condition: task cancellation before new fetch, removed duplicate call from `.onAppear`.
+99. Cancel stacked toast tasks in Home, Groups, and ReelsFeedView.
+100. Memoize `overviewMaxHeight`: computed once on cardSize change via `.onChange`, stored in `@State`.
+101. Reduce FYP/group feed batch size from 50 to 20 for faster taste rebuild responsiveness.
+102. Profile avatar fix: `fetchCurrentUser()` now called after `login()` and `loginWithApple()` so `currentUser` (including avatarUrl) is populated before ProfileView renders.
+103. Search result profiles: `userRow()` and `suggestionRow()` in AddFriendView wrapped in NavigationLink → FriendProfileView. Non-friends see gated watched movies.
+104. Forgot password: `ForgotPasswordView` + `.forgotPassword` AuthRoute, linked from LoginView.
+105. Phone number in signup: optional phone field in SignUpView, passed through OnboardingState → AuthState.signup().
+106. PrivacyInfo.xcprivacy: privacy manifest declaring collected data (email, phone, contacts, user ID, usage data) and UserDefaults API usage.
+107. Friendship status on search results: `addButton` shows "Friends" / "Pending" / "Add" based on `friendshipStatus` from backend.
+
 ## Next Steps
 
-94. Letterboxd import (POST /import/letterboxd — file upload in settings)
-95. Add avatar_url to backend GroupMemberResponse so group member avatars show
-96. Profile edit UI (taste bio — backend already wired)
-97. Polish: empty states, error handling
+108. Letterboxd import (POST /import/letterboxd — file upload in settings)
+109. Add avatar_url to backend GroupMemberResponse so group member avatars show
+110. Profile edit UI (taste bio — backend already wired)
+111. Polish: empty states, error handling
 
 ## Linting
 

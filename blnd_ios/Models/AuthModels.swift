@@ -90,16 +90,12 @@ struct UserSearchResult: Decodable, Identifiable {
     let username: String
     let displayName: String?
     let avatarUrl: String?
-    let tasteBio: String?
-    let favoriteGenres: [String]
     let friendshipStatus: String?
 
     enum CodingKeys: String, CodingKey {
         case id, username
         case displayName = "display_name"
         case avatarUrl = "avatar_url"
-        case tasteBio = "taste_bio"
-        case favoriteGenres = "favorite_genres"
         case friendshipStatus = "friendship_status"
     }
 }
