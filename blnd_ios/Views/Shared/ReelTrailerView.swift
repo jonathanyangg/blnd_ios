@@ -110,6 +110,17 @@ struct ReelTrailerView: UIViewRepresentable {
         context: Context
     ) {}
 
+    static func dismantleUIView(
+        _ webView: WKWebView,
+        coordinator: Coordinator
+    ) {
+        webView.evaluateJavaScript(
+            "if(typeof player!=='undefined'){player.stopVideo();player.destroy()}"
+        )
+        webView.stopLoading()
+        webView.loadHTMLString("", baseURL: nil)
+    }
+
     class Coordinator: NSObject, WKNavigationDelegate {
         func webView(
             _ webView: WKWebView,

@@ -116,6 +116,11 @@ private struct YouTubeWebView: UIViewRepresentable {
 
     func updateUIView(_ webView: WKWebView, context: Context) {}
 
+    static func dismantleUIView(_ webView: WKWebView, coordinator: Coordinator) {
+        webView.stopLoading()
+        webView.loadHTMLString("", baseURL: nil)
+    }
+
     class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
         func webView(
             _ webView: WKWebView,
