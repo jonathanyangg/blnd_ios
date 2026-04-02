@@ -95,8 +95,11 @@ struct FindFriendsView: View {
     }
 
     private func finish() {
-        onboardingState.reset()
-        authState.phase = .authenticated
+        Task {
+            onboardingState.reset()
+            await authState.fetchCurrentUser()
+            authState.phase = .authenticated
+        }
     }
 }
 

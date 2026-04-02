@@ -91,12 +91,14 @@ struct UserSearchResult: Decodable, Identifiable {
     let displayName: String?
     let avatarUrl: String?
     let friendshipStatus: String?
+    let friendshipId: Int?
 
     enum CodingKeys: String, CodingKey {
         case id, username
         case displayName = "display_name"
         case avatarUrl = "avatar_url"
         case friendshipStatus = "friendship_status"
+        case friendshipId = "friendship_id"
     }
 }
 

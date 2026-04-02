@@ -158,6 +158,8 @@ class AuthState {
         KeychainManager.delete(key: "refreshToken")
         KeychainManager.delete(key: "userId")
         currentUser = nil
+        error = nil
+        isLoading = false
         phase = .unauthenticated
         UserActionCache.shared.reset()
     }

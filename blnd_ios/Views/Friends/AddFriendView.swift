@@ -16,7 +16,9 @@ struct AddFriendView: View {
     // Request state
     @State private var sendingTo: String?
     @State private var sentTo: Set<String> = []
+    @State private var cancelledIds: Set<String> = []
     @State private var errorMessage: String?
+    @State private var unrequestTarget: (id: String, friendshipId: Int)?
 
     @FocusState private var isFieldFocused: Bool
 
@@ -53,6 +55,20 @@ struct AddFriendView: View {
         .navigationBarHidden(true)
         .onAppear { isFieldFocused = true }
         .task { await loadSuggestions() }
+        .alert("Cancel Request", isPresented: showUnrequestAlert) {
+            Button("Keep", role: .cancel) { unrequestTarget = nil }
+            Button("Withdraw", role: .destructive) {
+                if let target = unrequestTarget {
+                    Task { await withdrawRequest(id: target.id, friendshipId: target.friendshipId) }
+                }
+            }
+        } message: {
+            Text("Withdraw this friend request?")
+        }
+    }
+
+    private var showUnrequestAlert: Binding<Bool> {
+        Binding(get: { unrequestTarget != nil }, set: { if !$0 { unrequestTarget = nil } })
     }
 
     // MARK: - Header
@@ -262,7 +278,8 @@ struct AddFriendView: View {
                 addButton(
                     id: user.id,
                     username: user.username,
-                    status: user.friendshipStatus
+                    status: user.friendshipStatus,
+                    friendshipId: user.friendshipId
                 )
             }
             .padding(.horizontal, 24)
@@ -270,58 +287,60 @@ struct AddFriendView: View {
         }
         .buttonStyle(.plain)
     }
+}
 
-    // MARK: - Shared Add Button
+// MARK: - Buttons
 
+extension AddFriendView {
     @ViewBuilder
-    private func addButton(
-        id: String,
-        username: String,
-        status: String? = nil
+    func addButton(
+        id: String, username: String,
+        status: String? = nil, friendshipId: Int? = nil
     ) -> some View {
-        if status == "accepted" {
+        if cancelledIds.contains(id) {
+            addPill(id: id, username: username)
+        } else if status == "accepted" {
             statusPill("Friends")
         } else if status == "pending" || sentTo.contains(id) {
-            statusPill("Pending")
+            pendingPill(id: id, friendshipId: friendshipId)
         } else {
-            Button {
-                Task {
-                    await sendRequest(
-                        id: id, username: username
-                    )
-                }
-            } label: {
-                if sendingTo == id {
-                    ProgressView()
-                        .tint(.black)
-                        .controlSize(.small)
-                        .frame(width: 50)
-                } else {
-                    Text("Add")
-                        .font(.system(
-                            size: 13, weight: .semibold
-                        ))
-                }
-            }
-            .foregroundStyle(.black)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 7)
-            .background(.white)
-            .clipShape(Capsule())
-            .disabled(sendingTo != nil)
+            addPill(id: id, username: username)
         }
     }
 
-    private func statusPill(
-        _ label: String
-    ) -> some View {
+    func addPill(id: String, username: String) -> some View {
+        Button {
+            Task { await sendRequest(id: id, username: username) }
+        } label: {
+            if sendingTo == id {
+                ProgressView().tint(.black).controlSize(.small).frame(width: 50)
+            } else {
+                Text("Add").font(.system(size: 13, weight: .semibold))
+            }
+        }
+        .foregroundStyle(.black)
+        .padding(.horizontal, 14).padding(.vertical, 7)
+        .background(.white).clipShape(Capsule())
+        .disabled(sendingTo != nil)
+    }
+
+    func pendingPill(id: String, friendshipId: Int?) -> some View {
+        Button {
+            if let fid = friendshipId { unrequestTarget = (id, fid) }
+        } label: {
+            Text("Pending").font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(AppTheme.textMuted)
+                .padding(.horizontal, 14).padding(.vertical, 7)
+                .background(AppTheme.card).clipShape(Capsule())
+        }
+    }
+
+    func statusPill(_ label: String) -> some View {
         Text(label)
             .font(.system(size: 13, weight: .semibold))
             .foregroundStyle(AppTheme.textMuted)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 7)
-            .background(AppTheme.card)
-            .clipShape(Capsule())
+            .padding(.horizontal, 14).padding(.vertical, 7)
+            .background(AppTheme.card).clipShape(Capsule())
     }
 }
 
@@ -398,6 +417,17 @@ extension AddFriendView {
             errorMessage = error.localizedDescription
         }
         sendingTo = nil
+    }
+
+    private func withdrawRequest(id: String, friendshipId: Int) async {
+        do {
+            try await FriendsAPI.removeFriend(friendshipId: friendshipId)
+            sentTo.remove(id)
+            cancelledIds.insert(id)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        unrequestTarget = nil
     }
 }
 

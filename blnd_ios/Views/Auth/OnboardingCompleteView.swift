@@ -71,6 +71,8 @@ struct OnboardingCompleteView: View {
     }
 
     private func submitAndFinish() async {
+        defer { isSubmitting = false }
+
         withAnimation(.easeInOut(duration: 0.3)) {
             isSubmitting = true
         }

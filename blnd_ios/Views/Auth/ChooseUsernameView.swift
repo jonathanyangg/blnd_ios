@@ -11,7 +11,7 @@ struct ChooseUsernameView: View {
         @Bindable var state = onboardingState
 
         VStack(spacing: 0) {
-            OnboardingProgressBar(step: 3, total: 4)
+            OnboardingProgressBar(step: 3, total: 5)
                 .padding(.top, 12)
 
             ScrollView {

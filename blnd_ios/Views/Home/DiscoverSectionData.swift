@@ -94,8 +94,6 @@ extension DiscoverSectionView {
             return try await MoviesAPI.discover(
                 genres: Array(selectedGenres), exclude: exclude
             )
-        case .describe:
-            throw CancellationError()
         }
     }
 

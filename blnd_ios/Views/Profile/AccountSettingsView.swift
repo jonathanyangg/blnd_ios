@@ -93,15 +93,14 @@ struct AccountSettingsView: View {
             .padding(.top, 20)
         }
         .background(AppTheme.background)
-        .confirmationDialog(
+        .alert(
             "Delete Account",
-            isPresented: $showDeleteConfirmation,
-            titleVisibility: .visible
+            isPresented: $showDeleteConfirmation
         ) {
+            Button("Cancel", role: .cancel) {}
             Button("Delete My Account", role: .destructive) {
                 Task { await performDeletion() }
             }
-            Button("Cancel", role: .cancel) {}
         } message: {
             Text("This will permanently delete your account and all your data. This action cannot be undone.")
         }
@@ -256,6 +255,7 @@ struct AccountSettingsView: View {
             let updated = try await AuthAPI.updateProfile(avatarUrl: publicURL)
             authState.currentUser = updated
         } catch {
+            avatarImage = nil
             errorMessage = error.localizedDescription
         }
         isUploadingAvatar = false

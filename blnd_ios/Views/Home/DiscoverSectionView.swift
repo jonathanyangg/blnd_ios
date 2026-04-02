@@ -4,7 +4,6 @@ enum DiscoverFilter: String, CaseIterable {
     case trending = "Trending"
     case topRated = "Top Rated"
     case genre = "Genre"
-    case describe = "Describe"
 }
 
 let discoverGenres = [
@@ -195,11 +194,7 @@ struct DiscoverSectionView: View {
                     DiscoverFilter.allCases,
                     id: \.self
                 ) { filter in
-                    if filter == .describe {
-                        describeChip
-                    } else {
-                        filterButton(filter)
-                    }
+                    filterButton(filter)
                 }
             }
         }
@@ -222,26 +217,6 @@ struct DiscoverSectionView: View {
                         ? .black : AppTheme.textMuted
                 )
                 .clipShape(Capsule())
-        }
-    }
-
-    private var describeChip: some View {
-        Button {} label: {
-            HStack(spacing: 4) {
-                Image(systemName: "sparkles")
-                    .font(.system(size: 10))
-                Text("Describe")
-                    .font(.system(size: 12, weight: .medium))
-            }
-            .padding(.vertical, 6)
-            .padding(.horizontal, 12)
-            .background(AppTheme.card)
-            .foregroundStyle(AppTheme.textDim)
-            .clipShape(Capsule())
-            .overlay(
-                Capsule()
-                    .stroke(AppTheme.border, lineWidth: 1)
-            )
         }
     }
 
