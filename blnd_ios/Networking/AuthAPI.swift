@@ -5,13 +5,15 @@ enum AuthAPI {
         email: String,
         password: String,
         username: String,
-        displayName: String?
+        displayName: String?,
+        phoneNumber: String? = nil
     ) async throws -> LoginResponse {
         let body = SignupRequest(
             email: email,
             password: password,
             username: username,
-            displayName: displayName
+            displayName: displayName,
+            phoneNumber: phoneNumber
         )
         return try await APIClient.shared.request(
             endpoint: "/auth/signup",
@@ -102,6 +104,16 @@ enum AuthAPI {
             method: "POST",
             body: body,
             authenticated: true
+        )
+    }
+
+    /// POST /auth/forgot-password — send password reset email
+    static func forgotPassword(email: String) async throws {
+        let body = ForgotPasswordRequest(email: email)
+        try await APIClient.shared.requestVoid(
+            endpoint: "/auth/forgot-password",
+            method: "POST",
+            body: body
         )
     }
 

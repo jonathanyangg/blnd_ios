@@ -81,6 +81,16 @@ struct LoginView: View {
                     }
 
                     Button {
+                        path.append(AuthRoute.forgotPassword)
+                    } label: {
+                        Text("Forgot password?")
+                            .font(.system(size: 14))
+                            .foregroundStyle(AppTheme.textMuted)
+                            .frame(maxWidth: .infinity)
+                            .padding(.top, 12)
+                    }
+
+                    Button {
                         // Pop to root, then push sign up
                         path.removeLast(path.count)
                         path.append(AuthRoute.pickGenres)

@@ -7,10 +7,12 @@ struct SignupRequest: Encodable {
     let password: String
     let username: String
     let displayName: String?
+    let phoneNumber: String?
 
     enum CodingKeys: String, CodingKey {
         case email, password, username
         case displayName = "display_name"
+        case phoneNumber = "phone_number"
     }
 }
 
@@ -55,6 +57,10 @@ struct UpdateProfileRequest: Encodable {
     }
 }
 
+struct ForgotPasswordRequest: Encodable {
+    let email: String
+}
+
 struct ChangePasswordRequest: Encodable {
     let currentPassword: String
     let newPassword: String
@@ -86,6 +92,7 @@ struct UserSearchResult: Decodable, Identifiable {
     let avatarUrl: String?
     let tasteBio: String?
     let favoriteGenres: [String]
+    let friendshipStatus: String?
 
     enum CodingKeys: String, CodingKey {
         case id, username
@@ -93,6 +100,7 @@ struct UserSearchResult: Decodable, Identifiable {
         case avatarUrl = "avatar_url"
         case tasteBio = "taste_bio"
         case favoriteGenres = "favorite_genres"
+        case friendshipStatus = "friendship_status"
     }
 }
 

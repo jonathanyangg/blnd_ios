@@ -59,7 +59,13 @@ class AuthState {
         isCheckingSession = false
     }
 
-    func signup(email: String, password: String, username: String, displayName: String?) async {
+    func signup(
+        email: String,
+        password: String,
+        username: String,
+        displayName: String?,
+        phoneNumber: String? = nil
+    ) async {
         isLoading = true
         error = nil
 
@@ -68,7 +74,8 @@ class AuthState {
                 email: email,
                 password: password,
                 username: username,
-                displayName: displayName
+                displayName: displayName,
+                phoneNumber: phoneNumber
             )
             KeychainManager.save(key: "accessToken", string: response.accessToken)
             KeychainManager.save(key: "refreshToken", string: response.refreshToken)

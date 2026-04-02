@@ -219,7 +219,11 @@ struct AddFriendView: View {
 
             Spacer()
 
-            addButton(id: user.id, username: user.username)
+            addButton(
+                id: user.id,
+                username: user.username,
+                status: user.friendshipStatus
+            )
         }
         .padding(.horizontal, 24)
         .padding(.vertical, 10)
@@ -228,18 +232,22 @@ struct AddFriendView: View {
     // MARK: - Shared Add Button
 
     @ViewBuilder
-    private func addButton(id: String, username: String) -> some View {
-        if sentTo.contains(id) {
-            Text("Sent")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(AppTheme.textMuted)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 7)
-                .background(AppTheme.card)
-                .clipShape(Capsule())
+    private func addButton(
+        id: String,
+        username: String,
+        status: String? = nil
+    ) -> some View {
+        if status == "accepted" {
+            statusPill("Friends")
+        } else if status == "pending" || sentTo.contains(id) {
+            statusPill("Pending")
         } else {
             Button {
-                Task { await sendRequest(id: id, username: username) }
+                Task {
+                    await sendRequest(
+                        id: id, username: username
+                    )
+                }
             } label: {
                 if sendingTo == id {
                     ProgressView()
@@ -248,7 +256,9 @@ struct AddFriendView: View {
                         .frame(width: 50)
                 } else {
                     Text("Add")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.system(
+                            size: 13, weight: .semibold
+                        ))
                 }
             }
             .foregroundStyle(.black)
@@ -258,6 +268,18 @@ struct AddFriendView: View {
             .clipShape(Capsule())
             .disabled(sendingTo != nil)
         }
+    }
+
+    private func statusPill(
+        _ label: String
+    ) -> some View {
+        Text(label)
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(AppTheme.textMuted)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 7)
+            .background(AppTheme.card)
+            .clipShape(Capsule())
     }
 
     // MARK: - Data

@@ -70,6 +70,12 @@ struct SignUpView: View {
                         .keyboardType(.emailAddress)
                         .textInputAutocapitalization(.never)
                     AppTextField(placeholder: "Password", text: $state.password, isSecure: true)
+                    AppTextField(
+                        placeholder: "Phone number (optional)",
+                        text: $state.phoneNumber
+                    )
+                    .keyboardType(.phonePad)
+                    .textContentType(.telephoneNumber)
 
                     if !state.password.isEmpty {
                         PasswordRequirements(password: state.password)
@@ -104,11 +110,17 @@ struct SignUpView: View {
                         }
                         emailError = nil
                         Task {
+                            let phone = state.phoneNumber
+                                .trimmingCharacters(
+                                    in: .whitespacesAndNewlines
+                                )
                             await authState.signup(
                                 email: state.email,
                                 password: state.password,
                                 username: state.username,
-                                displayName: state.name
+                                displayName: state.name,
+                                phoneNumber: phone.isEmpty
+                                    ? nil : phone
                             )
                             if authState.error == nil {
                                 path.append(AuthRoute.onboardingComplete)

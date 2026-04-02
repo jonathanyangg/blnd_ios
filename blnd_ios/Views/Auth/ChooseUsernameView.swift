@@ -31,6 +31,12 @@ struct ChooseUsernameView: View {
                     AppTextField(placeholder: "Username", text: $state.username)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
+                    AppTextField(
+                        placeholder: "Phone number (optional)",
+                        text: $state.phoneNumber
+                    )
+                    .keyboardType(.phonePad)
+                    .textContentType(.telephoneNumber)
 
                     if let error {
                         Text(error)
@@ -88,12 +94,15 @@ struct ChooseUsernameView: View {
             }
             let genres = Array(onboardingState.selectedGenres)
 
+            let phone = onboardingState.phoneNumber
+                .trimmingCharacters(in: .whitespacesAndNewlines)
             _ = try await AuthAPI.completeOnboarding(
                 username: onboardingState.username,
                 displayName: onboardingState.name.isEmpty ? nil : onboardingState.name,
                 favoriteGenres: genres.isEmpty ? nil : genres,
                 ratedMovies: ratedMovies.isEmpty ? nil : ratedMovies,
-                appleRefreshToken: onboardingState.appleRefreshToken ?? oauthResponse.appleRefreshToken
+                appleRefreshToken: onboardingState.appleRefreshToken ?? oauthResponse.appleRefreshToken,
+                phoneNumber: phone.isEmpty ? nil : phone
             )
 
             // Both calls succeeded — navigate to completion

@@ -7,6 +7,7 @@ enum TutorialDemo {
     case swipeLeft
     case swipeRight
     case groupTaste
+    case forYouTaste
 }
 
 struct TutorialStep {
@@ -18,9 +19,18 @@ struct TutorialStep {
 
 enum TutorialPreset {
     static let reels: [TutorialStep] = [
-        .init(text: "Swipe up to browse movies", demo: .scrollUp),
-        .init(text: "Swipe left to add to watchlist", demo: .swipeLeft),
-        .init(text: "Swipe right to rate a movie", demo: .swipeRight),
+        .init(
+            text: "Movies picked just for you",
+            demo: .forYouTaste
+        ),
+        .init(
+            text: "Swipe left to add to watchlist",
+            demo: .swipeLeft
+        ),
+        .init(
+            text: "Swipe right to rate",
+            demo: .swipeRight
+        ),
     ]
 
     static let blends: [TutorialStep] = [
@@ -140,6 +150,7 @@ struct ScrollHintOverlay: View {
         case .swipeLeft: SwipeLeftDemo()
         case .swipeRight: SwipeRightDemo()
         case .groupTaste: GroupTasteDemo()
+        case .forYouTaste: ForYouTasteDemo()
         }
     }
 
@@ -250,6 +261,48 @@ private struct SwipeRightDemo: View {
                 phase = 1
             }
         }
+    }
+}
+
+// MARK: - For You Taste Demo
+
+private struct ForYouTasteDemo: View {
+    @State private var merged = false
+
+    var body: some View {
+        ZStack {
+            HStack(spacing: merged ? 0 : 40) {
+                filmCircle
+                filmCircle
+                filmCircle
+            }
+            .opacity(merged ? 0 : 1)
+
+            Image(systemName: "sparkles")
+                .font(.system(size: 32, weight: .medium))
+                .foregroundStyle(AppTheme.aiGradient)
+                .opacity(merged ? 1 : 0)
+                .scaleEffect(merged ? 1 : 0.5)
+        }
+        .onAppear {
+            withAnimation(
+                .easeInOut(duration: 1.6)
+                    .repeatForever(autoreverses: true)
+            ) {
+                merged = true
+            }
+        }
+    }
+
+    private var filmCircle: some View {
+        Circle()
+            .fill(.white.opacity(0.15))
+            .frame(width: 40, height: 40)
+            .overlay {
+                Image(systemName: "film")
+                    .font(.system(size: 16))
+                    .foregroundStyle(.white.opacity(0.6))
+            }
     }
 }
 
