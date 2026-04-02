@@ -107,6 +107,7 @@ class AuthState {
             KeychainManager.save(key: "userId", string: response.userId)
 
             if !response.isNewUser {
+                await fetchCurrentUser()
                 phase = .authenticated
                 await UserActionCache.shared.bootstrap()
             }
@@ -128,6 +129,7 @@ class AuthState {
             KeychainManager.save(key: "accessToken", string: response.accessToken)
             KeychainManager.save(key: "refreshToken", string: response.refreshToken)
             KeychainManager.save(key: "userId", string: response.userId)
+            await fetchCurrentUser()
             phase = .authenticated
             await UserActionCache.shared.bootstrap()
         } catch {
