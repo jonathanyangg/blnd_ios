@@ -4,6 +4,7 @@ struct GroupsListView: View {
     @Environment(TabState.self) private var tabState
     @State private var groups: [GroupResponse] = []
     @State private var isLoading = true
+    @State private var errorMessage: String?
     @State private var showCreateGroup = false
 
     var body: some View {
@@ -32,15 +33,20 @@ struct GroupsListView: View {
                         ProgressView()
                             .tint(.white)
                             .padding(.top, 40)
+                    } else if let error = errorMessage {
+                        ErrorStateView(message: error) {
+                            Task { await loadGroups() }
+                        }
+                        .padding(.top, 40)
                     } else if groups.isEmpty {
                         VStack(spacing: 8) {
                             Image(systemName: "person.3")
                                 .font(.system(size: 36))
                                 .foregroundStyle(AppTheme.textDim)
-                            Text("No groups yet")
+                            Text("No blends yet")
                                 .font(.system(size: 17, weight: .semibold))
                                 .foregroundStyle(.white)
-                            Text("Create a group to get blend picks")
+                            Text("Blend your taste with friends to find movies together")
                                 .font(.system(size: 14))
                                 .foregroundStyle(AppTheme.textMuted)
                         }
@@ -74,12 +80,17 @@ struct GroupsListView: View {
     }
 
     private func loadGroups() async {
+        errorMessage = nil
         do {
             let result = try await GroupsAPI.listGroups()
             groups = result.groups
         } catch is CancellationError {
             return
-        } catch { /* Non-critical — empty state shown */ }
+        } catch {
+            if groups.isEmpty {
+                errorMessage = error.localizedDescription
+            }
+        }
         isLoading = false
     }
 }

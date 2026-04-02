@@ -38,18 +38,9 @@ struct MovieDetailView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.top, 100)
             } else if let error = errorMessage {
-                VStack(spacing: 12) {
-                    Text(error)
-                        .font(.system(size: 14))
-                        .foregroundStyle(AppTheme.textMuted)
-                        .multilineTextAlignment(.center)
-                    Button("Retry") {
-                        Task { await fetchMovie() }
-                    }
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(.white)
+                ErrorStateView(message: error) {
+                    Task { await fetchMovie() }
                 }
-                .frame(maxWidth: .infinity)
                 .padding(.top, 100)
             } else if let movie {
                 movieContent(movie)

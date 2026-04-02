@@ -97,14 +97,18 @@ extension HomeView {
     }
 
     func showToast(_ message: String) {
+        toastTask?.cancel()
         toastMessage = message
-        Task {
+        toastTask = Task {
             try? await Task.sleep(for: .seconds(3))
-            dismissToast()
+            if !Task.isCancelled {
+                toastMessage = nil
+            }
         }
     }
 
     func dismissToast() {
+        toastTask?.cancel()
         toastMessage = nil
     }
 }

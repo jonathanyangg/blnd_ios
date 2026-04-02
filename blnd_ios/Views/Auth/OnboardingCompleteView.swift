@@ -3,6 +3,7 @@ import SwiftUI
 struct OnboardingCompleteView: View {
     @Environment(AuthState.self) var authState
     @Environment(OnboardingState.self) var onboardingState
+    @Binding var path: NavigationPath
     @State private var isSubmitting = false
 
     var body: some View {
@@ -20,7 +21,7 @@ struct OnboardingCompleteView: View {
 
     private var readyContent: some View {
         VStack(spacing: 0) {
-            OnboardingProgressBar(step: 4, total: 4)
+            OnboardingProgressBar(step: 4, total: 5)
                 .padding(.top, 12)
 
             Spacer()
@@ -98,9 +99,9 @@ struct OnboardingCompleteView: View {
         // Ensure loader shows for at least 3 seconds total
         try? await Task.sleep(for: .seconds(1))
 
+        await authState.fetchCurrentUser()
         await UserActionCache.shared.bootstrap()
-        onboardingState.reset()
-        authState.phase = .authenticated
+        path.append(AuthRoute.findFriends)
     }
 }
 
@@ -206,7 +207,7 @@ private struct OnboardingLoaderView: View {
 
 #Preview {
     NavigationStack {
-        OnboardingCompleteView()
+        OnboardingCompleteView(path: .constant(NavigationPath()))
             .environment(AuthState())
             .environment(OnboardingState())
     }

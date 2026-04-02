@@ -241,14 +241,13 @@ extension ReelCardView {
 
     // MARK: - Overview (Expandable)
 
-    private var overviewMaxHeight: CGFloat {
-        guard cardSize.height > 0,
-              cardSize.width > 0
+    func computeOverviewMaxHeight(_ size: CGSize) -> CGFloat {
+        guard size.height > 0,
+              size.width > 0
         else { return 80 }
-        let mediaH = (cardSize.width - 32) * 9 / 16
-        // Estimate fixed content heights
+        let mediaH = (size.width - 32) * 9 / 16
         var fixedH: CGFloat = 81 + mediaH + 14
-        var items = 1 // overview
+        var items = 1
         if !genres.isEmpty {
             fixedH += 30
             items += 1
@@ -261,10 +260,10 @@ extension ReelCardView {
             fixedH += 51
             items += 1
         }
-        fixedH += 90 // friends section
+        fixedH += 90
         items += 1
         fixedH += CGFloat(items - 1) * 12
-        return max(80, cardSize.height - fixedH - 40)
+        return max(80, size.height - fixedH - 40)
     }
 
     @ViewBuilder
@@ -282,7 +281,7 @@ extension ReelCardView {
                     .frame(
                         maxWidth: .infinity,
                         maxHeight: overviewExpanded
-                            ? nil : overviewMaxHeight,
+                            ? nil : overviewMaxHeightValue,
                         alignment: .topLeading
                     )
                     .clipped()
@@ -306,7 +305,7 @@ extension ReelCardView {
                         overviewFullHeight = $0
                     }
 
-                if overviewExpanded || overviewFullHeight > overviewMaxHeight + 1 {
+                if overviewExpanded || overviewFullHeight > overviewMaxHeightValue + 1 {
                     Button {
                         withAnimation(.easeInOut(duration: 0.2)) {
                             overviewExpanded.toggle()

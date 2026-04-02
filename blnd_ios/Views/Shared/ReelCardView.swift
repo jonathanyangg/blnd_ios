@@ -25,6 +25,8 @@ struct ReelCardView: View {
     @State var isHidden = false
     @State var showHideConfirm = false
     @State var showStreamingSheet = false
+    @State var friendsLoadTask: Task<Void, Never>?
+    @State var overviewMaxHeightValue: CGFloat = 80
 
     let swipeThreshold: CGFloat = 120
 
@@ -86,7 +88,6 @@ struct ReelCardView: View {
         .onAppear {
             if isActive {
                 trailerReady = true
-                loadFriends()
             }
         }
         .onChange(of: isActive) { _, active in
@@ -97,6 +98,9 @@ struct ReelCardView: View {
                 trailerReady = false
                 overviewExpanded = false
             }
+        }
+        .onChange(of: cardSize) { _, size in
+            overviewMaxHeightValue = computeOverviewMaxHeight(size)
         }
     }
 }

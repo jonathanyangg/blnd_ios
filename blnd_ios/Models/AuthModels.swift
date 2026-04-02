@@ -33,6 +33,7 @@ struct UpdateProfileRequest: Encodable {
     let tasteBio: String?
     let favoriteGenres: [String]?
     let avatarUrl: String?
+    let phoneNumber: String?
 
     enum CodingKeys: String, CodingKey {
         case username
@@ -40,6 +41,7 @@ struct UpdateProfileRequest: Encodable {
         case tasteBio = "taste_bio"
         case favoriteGenres = "favorite_genres"
         case avatarUrl = "avatar_url"
+        case phoneNumber = "phone_number"
     }
 
     func encode(to encoder: Encoder) throws {
@@ -49,6 +51,17 @@ struct UpdateProfileRequest: Encodable {
         try container.encodeIfPresent(tasteBio, forKey: .tasteBio)
         try container.encodeIfPresent(favoriteGenres, forKey: .favoriteGenres)
         try container.encodeIfPresent(avatarUrl, forKey: .avatarUrl)
+        try container.encodeIfPresent(phoneNumber, forKey: .phoneNumber)
+    }
+}
+
+struct ChangePasswordRequest: Encodable {
+    let currentPassword: String
+    let newPassword: String
+
+    enum CodingKeys: String, CodingKey {
+        case currentPassword = "current_password"
+        case newPassword = "new_password"
     }
 }
 
@@ -137,6 +150,7 @@ struct CompleteOnboardingRequest: Encodable {
     let favoriteGenres: [String]?
     let ratedMovies: [RatedMovieRequest]?
     let appleRefreshToken: String?
+    let phoneNumber: String?
 
     enum CodingKeys: String, CodingKey {
         case username
@@ -144,6 +158,7 @@ struct CompleteOnboardingRequest: Encodable {
         case favoriteGenres = "favorite_genres"
         case ratedMovies = "rated_movies"
         case appleRefreshToken = "apple_refresh_token"
+        case phoneNumber = "phone_number"
     }
 }
 
@@ -164,6 +179,7 @@ struct UserResponse: Decodable {
     let avatarUrl: String?
     let tasteBio: String?
     let favoriteGenres: [String]
+    let phoneNumber: String?
 
     enum CodingKeys: String, CodingKey {
         case id, username
@@ -171,5 +187,6 @@ struct UserResponse: Decodable {
         case avatarUrl = "avatar_url"
         case tasteBio = "taste_bio"
         case favoriteGenres = "favorite_genres"
+        case phoneNumber = "phone_number"
     }
 }

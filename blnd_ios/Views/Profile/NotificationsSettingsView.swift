@@ -10,7 +10,7 @@ struct NotificationsSettingsView: View {
             VStack(spacing: 0) {
                 toggleRow(label: "Friend Requests", isOn: $friendRequests)
                 Divider().background(AppTheme.cardSecondary)
-                toggleRow(label: "Group Invites", isOn: $groupInvites)
+                toggleRow(label: "Blend Invites", isOn: $groupInvites)
                 Divider().background(AppTheme.cardSecondary)
                 toggleRow(label: "Recommendations", isOn: $recommendations)
             }

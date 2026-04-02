@@ -38,7 +38,7 @@ extension GroupDetailView {
         Group {
             if recommendations.isEmpty {
                 emptyState(
-                    "Rate more movies to get group picks"
+                    "Rate more movies to get blend picks"
                 )
             } else {
                 movieGrid {
@@ -92,7 +92,7 @@ extension GroupDetailView {
         Group {
             if watchlist.isEmpty {
                 emptyState(
-                    "No movies in the group watchlist yet"
+                    "No movies in the watchlist yet"
                 )
             } else {
                 movieGrid {

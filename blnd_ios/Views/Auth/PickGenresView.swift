@@ -15,7 +15,7 @@ struct PickGenresView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            OnboardingProgressBar(step: 1, total: 4)
+            OnboardingProgressBar(step: 1, total: 5)
                 .padding(.top, 12)
 
             ScrollView {

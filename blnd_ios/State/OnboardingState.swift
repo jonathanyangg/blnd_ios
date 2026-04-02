@@ -16,6 +16,8 @@ class OnboardingState {
     var email = ""
     var password = ""
 
+    var phoneNumber = ""
+
     var selectedGenres: Set<String> = []
     var movieRatings: [Int: Bool] = [:]
     var ratedMovies: [RatedMovie] = []
@@ -40,6 +42,7 @@ class OnboardingState {
         username = ""
         email = ""
         password = ""
+        phoneNumber = ""
         selectedGenres = []
         movieRatings = [:]
         ratedMovies = []

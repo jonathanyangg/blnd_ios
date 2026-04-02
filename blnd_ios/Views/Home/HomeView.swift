@@ -27,13 +27,12 @@ struct HomeView: View {
     @State var isLoadingMoreFYP = false
     @State var fypError: String?
     @State var toastMessage: String?
+    @State var toastTask: Task<Void, Never>?
     @State var showStickySearch = false
     @State var lastScrollOffset: CGFloat = 0
 
-    private static let tutorialKey = "hasSeenReelsTutorial"
-
     /// Show tutorial overlay on first launch only
-    @State private var showTutorial = !UserDefaults.standard.bool(forKey: tutorialKey)
+    @AppStorage("hasSeenReelsTutorial") private var hasSeenTutorial = false
 
     var body: some View {
         NavigationStack {
@@ -52,12 +51,9 @@ struct HomeView: View {
                 NavigationStack { SearchView() }
             }
             .overlay {
-                if showTutorial, !recommendations.isEmpty {
+                if !hasSeenTutorial, viewMode == .reels, !isLoadingFYP, !fypReelMovies.isEmpty {
                     ScrollHintOverlay {
-                        showTutorial = false
-                        UserDefaults.standard.set(
-                            true, forKey: Self.tutorialKey
-                        )
+                        hasSeenTutorial = true
                     }
                 }
             }

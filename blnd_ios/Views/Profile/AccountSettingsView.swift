@@ -7,6 +7,7 @@ struct AccountSettingsView: View {
 
     @State private var displayName = ""
     @State private var username = ""
+    @State private var phoneNumber = ""
     @State private var isSaving = false
     @State private var errorMessage: String?
     @State private var showSuccess = false
@@ -23,6 +24,27 @@ struct AccountSettingsView: View {
             VStack(spacing: 24) {
                 avatarSection
                 fieldsSection
+
+                NavigationLink {
+                    ChangePasswordView()
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "lock")
+                            .font(.system(size: 15))
+                            .foregroundStyle(AppTheme.textMuted)
+                            .frame(width: 20)
+                        Text("Change Password")
+                            .font(.system(size: 16))
+                            .foregroundStyle(.white)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(AppTheme.textDim)
+                    }
+                    .padding(16)
+                    .background(AppTheme.card)
+                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.cornerRadiusLarge))
+                }
 
                 if let errorMessage {
                     Text(errorMessage)
@@ -99,6 +121,7 @@ struct AccountSettingsView: View {
             if let user = authState.currentUser {
                 displayName = user.displayName ?? ""
                 username = user.username ?? ""
+                phoneNumber = user.phoneNumber ?? ""
             }
         }
         .onChange(of: selectedPhoto) { _, newItem in
@@ -184,6 +207,17 @@ struct AccountSettingsView: View {
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
             }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Phone Number")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(AppTheme.textMuted)
+                AppTextField(placeholder: "+1 (555) 123-4567", text: $phoneNumber)
+                    .keyboardType(.phonePad)
+                Text("Friends can find you by phone number")
+                    .font(.system(size: 11))
+                    .foregroundStyle(AppTheme.textDim)
+            }
         }
     }
 
@@ -245,9 +279,11 @@ struct AccountSettingsView: View {
         do {
             let trimmedName = displayName.trimmingCharacters(in: .whitespaces)
             let trimmedUsername = username.trimmingCharacters(in: .whitespaces).lowercased()
+            let trimmedPhone = phoneNumber.trimmingCharacters(in: .whitespaces)
             let updated = try await AuthAPI.updateProfile(
                 username: trimmedUsername.isEmpty ? nil : trimmedUsername,
-                displayName: trimmedName.isEmpty ? nil : trimmedName
+                displayName: trimmedName.isEmpty ? nil : trimmedName,
+                phoneNumber: trimmedPhone.isEmpty ? nil : trimmedPhone
             )
             authState.currentUser = updated
             dismiss()

@@ -1,3 +1,4 @@
+import Contacts
 import SwiftUI
 
 struct AddFriendView: View {
@@ -262,6 +263,9 @@ struct AddFriendView: View {
     // MARK: - Data
 
     private func loadSuggestions() async {
+        // Sync contacts in background if we have permission
+        await syncContactsIfAllowed()
+
         do {
             let response = try await FriendsAPI.getSuggestions()
             contactSuggestions = response.contacts
@@ -270,6 +274,14 @@ struct AddFriendView: View {
             // Non-critical — just show empty state
         }
         isSuggestionsLoading = false
+    }
+
+    private func syncContactsIfAllowed() async {
+        let status = CNContactStore.authorizationStatus(for: .contacts)
+        guard status == .authorized else { return }
+        let numbers = await ContactsHelper.fetchPhoneNumbers()
+        guard !numbers.isEmpty else { return }
+        try? await FriendsAPI.uploadContacts(phoneNumbers: numbers)
     }
 
     private func debounceSearch(_ value: String) {

@@ -93,14 +93,17 @@ extension ReelCardView {
             friendsWhoWatched = cached
             return
         }
-        Task {
+        friendsLoadTask?.cancel()
+        friendsLoadTask = Task {
             do {
                 let response = try await TrackingAPI
                     .friendsWhoWatched(tmdbId: movie.tmdbId)
-                cache.cacheFriendsWhoWatched(
-                    movie.tmdbId, friends: response.results
-                )
-                friendsWhoWatched = response.results
+                if !Task.isCancelled {
+                    cache.cacheFriendsWhoWatched(
+                        movie.tmdbId, friends: response.results
+                    )
+                    friendsWhoWatched = response.results
+                }
             } catch {
                 // Non-fatal
             }

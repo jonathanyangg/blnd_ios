@@ -5,6 +5,7 @@ import SwiftUI
 extension GroupDetailView {
     func loadAll(forceRefresh: Bool = false) async {
         guard forceRefresh || group == nil else { return }
+        loadError = nil
         do {
             async let groupResult = GroupsAPI.getGroup(
                 groupId: groupId
@@ -29,7 +30,9 @@ extension GroupDetailView {
                 showToast(
                     "Woah, slow down! Try again in a minute"
                 )
-            } else if group == nil {} else {
+            } else if group == nil {
+                loadError = error.localizedDescription
+            } else {
                 showToast(error.localizedDescription)
             }
         }
@@ -90,16 +93,19 @@ extension GroupDetailView {
                 )
             } catch {
                 group?.name = oldName
-                showToast("Failed to rename group")
+                showToast("Failed to rename blend")
             }
         }
     }
 
     func showToast(_ message: String) {
+        toastTask?.cancel()
         toastMessage = message
-        Task {
+        toastTask = Task {
             try? await Task.sleep(for: .seconds(3))
-            toastMessage = nil
+            if !Task.isCancelled {
+                toastMessage = nil
+            }
         }
     }
 }

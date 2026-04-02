@@ -1,16 +1,52 @@
 import SwiftUI
 
+// MARK: - Tutorial Step Config
+
+enum TutorialDemo {
+    case scrollUp
+    case swipeLeft
+    case swipeRight
+    case groupTaste
+}
+
+struct TutorialStep {
+    let text: String
+    let demo: TutorialDemo
+}
+
+// MARK: - Presets
+
+enum TutorialPreset {
+    static let reels: [TutorialStep] = [
+        .init(text: "Swipe up to browse movies", demo: .scrollUp),
+        .init(text: "Swipe left to add to watchlist", demo: .swipeLeft),
+        .init(text: "Swipe right to rate a movie", demo: .swipeRight),
+    ]
+
+    static let blends: [TutorialStep] = [
+        .init(
+            text: "Picks matched to everyone's taste",
+            demo: .groupTaste
+        ),
+        .init(
+            text: "Swipe left to save to blend watchlist",
+            demo: .swipeLeft
+        ),
+        .init(
+            text: "Swipe right to rate",
+            demo: .swipeRight
+        ),
+    ]
+}
+
+// MARK: - Overlay
+
 struct ScrollHintOverlay: View {
+    var steps: [TutorialStep] = TutorialPreset.reels
     let onDismiss: () -> Void
 
     @State private var step = 0
     @State private var appeared = false
-
-    private let steps: [String] = [
-        "Swipe up to browse movies",
-        "Swipe left to add to watchlist",
-        "Swipe right to rate a movie",
-    ]
 
     private var isLastStep: Bool {
         step >= steps.count - 1
@@ -28,7 +64,7 @@ struct ScrollHintOverlay: View {
                     .frame(height: 160)
                     .id(step)
 
-                Text(steps[step])
+                Text(steps[step].text)
                     .font(.system(size: 17, weight: .medium))
                     .foregroundStyle(.white)
                     .multilineTextAlignment(.center)
@@ -99,11 +135,11 @@ struct ScrollHintOverlay: View {
 
     @ViewBuilder
     private var gestureDemo: some View {
-        switch step {
-        case 0: ScrollDemo()
-        case 1: SwipeLeftDemo()
-        case 2: SwipeRightDemo()
-        default: EmptyView()
+        switch steps[step].demo {
+        case .scrollUp: ScrollDemo()
+        case .swipeLeft: SwipeLeftDemo()
+        case .swipeRight: SwipeRightDemo()
+        case .groupTaste: GroupTasteDemo()
         }
     }
 
@@ -214,5 +250,49 @@ private struct SwipeRightDemo: View {
                 phase = 1
             }
         }
+    }
+}
+
+// MARK: - Group Taste Demo (Blends)
+
+private struct GroupTasteDemo: View {
+    @State private var merged = false
+
+    var body: some View {
+        ZStack {
+            // People icons converge toward center
+            HStack(spacing: merged ? 0 : 40) {
+                personCircle
+                personCircle
+                personCircle
+            }
+            .opacity(merged ? 0 : 1)
+
+            // Merged result
+            Image(systemName: "sparkles")
+                .font(.system(size: 32, weight: .medium))
+                .foregroundStyle(AppTheme.aiGradient)
+                .opacity(merged ? 1 : 0)
+                .scaleEffect(merged ? 1 : 0.5)
+        }
+        .onAppear {
+            withAnimation(
+                .easeInOut(duration: 1.6)
+                    .repeatForever(autoreverses: true)
+            ) {
+                merged = true
+            }
+        }
+    }
+
+    private var personCircle: some View {
+        Circle()
+            .fill(.white.opacity(0.15))
+            .frame(width: 40, height: 40)
+            .overlay {
+                Image(systemName: "person.fill")
+                    .font(.system(size: 16))
+                    .foregroundStyle(.white.opacity(0.6))
+            }
     }
 }

@@ -15,15 +15,18 @@ struct GroupDetailView: View {
     @State var isLoadingMoreRecs = false
     @State var watchlist: [WatchlistMovieResponse] = []
     @State var isLoading = true
+    @State var loadError: String?
     @State var showMembers = false
     @State var selectedTab: GroupTab = .blendPicks
     @State var viewMode: ViewMode = .reels
     @State var toastMessage: String?
+    @State var toastTask: Task<Void, Never>?
     @State var isEditingName = false
     @State var editedName = ""
     @Namespace var tabNamespace
     @Environment(\.dismiss) var dismiss
     @Environment(TabState.self) var tabState
+    @AppStorage("hasSeenBlendsTutorial") private var hasSeenBlendsTutorial = false
 
     var groupContext: ReelCardView.GroupContext? {
         guard let group else { return nil }
@@ -46,6 +49,12 @@ struct GroupDetailView: View {
                 Spacer()
                 ProgressView().tint(.white)
                 Spacer()
+            } else if let error = loadError {
+                Spacer()
+                ErrorStateView(message: error) {
+                    Task { await loadAll(forceRefresh: true) }
+                }
+                Spacer()
             } else if viewMode == .reels {
                 reelsFeed
             } else {
@@ -64,6 +73,15 @@ struct GroupDetailView: View {
         .refreshable { await loadAll(forceRefresh: true) }
         .sheet(isPresented: $showMembers) {
             membersSheet
+        }
+        .overlay {
+            if !hasSeenBlendsTutorial, viewMode == .reels, !isLoading {
+                ScrollHintOverlay(
+                    steps: TutorialPreset.blends
+                ) {
+                    hasSeenBlendsTutorial = true
+                }
+            }
         }
         .overlay(alignment: .top) {
             if let toast = toastMessage {
@@ -198,7 +216,7 @@ struct GroupDetailView: View {
     ) -> some View {
         if isEditingName {
             HStack(spacing: 8) {
-                TextField("Group name", text: $editedName)
+                TextField("Blend name", text: $editedName)
                     .font(.system(
                         size: 18, weight: .bold
                     ))

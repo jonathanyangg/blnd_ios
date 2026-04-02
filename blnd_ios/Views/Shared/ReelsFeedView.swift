@@ -9,6 +9,7 @@ struct ReelsFeedView: View {
 
     @State private var currentId: Int?
     @State private var toastMessage: String?
+    @State private var toastTask: Task<Void, Never>?
     @State private var showWatchlistPicker = false
     @State private var watchlistTmdbId: Int?
     @State private var addedToWatchlist: Set<Int> = []
@@ -117,10 +118,11 @@ struct ReelsFeedView: View {
     // MARK: - Toast
 
     private func showToast(_ message: String) {
+        toastTask?.cancel()
         toastMessage = message
-        Task {
+        toastTask = Task {
             try? await Task.sleep(for: .seconds(1.2))
-            if toastMessage == message {
+            if !Task.isCancelled {
                 toastMessage = nil
             }
         }

@@ -305,18 +305,9 @@ struct DiscoverSectionView: View {
     private func errorView(
         message: String
     ) -> some View {
-        VStack(spacing: 12) {
-            Text(message)
-                .font(.system(size: 14))
-                .foregroundStyle(AppTheme.textMuted)
-                .multilineTextAlignment(.center)
-            Button("Retry") {
-                Task { await loadMovies() }
-            }
-            .font(.system(size: 14, weight: .semibold))
-            .foregroundStyle(.white)
+        ErrorStateView(message: message) {
+            Task { await loadMovies() }
         }
-        .frame(maxWidth: .infinity)
         .padding(.top, 60)
     }
 }

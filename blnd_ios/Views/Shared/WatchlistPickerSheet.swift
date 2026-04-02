@@ -104,10 +104,10 @@ struct WatchlistPickerSheet: View {
                 }
                 .padding(.bottom, 16)
 
-                // Groups section
+                // Blends section
                 if !groups.isEmpty {
                     VStack(alignment: .leading, spacing: 0) {
-                        Text("GROUPS")
+                        Text("BLENDS")
                             .font(.system(size: 11, weight: .semibold))
                             .foregroundStyle(AppTheme.textDim)
                             .padding(.horizontal, 24)

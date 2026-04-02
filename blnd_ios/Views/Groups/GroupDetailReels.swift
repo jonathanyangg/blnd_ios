@@ -10,7 +10,7 @@ extension GroupDetailView {
             if recommendations.isEmpty {
                 Spacer()
                 emptyState(
-                    "Rate more movies to get group picks"
+                    "Rate more movies to get blend picks"
                 )
                 Spacer()
             } else {
@@ -25,7 +25,7 @@ extension GroupDetailView {
             if watchlist.isEmpty {
                 Spacer()
                 emptyState(
-                    "No movies in the group watchlist yet"
+                    "No movies in the watchlist yet"
                 )
                 Spacer()
             } else {

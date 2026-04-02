@@ -5,6 +5,7 @@ struct FriendsListView: View {
     @State private var friends: [FriendResponse] = []
     @State private var pendingRequests: PendingRequestsResponse?
     @State private var isLoading = true
+    @State private var errorMessage: String?
     @State private var showAddFriend = false
     @State private var selectedTab = 0
 
@@ -42,6 +43,11 @@ struct FriendsListView: View {
                         ProgressView()
                             .tint(.white)
                             .padding(.top, 40)
+                    } else if let error = errorMessage {
+                        ErrorStateView(message: error) {
+                            Task { await loadData() }
+                        }
+                        .padding(.top, 40)
                     } else if selectedTab == 0 {
                         friendsTab
                     } else {
@@ -176,10 +182,14 @@ struct FriendsListView: View {
     // MARK: - Actions
 
     private func loadData() async {
+        errorMessage = nil
         let cache = UserActionCache.shared
         await cache.fetchFriends()
         friends = cache.friends
         pendingRequests = cache.pendingRequests
+        if friends.isEmpty, pendingRequests == nil, !cache.didLoadFriends {
+            errorMessage = "Could not load friends"
+        }
         isLoading = false
     }
 

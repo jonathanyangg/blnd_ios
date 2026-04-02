@@ -17,7 +17,7 @@ struct RateMoviesView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            OnboardingProgressBar(step: 2, total: 4)
+            OnboardingProgressBar(step: 2, total: 5)
                 .padding(.top, 12)
 
             VStack(alignment: .leading, spacing: 0) {
