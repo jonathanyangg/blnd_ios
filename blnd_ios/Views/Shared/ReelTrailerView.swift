@@ -144,7 +144,7 @@ final class TrailerPlayer {
             wantPlaying = true;
             player.loadVideoById({
                 videoId: videoId,
-                startSeconds: 0
+                startSeconds: 2.5
             });
             player.setLoop(true);
         }

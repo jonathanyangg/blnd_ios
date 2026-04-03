@@ -382,23 +382,22 @@ extension ReelCardView {
     // MARK: - Genre Pills
 
     var genrePills: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
-                ForEach(genres.prefix(4)) { genre in
-                    Text(genre.name ?? "")
-                        .font(.system(
-                            size: 11,
-                            weight: .medium
-                        ))
-                        .padding(.vertical, 5)
-                        .padding(.horizontal, 10)
-                        .background(AppTheme.card)
-                        .foregroundStyle(
-                            AppTheme.textMuted
-                        )
-                        .clipShape(Capsule())
-                }
+        HStack(spacing: 6) {
+            ForEach(genres.prefix(4)) { genre in
+                Text(genre.name ?? "")
+                    .font(.system(
+                        size: 11,
+                        weight: .medium
+                    ))
+                    .padding(.vertical, 5)
+                    .padding(.horizontal, 10)
+                    .background(AppTheme.card)
+                    .foregroundStyle(
+                        AppTheme.textMuted
+                    )
+                    .clipShape(Capsule())
             }
+            Spacer()
         }
     }
 
