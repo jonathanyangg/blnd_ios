@@ -92,9 +92,13 @@ struct HomeView: View {
     var homeHeader: some View {
         VStack(spacing: 0) {
             HStack {
-                Text("blnd")
-                    .font(.system(size: 24, weight: .bold))
-                    .foregroundStyle(.white)
+                Button {
+                    Task { await refreshCurrentTab() }
+                } label: {
+                    Text("blnd")
+                        .font(.system(size: 24, weight: .bold))
+                        .foregroundStyle(.white)
+                }
                 Spacer()
                 HStack(spacing: 16) {
                     Button {

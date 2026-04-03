@@ -6,7 +6,6 @@ extension DiscoverSectionView {
     func selectFilter(_ filter: DiscoverFilter) {
         let changed = activeFilter != filter
         activeFilter = filter
-        showGenrePicker = filter == .genre
 
         guard changed else { return }
         resetPagination()
@@ -21,6 +20,7 @@ extension DiscoverSectionView {
             selectedGenres.insert(genre)
         }
 
+        activeFilter = .genre
         resetPagination()
         if !selectedGenres.isEmpty {
             Task { await loadMovies(forceRefresh: true) }

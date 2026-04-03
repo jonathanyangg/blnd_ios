@@ -118,18 +118,23 @@ extension ReelCardView {
 
     var mediaSection: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 14)
-                .fill(AppTheme.posterGradient)
-                .aspectRatio(16 / 9, contentMode: .fit)
-                .overlay {
-                    if !showTrailer {
-                        Image(systemName: "play.fill")
-                            .font(.system(size: 28))
-                            .foregroundStyle(
-                                .white.opacity(0.5)
-                            )
-                    }
+            if let path = movie.backdropPath, let url = URL(string: "https://image.tmdb.org/t/p/w780\(path)") {
+                CachedAsyncImage(url: url) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(16 / 9, contentMode: .fit)
+                        .posterBlur()
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                } placeholder: {
+                    RoundedRectangle(cornerRadius: 14)
+                        .fill(AppTheme.posterGradient)
+                        .aspectRatio(16 / 9, contentMode: .fit)
                 }
+            } else {
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(AppTheme.posterGradient)
+                    .aspectRatio(16 / 9, contentMode: .fit)
+            }
 
             if showTrailer, let videoId = trailerVideoId {
                 ReelTrailerView(videoId: videoId)
@@ -246,14 +251,14 @@ extension ReelCardView {
               size.width > 0
         else { return 80 }
         let mediaH = (size.width - 32) * 9 / 16
-        var fixedH: CGFloat = 81 + mediaH + 14
+        var fixedH: CGFloat = 95 + mediaH + 14
         var items = 1
         if !genres.isEmpty {
             fixedH += 30
             items += 1
         }
         if let tag = movie.tagline, !tag.isEmpty {
-            fixedH += 16
+            fixedH += 36
             items += 1
         }
         if !movie.cast.isEmpty {
@@ -263,7 +268,7 @@ extension ReelCardView {
         fixedH += 90
         items += 1
         fixedH += CGFloat(items - 1) * 12
-        return max(80, size.height - fixedH - 40)
+        return max(60, size.height - fixedH - 40)
     }
 
     @ViewBuilder
@@ -281,7 +286,12 @@ extension ReelCardView {
                     .frame(
                         maxWidth: .infinity,
                         maxHeight: overviewExpanded
-                            ? nil : overviewMaxHeightValue,
+                            ? nil : min(
+                                overviewFullHeight > 0
+                                    ? overviewFullHeight
+                                    : overviewMaxHeightValue,
+                                overviewMaxHeightValue
+                            ),
                         alignment: .topLeading
                     )
                     .clipped()

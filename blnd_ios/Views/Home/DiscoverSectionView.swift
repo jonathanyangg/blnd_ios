@@ -24,7 +24,7 @@ struct DiscoverSectionView: View {
     @State var isLoading = false
     @State var errorMessage: String?
     @State var selectedGenres: Set<String> = []
-    @State var showGenrePicker = false
+    @State var showGenreSheet = false
     @State var seenIds: Set<Int> = []
     @State var hasMorePages = true
     @State var isLoadingMore = false
@@ -49,11 +49,6 @@ struct DiscoverSectionView: View {
                 .padding(.horizontal, 24)
                 .padding(.top, 10)
                 .padding(.bottom, 12)
-
-            if showGenrePicker {
-                genrePickerRow
-                    .padding(.bottom, 10)
-            }
 
             Divider().overlay(AppTheme.border)
         }
@@ -200,58 +195,73 @@ struct DiscoverSectionView: View {
         }
     }
 
+    @ViewBuilder
     private func filterButton(
         _ filter: DiscoverFilter
     ) -> some View {
-        Button { selectFilter(filter) } label: {
-            Text(filter.rawValue)
-                .font(.system(size: 12, weight: .medium))
-                .padding(.vertical, 6)
-                .padding(.horizontal, 12)
-                .background(
-                    activeFilter == filter
-                        ? .white : AppTheme.card
-                )
-                .foregroundStyle(
-                    activeFilter == filter
-                        ? .black : AppTheme.textMuted
-                )
-                .clipShape(Capsule())
+        if filter == .genre {
+            genreMenuButton
+        } else {
+            Button { selectFilter(filter) } label: {
+                Text(filter.rawValue)
+                    .font(.system(size: 12, weight: .medium))
+                    .padding(.vertical, 6)
+                    .padding(.horizontal, 12)
+                    .background(
+                        activeFilter == filter
+                            ? .white : AppTheme.card
+                    )
+                    .foregroundStyle(
+                        activeFilter == filter
+                            ? .black : AppTheme.textMuted
+                    )
+                    .clipShape(Capsule())
+            }
         }
     }
 
-    // MARK: - Genre Picker
+    // MARK: - Genre Menu
 
-    var genrePickerRow: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
-                ForEach(
-                    discoverGenres,
-                    id: \.self
-                ) { genre in
-                    let active =
-                        selectedGenres.contains(genre)
-                    Button { toggleGenre(genre) } label: {
-                        Text(genre)
-                            .font(.system(
-                                size: 11,
-                                weight: .medium
-                            ))
-                            .padding(.vertical, 5)
-                            .padding(.horizontal, 10)
-                            .background(
-                                active ? .white
-                                    : AppTheme.card
-                            )
-                            .foregroundStyle(
-                                active ? .black
-                                    : AppTheme.textMuted
-                            )
-                            .clipShape(Capsule())
-                    }
+    private var genreMenuButton: some View {
+        Button { showGenreSheet = true } label: {
+            HStack(spacing: 4) {
+                Text("Genre")
+                    .font(.system(size: 12, weight: .medium))
+                if selectedGenres.isEmpty {
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 8, weight: .bold))
+                } else {
+                    Text("\u{00B7} \(selectedGenres.count)")
+                        .font(.system(size: 12, weight: .bold))
                 }
             }
-            .padding(.horizontal, 24)
+            .padding(.vertical, 6)
+            .padding(.horizontal, 12)
+            .background(
+                !selectedGenres.isEmpty
+                    ? .white : AppTheme.card
+            )
+            .foregroundStyle(
+                !selectedGenres.isEmpty
+                    ? .black : AppTheme.textMuted
+            )
+            .clipShape(Capsule())
+        }
+        .sheet(isPresented: $showGenreSheet) {
+            GenrePickerSheet(
+                genres: discoverGenres,
+                selected: $selectedGenres,
+                onChanged: {
+                    activeFilter = .genre
+                    resetPagination()
+                    if !selectedGenres.isEmpty {
+                        Task { await loadMovies(forceRefresh: true) }
+                    }
+                }
+            )
+            .presentationDetents([.height(300)])
+            .presentationDragIndicator(.visible)
+            .presentationBackground(AppTheme.card)
         }
     }
 
