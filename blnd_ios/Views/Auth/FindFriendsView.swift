@@ -6,7 +6,6 @@ struct FindFriendsView: View {
     @Binding var path: NavigationPath
 
     @State private var isSyncing = false
-    @State private var syncedCount: Int?
     @State private var syncFailed = false
 
     var body: some View {
@@ -32,13 +31,6 @@ struct FindFriendsView: View {
                     .multilineTextAlignment(.center)
                     .padding(.top, 6)
 
-                if let count = syncedCount {
-                    Text("\(count) contacts synced!")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(.green)
-                        .padding(.top, 24)
-                }
-
                 if syncFailed {
                     Text("Couldn't access contacts. You can try again later in Settings.")
                         .font(.system(size: 13))
@@ -52,17 +44,9 @@ struct FindFriendsView: View {
 
             Spacer()
 
-            VStack(spacing: 8) {
-                if syncedCount == nil {
-                    AppButton(label: "Allow Contacts Access", isLoading: isSyncing) {
-                        Task { await syncContacts() }
-                    }
-                }
-
-                AppButton(
-                    label: syncedCount != nil ? "Continue" : "Not Now",
-                    style: syncedCount != nil ? .primary : .ghost
-                ) {
+            AppButton(label: "Continue", isLoading: isSyncing) {
+                Task {
+                    await syncContacts()
                     finish()
                 }
             }
@@ -78,17 +62,12 @@ struct FindFriendsView: View {
         isSyncing = true
         let numbers = await ContactsHelper.fetchPhoneNumbers()
 
-        if numbers.isEmpty {
-            syncFailed = true
-            isSyncing = false
-            return
-        }
-
-        do {
-            try await FriendsAPI.uploadContacts(phoneNumbers: numbers)
-            syncedCount = numbers.count
-        } catch {
-            syncFailed = true
+        if !numbers.isEmpty {
+            do {
+                try await FriendsAPI.uploadContacts(phoneNumbers: numbers)
+            } catch {
+                syncFailed = true
+            }
         }
 
         isSyncing = false
