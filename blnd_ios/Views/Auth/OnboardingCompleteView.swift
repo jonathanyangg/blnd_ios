@@ -31,7 +31,7 @@ struct OnboardingCompleteView: View {
                     .font(.system(size: 32, weight: .bold))
                     .foregroundStyle(.white)
 
-                Text("Here's what we think you'll love")
+                Text("Great taste, let's get started")
                     .font(.system(size: 14))
                     .foregroundStyle(AppTheme.textMuted)
                     .padding(.top, 6)

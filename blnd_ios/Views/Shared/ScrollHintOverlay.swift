@@ -217,7 +217,7 @@ private struct SwipeLeftDemo: View {
                 .fill(.white.opacity(0.12))
                 .frame(width: 140, height: 80)
                 .offset(x: phase * -60)
-                .opacity(1 - phase * 0.4)
+                .opacity(1.0 - (phase * 0.4))
 
             Image(systemName: "bookmark.fill")
                 .font(.system(size: 24))
@@ -246,7 +246,7 @@ private struct SwipeRightDemo: View {
                 .fill(.white.opacity(0.12))
                 .frame(width: 140, height: 80)
                 .offset(x: phase * 60)
-                .opacity(1 - phase * 0.4)
+                .opacity(1.0 - (phase * 0.4))
 
             Image(systemName: "star.fill")
                 .font(.system(size: 24))
