@@ -53,7 +53,7 @@ struct MovieCard: View {
             .shadow(color: glow ? .white.opacity(0.13) : .clear, radius: glow ? 12 : 0)
 
             if let title {
-                Text(title)
+                Text(APIConfig.screenshotMode ? "Movie" : title)
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.white)
                     .lineLimit(1)
@@ -61,7 +61,7 @@ struct MovieCard: View {
             }
 
             if let year {
-                Text(year)
+                Text(APIConfig.screenshotMode ? "2026" : year)
                     .font(.system(size: 10))
                     .foregroundStyle(AppTheme.textMuted)
             }
