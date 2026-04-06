@@ -10,7 +10,6 @@ struct ReelsFeedView: View {
     @State private var currentId: Int?
     @State private var toastMessage: String?
     @State private var toastTask: Task<Void, Never>?
-    @State private var showWatchlistPicker = false
     @State private var watchlistTmdbId: Int?
     @State private var addedToWatchlist: Set<Int> = []
 
@@ -82,11 +81,10 @@ struct ReelsFeedView: View {
                     actionLabel: toast.contains("Watchlist")
                         ? "Change" : nil,
                     onAction: {
+                        toastMessage = nil
                         if let curId = currentId {
                             watchlistTmdbId = curId
-                            showWatchlistPicker = true
                         }
-                        toastMessage = nil
                     }
                 )
                 .padding(.bottom, 24)
@@ -100,18 +98,21 @@ struct ReelsFeedView: View {
             .easeInOut(duration: 0.3),
             value: toastMessage
         )
-        .sheet(isPresented: $showWatchlistPicker) {
-            if let tid = watchlistTmdbId {
-                WatchlistPickerSheet(
-                    tmdbId: tid,
-                    isWatched: false,
-                    isInPersonalWatchlist: addedToWatchlist
-                        .contains(tid)
-                ) { _ in }
-                    .presentationDetents([.medium, .large])
-                    .presentationDragIndicator(.visible)
-                    .presentationBackground(AppTheme.card)
-            }
+        .sheet(
+            item: Binding(
+                get: { watchlistTmdbId.map { WatchlistItem(tmdbId: $0) } },
+                set: { watchlistTmdbId = $0?.tmdbId }
+            )
+        ) { item in
+            WatchlistPickerSheet(
+                tmdbId: item.tmdbId,
+                isWatched: false,
+                isInPersonalWatchlist: addedToWatchlist
+                    .contains(item.tmdbId)
+            ) { _ in }
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+                .presentationBackground(AppTheme.card)
         }
     }
 
@@ -126,5 +127,12 @@ struct ReelsFeedView: View {
                 toastMessage = nil
             }
         }
+    }
+}
+
+private struct WatchlistItem: Identifiable {
+    let tmdbId: Int
+    var id: Int {
+        tmdbId
     }
 }
