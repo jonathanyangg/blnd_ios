@@ -56,7 +56,7 @@ extension ReelCardView {
     func addToWatchlist() {
         UINotificationFeedbackGenerator()
             .notificationOccurred(.success)
-        PostHogSDK.shared.capture("swiped_watchlist", properties: ["tmdb_id": movie.tmdbId])
+        PostHogSDK.shared.capture("watchlist_added", properties: ["tmdb_id": movie.tmdbId, "source": "reels"])
 
         // Optimistic — show toast + update cache
         if let ctx = groupContext {
@@ -118,6 +118,7 @@ extension ReelCardView {
                 tmdbId: movie.tmdbId
             )
             isHidden = true
+            PostHogSDK.shared.capture("movie_hidden", properties: ["tmdb_id": movie.tmdbId])
         } catch {}
     }
 

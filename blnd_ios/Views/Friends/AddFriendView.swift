@@ -1,4 +1,5 @@
 import Contacts
+import PostHog
 import SwiftUI
 
 struct AddFriendView: View {
@@ -409,6 +410,7 @@ extension AddFriendView {
                 username: username
             )
             sentTo.insert(id)
+            PostHogSDK.shared.capture("friend_request_sent")
             contactSuggestions.removeAll { $0.id == id }
             mutualSuggestions.removeAll { $0.id == id }
         } catch let APIError.badRequest(message) {

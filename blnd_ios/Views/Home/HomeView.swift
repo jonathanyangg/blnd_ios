@@ -1,3 +1,4 @@
+import PostHog
 import SwiftUI
 
 struct ScrollOffsetKey: PreferenceKey {
@@ -142,6 +143,7 @@ struct HomeView: View {
                 Button {
                     withAnimation(.easeInOut(duration: 0.2)) {
                         selectedTab = tab
+                        PostHogSDK.shared.capture("tab_switched", properties: ["tab": tab.rawValue])
                     }
                 } label: {
                     VStack(spacing: 8) {

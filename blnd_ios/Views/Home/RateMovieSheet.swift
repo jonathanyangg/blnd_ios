@@ -1,3 +1,4 @@
+import PostHog
 import SwiftUI
 
 struct RateMovieSheet: View {
@@ -91,6 +92,10 @@ struct RateMovieSheet: View {
             }
             UserActionCache.shared.didRate(
                 tmdbId, rating: rating
+            )
+            PostHogSDK.shared.capture(
+                "movie_rated",
+                properties: ["tmdb_id": tmdbId, "rating": rating, "source": "detail"]
             )
             onSaved?(rating)
             dismiss()

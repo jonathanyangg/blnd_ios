@@ -1,3 +1,4 @@
+import PostHog
 import SwiftUI
 import WebKit
 
@@ -38,6 +39,7 @@ final class TrailerPlayer {
         let sanitized = videoId.replacingOccurrences(of: "'", with: "")
             .replacingOccurrences(of: "\\", with: "")
         currentVideoId = sanitized
+        PostHogSDK.shared.capture("trailer_played", properties: ["video_id": sanitized])
         if isReady {
             webView.evaluateJavaScript("loadVideo('\(sanitized)');")
         }

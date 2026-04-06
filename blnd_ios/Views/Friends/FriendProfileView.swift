@@ -1,3 +1,4 @@
+import PostHog
 import SwiftUI
 
 struct FriendProfileView: View {
@@ -314,6 +315,7 @@ struct FriendProfileView: View {
         do {
             _ = try await FriendsAPI.sendRequest(username: friend.username)
             friendshipAction = "pending"
+            PostHogSDK.shared.capture("friend_request_sent")
         } catch { /* Non-critical */ }
         isSendingRequest = false
     }

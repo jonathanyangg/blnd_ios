@@ -5,9 +5,9 @@ SwiftUI iOS app for blnd — movie taste syncing with AI recommendations.
 ## Tech Stack
 
 - Swift / SwiftUI, iOS 17+
-- Zero third-party dependencies
 - `@Observable` for state, `async/await` for networking
 - Talks to FastAPI backend for API, Supabase Storage for avatar uploads
+- PostHog iOS SDK (`posthog-ios`) for product analytics
 
 ## Architecture
 
@@ -156,6 +156,24 @@ blnd_ios/blnd_ios/
 - Avatar path: `avatars/{user_id}/avatar.jpg`
 - Auth: uses same JWT from backend (Bearer token) for storage uploads
 - Cache busting: append `?v=<timestamp>` to public URL on upload so AsyncImage doesn't serve stale cache
+
+## Analytics (PostHog)
+
+- **SDK**: `posthog-ios` v3.49+, initialized in `blndApp.swift`
+- **API Key**: configured in `blndApp.init()`
+- **Auto-captured**: screen views, app lifecycle (open/close/background)
+- **User identification**: `identify(userId)` on login, Apple Sign In, session restore. `reset()` on logout.
+- **Event naming**: `verb_noun`, snake_case. Add `source` property when same action can happen from multiple places.
+- **Tracked events**:
+  - `movie_rated` — properties: `tmdb_id`, `rating`, `source` (reels/detail)
+  - `watchlist_added` — properties: `tmdb_id`, `source` (reels)
+  - `movie_hidden` — properties: `tmdb_id`
+  - `trailer_played` — properties: `video_id`
+  - `tab_switched` — properties: `tab` (For You/Discover)
+  - `onboarding_completed` — no properties
+  - `friend_request_sent` — no properties
+  - `group_created` — no properties
+- **Files with PostHog imports**: blndApp.swift, AuthState.swift, ReelCardActions.swift, ReelRatingOverlay.swift, ReelTrailerView.swift, HomeView.swift, FindFriendsView.swift, AddFriendView.swift, FriendProfileView.swift, CreateGroupView.swift, RateMovieSheet.swift
 
 ## Design
 

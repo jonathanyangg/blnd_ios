@@ -1,3 +1,4 @@
+import PostHog
 import SwiftUI
 
 struct CreateGroupView: View {
@@ -98,6 +99,7 @@ struct CreateGroupView: View {
                 name: trimmedName
             )
             UserActionCache.shared.invalidateGroups()
+            PostHogSDK.shared.capture("group_created")
             await onCreated?()
             withAnimation { createdGroup = group }
         } catch let APIError.badRequest(message) {
