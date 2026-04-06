@@ -1,3 +1,4 @@
+import PostHog
 import SwiftUI
 
 struct ReelRatingOverlay: View {
@@ -130,6 +131,7 @@ struct ReelRatingOverlay: View {
             UserActionCache.shared.didRate(
                 tmdbId, rating: rating
             )
+            PostHogSDK.shared.capture("movie_rated", properties: ["tmdb_id": tmdbId, "rating": rating])
             onSaved(rating)
         } catch { /* Non-critical — overlay dismisses, user can retry */ }
         isSaving = false

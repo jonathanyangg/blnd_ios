@@ -1,4 +1,5 @@
 import Foundation
+import PostHog
 
 enum AuthPhase {
     case unauthenticated
@@ -49,6 +50,9 @@ class AuthState {
             phase = user.username != nil ? .authenticated : .onboardingPending
             if phase == .authenticated {
                 await UserActionCache.shared.bootstrap()
+                if let uid = KeychainManager.readString(key: "userId") {
+                    PostHogSDK.shared.identify(uid)
+                }
             }
         } catch {
             // Token invalid/expired — APIClient retry + forceLogoutNotification
@@ -110,6 +114,7 @@ class AuthState {
                 await fetchCurrentUser()
                 phase = .authenticated
                 await UserActionCache.shared.bootstrap()
+                PostHogSDK.shared.identify(response.userId)
             }
             isLoading = false
             return response
@@ -132,6 +137,12 @@ class AuthState {
             await fetchCurrentUser()
             phase = .authenticated
             await UserActionCache.shared.bootstrap()
+            if let user = currentUser {
+                PostHogSDK.shared.identify(
+                    response.userId,
+                    userProperties: ["username": user.username ?? "", "email": email]
+                )
+            }
         } catch {
             self.error = error.localizedDescription
         }
@@ -164,6 +175,7 @@ class AuthState {
         isLoading = false
         phase = .unauthenticated
         UserActionCache.shared.reset()
+        PostHogSDK.shared.reset()
     }
 
     func fetchCurrentUser() async {

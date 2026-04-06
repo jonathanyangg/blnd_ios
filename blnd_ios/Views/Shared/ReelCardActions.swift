@@ -1,3 +1,4 @@
+import PostHog
 import SwiftUI
 
 // MARK: - Gestures & Actions
@@ -55,6 +56,7 @@ extension ReelCardView {
     func addToWatchlist() {
         UINotificationFeedbackGenerator()
             .notificationOccurred(.success)
+        PostHogSDK.shared.capture("swiped_watchlist", properties: ["tmdb_id": movie.tmdbId])
 
         // Optimistic — show toast + update cache
         if let ctx = groupContext {
