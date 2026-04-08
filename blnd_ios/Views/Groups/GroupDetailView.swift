@@ -26,7 +26,6 @@ struct GroupDetailView: View {
     @Namespace var tabNamespace
     @Environment(\.dismiss) var dismiss
     @Environment(TabState.self) var tabState
-    @AppStorage("hasSeenBlendsTutorial") private var hasSeenBlendsTutorial = false
 
     var groupContext: ReelCardView.GroupContext? {
         guard let group else { return nil }
@@ -83,15 +82,6 @@ struct GroupDetailView: View {
                     onSave: { saveGroupName() },
                     onDismiss: { isEditingName = false }
                 )
-            }
-        }
-        .overlay {
-            if !hasSeenBlendsTutorial, viewMode == .reels, !isLoading {
-                ScrollHintOverlay(
-                    steps: TutorialPreset.blends
-                ) {
-                    hasSeenBlendsTutorial = true
-                }
             }
         }
         .overlay(alignment: .top) {

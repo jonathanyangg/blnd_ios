@@ -338,6 +338,7 @@ private struct FriendRow: View {
         }
         .padding(.vertical, 14)
         .padding(.horizontal, 24)
+        .contentShape(Rectangle())
     }
 }
 

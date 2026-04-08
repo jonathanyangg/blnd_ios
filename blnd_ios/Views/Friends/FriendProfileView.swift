@@ -37,99 +37,23 @@ struct FriendProfileView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 0) {
-                // Profile header
-                VStack(spacing: 0) {
-                    AvatarView(url: publicProfile?.avatarUrl ?? friend.avatarUrl, size: 80)
-                        .padding(.bottom, 12)
+                profileHeader
 
-                    Text(publicProfile?.displayName ?? friend.displayName ?? friend.username)
-                        .font(.system(size: 22, weight: .bold))
-                        .foregroundStyle(.white)
-
-                    Text("@\(friend.username)")
-                        .font(.system(size: 14))
-                        .foregroundStyle(AppTheme.textMuted)
-                        .padding(.bottom, 16)
-                }
-                .padding(.top, 20)
-                .padding(.bottom, 8)
-
-                // Stats row — only render once profile is loaded
                 if let profile = publicProfile {
-                    StatsRow(items: [
-                        StatItem(label: "Watched", value: profile.watchedCount, onTap: nil),
-                        StatItem(
-                            label: "Friends",
-                            value: profile.friendsCount,
-                            onTap: profile.friendshipStatus == "accepted"
-                                ? { showFriendsList = true }
-                                : nil
-                        ),
-                        StatItem(
-                            label: "Mutual",
-                            value: mutualCount,
-                            onTap: mutualCount > 0
-                                ? { showMutualsList = true }
-                                : nil
-                        ),
-                    ])
+                    statsRowView(profile: profile)
                 }
 
-                // Watched grid
-                if isLoading {
-                    ProgressView()
-                        .tint(.white)
-                        .padding(.top, 40)
-                } else if watchedGated {
-                    VStack(spacing: 12) {
-                        Image(systemName: "lock.fill")
-                            .font(.system(size: 28))
-                            .foregroundStyle(AppTheme.textDim)
-                        Text("Add \(friend.username) to see their watched movies")
-                            .font(.system(size: 14))
-                            .foregroundStyle(AppTheme.textMuted)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 40)
-                    }
-                    .padding(.top, 40)
-                } else if watchedMovies.isEmpty {
-                    VStack(spacing: 12) {
-                        Image(systemName: "film")
-                            .font(.system(size: 36))
-                            .foregroundStyle(AppTheme.textMuted)
-                        Text("No watched movies yet")
-                            .font(.system(size: 14))
-                            .foregroundStyle(AppTheme.textMuted)
-                    }
-                    .padding(.top, 40)
-                } else {
-                    PosterGrid {
-                        ForEach(watchedMovies) { movie in
-                            NavigationLink {
-                                MovieDetailView(tmdbId: movie.tmdbId, title: movie.title)
-                            } label: {
-                                PosterTile(posterPath: movie.posterPath, rating: movie.rating)
-                            }
-                            .buttonStyle(.plain)
-                            .onAppear {
-                                if movie.id == watchedMovies.last?.id {
-                                    Task { await loadMoreWatched() }
-                                }
-                            }
-                        }
-                    }
-
-                    if isLoadingMore {
-                        ProgressView()
-                            .tint(.white)
-                            .padding(.vertical, 16)
-                    }
-                }
+                watchedSection
             }
             .padding(.bottom, 32)
+            .opacity(publicProfile == nil ? 0 : 1)
+            .animation(.easeOut(duration: 0.2), value: publicProfile == nil)
         }
-        .background(AppTheme.background)
+        .background(AppTheme.background.ignoresSafeArea())
+        .animation(.easeInOut(duration: 0.25), value: publicProfile == nil)
         .navigationBarBackButtonHidden()
+        .toolbarBackground(AppTheme.background, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
         .swipeBackGesture()
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
@@ -209,6 +133,109 @@ struct FriendProfileView: View {
         .task { await loadData() }
     }
 
+    // MARK: - Profile Header
+
+    private var profileHeader: some View {
+        VStack(spacing: 0) {
+            AvatarView(url: publicProfile?.avatarUrl ?? friend.avatarUrl, size: 80)
+                .padding(.bottom, 12)
+
+            Text(publicProfile?.displayName ?? friend.displayName ?? friend.username)
+                .font(.system(size: 22, weight: .bold))
+                .foregroundStyle(.white)
+
+            Text("@\(friend.username)")
+                .font(.system(size: 14))
+                .foregroundStyle(AppTheme.textMuted)
+                .padding(.bottom, 16)
+        }
+        .padding(.top, 20)
+        .padding(.bottom, 8)
+    }
+
+    private func statsRowView(profile: PublicProfileResponse) -> some View {
+        StatsRow(items: [
+            StatItem(label: "Watched", value: profile.watchedCount, onTap: nil),
+            StatItem(
+                label: "Friends",
+                value: profile.friendsCount,
+                onTap: profile.friendshipStatus == "accepted"
+                    ? { showFriendsList = true }
+                    : nil
+            ),
+            StatItem(
+                label: "Mutual",
+                value: mutualCount,
+                onTap: mutualCount > 0 ? { showMutualsList = true } : nil
+            ),
+        ])
+    }
+
+    @ViewBuilder
+    private var watchedSection: some View {
+        if publicProfile == nil {
+            EmptyView()
+        } else if watchedGated {
+            watchedGatedView
+        } else if watchedMovies.isEmpty {
+            watchedEmptyView
+        } else {
+            watchedGridView
+        }
+    }
+
+    private var watchedGatedView: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "lock.fill")
+                .font(.system(size: 28))
+                .foregroundStyle(AppTheme.textDim)
+            Text("Add \(friend.username) to see their watched movies")
+                .font(.system(size: 14))
+                .foregroundStyle(AppTheme.textMuted)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
+        }
+        .padding(.top, 40)
+    }
+
+    private var watchedEmptyView: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "film")
+                .font(.system(size: 36))
+                .foregroundStyle(AppTheme.textMuted)
+            Text("No watched movies yet")
+                .font(.system(size: 14))
+                .foregroundStyle(AppTheme.textMuted)
+        }
+        .padding(.top, 40)
+    }
+
+    private var watchedGridView: some View {
+        VStack(spacing: 0) {
+            PosterGrid {
+                ForEach(watchedMovies) { movie in
+                    NavigationLink {
+                        MovieDetailView(tmdbId: movie.tmdbId, title: movie.title)
+                    } label: {
+                        PosterTile(posterPath: movie.posterPath, rating: movie.rating)
+                    }
+                    .buttonStyle(.plain)
+                    .onAppear {
+                        if movie.id == watchedMovies.last?.id {
+                            Task { await loadMoreWatched() }
+                        }
+                    }
+                }
+            }
+
+            if isLoadingMore {
+                ProgressView()
+                    .tint(.white)
+                    .padding(.vertical, 16)
+            }
+        }
+    }
+
     // MARK: - Friendship + Profile Menu
 
     var currentStatus: String? {
@@ -250,18 +277,16 @@ struct FriendProfileView: View {
         } else {
             Menu {
                 if currentStatus == "accepted" {
-                    Button("Remove Friend", role: .destructive) {
+                    Button("Remove", role: .destructive) {
                         showRemoveAlert = true
                     }
                 } else if currentStatus == "pending" {
-                    Button("Withdraw Request", role: .destructive) {
+                    Button("Withdraw", role: .destructive) {
                         showRemoveAlert = true
                     }
                 } else {
-                    Button {
+                    Button("Add Friend") {
                         Task { await sendFriendRequest() }
-                    } label: {
-                        Label("Add Friend", systemImage: "person.badge.plus")
                     }
                 }
 
@@ -275,16 +300,6 @@ struct FriendProfileView: View {
                     .frame(width: 32, height: 32)
             }
         }
-    }
-
-    private func sendFriendRequest() async {
-        isSendingRequest = true
-        do {
-            _ = try await FriendsAPI.sendRequest(username: friend.username)
-            friendshipAction = "pending"
-            PostHogSDK.shared.capture("friend_request_sent")
-        } catch { /* Non-critical */ }
-        isSendingRequest = false
     }
 }
 

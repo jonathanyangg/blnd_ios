@@ -15,9 +15,14 @@ struct BlndApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .environment(authState)
-                .environment(onboardingState)
+            ZStack {
+                AppTheme.background
+                    .ignoresSafeArea()
+                ContentView()
+                    .environment(authState)
+                    .environment(onboardingState)
+            }
+            .preferredColorScheme(.dark)
         }
     }
 }
