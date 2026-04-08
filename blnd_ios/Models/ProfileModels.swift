@@ -13,6 +13,7 @@ struct PublicProfileResponse: Decodable {
     let blendsCount: Int
     let friendshipStatus: String?
     let friendshipId: Int?
+    let isBlocked: Bool
 
     enum CodingKeys: String, CodingKey {
         case id, username
@@ -23,6 +24,45 @@ struct PublicProfileResponse: Decodable {
         case blendsCount = "blends_count"
         case friendshipStatus = "friendship_status"
         case friendshipId = "friendship_id"
+        case isBlocked = "is_blocked"
+    }
+
+    init(
+        id: String,
+        username: String,
+        displayName: String?,
+        avatarUrl: String?,
+        watchedCount: Int,
+        friendsCount: Int,
+        blendsCount: Int,
+        friendshipStatus: String?,
+        friendshipId: Int?,
+        isBlocked: Bool = false
+    ) {
+        self.id = id
+        self.username = username
+        self.displayName = displayName
+        self.avatarUrl = avatarUrl
+        self.watchedCount = watchedCount
+        self.friendsCount = friendsCount
+        self.blendsCount = blendsCount
+        self.friendshipStatus = friendshipStatus
+        self.friendshipId = friendshipId
+        self.isBlocked = isBlocked
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        username = try container.decode(String.self, forKey: .username)
+        displayName = try container.decodeIfPresent(String.self, forKey: .displayName)
+        avatarUrl = try container.decodeIfPresent(String.self, forKey: .avatarUrl)
+        watchedCount = try container.decode(Int.self, forKey: .watchedCount)
+        friendsCount = try container.decode(Int.self, forKey: .friendsCount)
+        blendsCount = try container.decode(Int.self, forKey: .blendsCount)
+        friendshipStatus = try container.decodeIfPresent(String.self, forKey: .friendshipStatus)
+        friendshipId = try container.decodeIfPresent(Int.self, forKey: .friendshipId)
+        isBlocked = try container.decodeIfPresent(Bool.self, forKey: .isBlocked) ?? false
     }
 }
 

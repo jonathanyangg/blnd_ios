@@ -20,7 +20,7 @@ extension ReelCardView {
                 Spacer()
 
                 streamingButton
-                hideButton
+                rateButton
             }
 
             metaLine
@@ -35,38 +35,34 @@ extension ReelCardView {
         }
     }
 
-    var hideButton: some View {
+    var rateButton: some View {
         Button {
-            if isHidden {
-                Task { await unhideMovie() }
-            } else {
-                showHideConfirm = true
-            }
+            showRating = true
         } label: {
-            Image(
-                systemName: isHidden
-                    ? "hand.thumbsdown.fill"
-                    : "hand.thumbsdown"
-            )
-            .font(.system(size: 16))
-            .foregroundStyle(
-                isHidden ? .red : AppTheme.textDim
-            )
-        }
-        .confirmationDialog(
-            "Not interested?",
-            isPresented: $showHideConfirm,
-            titleVisibility: .visible
-        ) {
-            Button("Not for me", role: .destructive) {
-                Task { await hideMovie() }
+            if let userRating = UserActionCache.shared.rating(for: movie.tmdbId) {
+                HStack(spacing: 3) {
+                    Image(systemName: "star.fill")
+                        .font(.system(size: 11))
+                    Text(formattedRating(userRating))
+                        .font(.system(size: 12, weight: .bold))
+                }
+                .foregroundStyle(.white)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(.white.opacity(0.15))
+                .clipShape(Capsule())
+            } else {
+                Image(systemName: "star")
+                    .font(.system(size: 16))
+                    .foregroundStyle(AppTheme.textDim)
             }
-        } message: {
-            Text(
-                "This movie won't show in your "
-                    + "recommendations."
-            )
         }
+    }
+
+    private func formattedRating(_ rating: Double) -> String {
+        rating.truncatingRemainder(dividingBy: 1) == 0
+            ? String(format: "%.0f", rating)
+            : String(format: "%.1f", rating)
     }
 
     func matchBadge(_ pct: Int) -> some View {

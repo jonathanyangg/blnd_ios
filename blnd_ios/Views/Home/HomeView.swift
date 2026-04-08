@@ -51,6 +51,11 @@ struct HomeView: View {
             .fullScreenCover(isPresented: $showSearch) {
                 NavigationStack { SearchView() }
             }
+            .onChange(of: showSearch) { _, isShowing in
+                if isShowing {
+                    TrailerPlayer.shared.stop()
+                }
+            }
             .overlay {
                 if !hasSeenTutorial, viewMode == .reels, !isLoadingFYP, !fypReelMovies.isEmpty {
                     ScrollHintOverlay {

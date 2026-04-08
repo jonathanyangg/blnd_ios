@@ -75,6 +75,17 @@ struct GroupDetailView: View {
             membersSheet
         }
         .overlay {
+            if isEditingName {
+                RenameOverlay(
+                    title: "Rename Blend",
+                    placeholder: "Blend name",
+                    text: $editedName,
+                    onSave: { saveGroupName() },
+                    onDismiss: { isEditingName = false }
+                )
+            }
+        }
+        .overlay {
             if !hasSeenBlendsTutorial, viewMode == .reels, !isLoading {
                 ScrollHintOverlay(
                     steps: TutorialPreset.blends
@@ -210,56 +221,22 @@ struct GroupDetailView: View {
         }
     }
 
-    @ViewBuilder
     func groupNameRow(
         _ group: GroupDetailResponse
     ) -> some View {
-        if isEditingName {
-            HStack(spacing: 8) {
-                TextField("Blend name", text: $editedName)
+        Button {
+            editedName = group.name
+            isEditingName = true
+        } label: {
+            HStack(spacing: 6) {
+                Text(group.name)
                     .font(.system(
                         size: 18, weight: .bold
                     ))
                     .foregroundStyle(.white)
-                    .textFieldStyle(.plain)
-                    .autocorrectionDisabled()
-                    .onSubmit { saveGroupName() }
-
-                Button {
-                    saveGroupName()
-                } label: {
-                    Image(systemName: "checkmark")
-                        .font(.system(
-                            size: 14, weight: .bold
-                        ))
-                        .foregroundStyle(.white)
-                }
-
-                Button {
-                    isEditingName = false
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(
-                            size: 14, weight: .bold
-                        ))
-                        .foregroundStyle(AppTheme.textMuted)
-                }
-            }
-        } else {
-            Button {
-                editedName = group.name
-                isEditingName = true
-            } label: {
-                HStack(spacing: 6) {
-                    Text(group.name)
-                        .font(.system(
-                            size: 18, weight: .bold
-                        ))
-                        .foregroundStyle(.white)
-                    Image(systemName: "pencil")
-                        .font(.system(size: 12))
-                        .foregroundStyle(AppTheme.textDim)
-                }
+                Image(systemName: "pencil")
+                    .font(.system(size: 12))
+                    .foregroundStyle(AppTheme.textDim)
             }
         }
     }

@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		8441DF102F835F4F00DF0425 /* PostHog in Frameworks */ = {isa = PBXBuildFile; productRef = 8441DF0F2F835F4F00DF0425 /* PostHog */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		84CAD8D52F56A2E8001B73F1 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -52,6 +56,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8441DF102F835F4F00DF0425 /* PostHog in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -72,12 +77,20 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		8441DF0E2F835F4F00DF0425 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		84CAD8BE2F56A2E7001B73F1 = {
 			isa = PBXGroup;
 			children = (
 				84CAD8C92F56A2E7001B73F1 /* blnd_ios */,
 				84CAD8D72F56A2E8001B73F1 /* blnd_iosTests */,
 				84CAD8E12F56A2E9001B73F1 /* blnd_iosUITests */,
+				8441DF0E2F835F4F00DF0425 /* Frameworks */,
 				84CAD8C82F56A2E7001B73F1 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -112,6 +125,7 @@
 			);
 			name = blnd_ios;
 			packageProductDependencies = (
+				8441DF0F2F835F4F00DF0425 /* PostHog */,
 			);
 			productName = blnd_ios;
 			productReference = 84CAD8C72F56A2E7001B73F1 /* blnd_ios.app */;
@@ -596,6 +610,14 @@
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		8441DF0F2F835F4F00DF0425 /* PostHog */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8441DD392F83577400DF0425 /* XCRemoteSwiftPackageReference "posthog-ios" */;
+			productName = PostHog;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 84CAD8BF2F56A2E7001B73F1 /* Project object */;
 }

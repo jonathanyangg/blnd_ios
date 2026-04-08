@@ -38,11 +38,46 @@ enum FriendsAPI {
         )
     }
 
-    /// POST /friends/{id}/reject — reject a friend request
+    /// POST /friends/{id}/reject — reject a friend request (addressee only)
     static func rejectRequest(friendshipId: Int) async throws -> FriendRequestResponse {
         try await APIClient.shared.request(
             endpoint: "/friends/\(friendshipId)/reject",
             method: "POST",
+            authenticated: true
+        )
+    }
+
+    /// DELETE /friends/{id}/withdraw — withdraw an outgoing pending request (requester only)
+    static func withdrawRequest(friendshipId: Int) async throws {
+        try await APIClient.shared.requestVoid(
+            endpoint: "/friends/\(friendshipId)/withdraw",
+            method: "DELETE",
+            authenticated: true
+        )
+    }
+
+    /// POST /friends/blocks/{userId} — block a user (auto-removes any friendship)
+    static func blockUser(userId: String) async throws {
+        try await APIClient.shared.requestVoid(
+            endpoint: "/friends/blocks/\(userId)",
+            method: "POST",
+            authenticated: true
+        )
+    }
+
+    /// DELETE /friends/blocks/{userId} — unblock a user
+    static func unblockUser(userId: String) async throws {
+        try await APIClient.shared.requestVoid(
+            endpoint: "/friends/blocks/\(userId)",
+            method: "DELETE",
+            authenticated: true
+        )
+    }
+
+    /// GET /friends/blocks — list all blocked users
+    static func listBlockedUsers() async throws -> BlockedUsersResponse {
+        try await APIClient.shared.request(
+            endpoint: "/friends/blocks",
             authenticated: true
         )
     }

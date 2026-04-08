@@ -79,3 +79,24 @@ struct UploadContactsRequest: Encodable {
         case phoneNumbers = "phone_numbers"
     }
 }
+
+// MARK: - Blocking
+
+struct BlockedUserResponse: Decodable, Identifiable {
+    let id: String
+    let username: String
+    let displayName: String?
+    let avatarUrl: String?
+    let blockedAt: String
+
+    enum CodingKeys: String, CodingKey {
+        case id, username
+        case displayName = "display_name"
+        case avatarUrl = "avatar_url"
+        case blockedAt = "blocked_at"
+    }
+}
+
+struct BlockedUsersResponse: Decodable {
+    let blocked: [BlockedUserResponse]
+}

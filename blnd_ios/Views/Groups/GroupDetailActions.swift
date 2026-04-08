@@ -72,18 +72,13 @@ extension GroupDetailView {
             .trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
             showToast("Name can't be empty")
-            isEditingName = false
             return
         }
         guard trimmed.count <= 50 else {
             showToast("Name must be 50 characters or less")
             return
         }
-        guard trimmed != group?.name else {
-            isEditingName = false
-            return
-        }
-        isEditingName = false
+        guard trimmed != group?.name else { return }
         let oldName = group?.name ?? ""
         group?.name = trimmed
         Task {

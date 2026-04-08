@@ -37,9 +37,9 @@ extension ReelCardView {
                 }
                 let off = value.translation.width
                 if off < -swipeThreshold {
-                    addToWatchlist()
+                    Task { await hideMovie() }
                 } else if off > swipeThreshold {
-                    showRating = true
+                    addToWatchlist()
                 }
                 resetSwipe()
             }
@@ -113,21 +113,14 @@ extension ReelCardView {
     }
 
     func hideMovie() async {
+        UINotificationFeedbackGenerator()
+            .notificationOccurred(.success)
+        onWatchlistAdded?("Won't show again")
         do {
             _ = try await RecommendationsAPI.hideMovie(
                 tmdbId: movie.tmdbId
             )
-            isHidden = true
             PostHogSDK.shared.capture("movie_hidden", properties: ["tmdb_id": movie.tmdbId])
-        } catch {}
-    }
-
-    func unhideMovie() async {
-        do {
-            try await RecommendationsAPI.unhideMovie(
-                tmdbId: movie.tmdbId
-            )
-            isHidden = false
         } catch {}
     }
 

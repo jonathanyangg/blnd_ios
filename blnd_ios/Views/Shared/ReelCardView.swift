@@ -22,8 +22,6 @@ struct ReelCardView: View {
     @State var overviewTruncatedHeight: CGFloat = 0
     @State var friendsWhoWatched: [FriendWatchedResponse] = []
     @State var cardSize: CGSize = .zero
-    @State var isHidden = false
-    @State var showHideConfirm = false
     @State var showStreamingSheet = false
     @State var friendsLoadTask: Task<Void, Never>?
     @State var overviewMaxHeightValue: CGFloat = 80
@@ -41,8 +39,7 @@ struct ReelCardView: View {
     }
 
     var showTrailer: Bool {
-        isActive && trailerReady && !showRating
-            && trailerVideoId != nil
+        isActive && trailerReady && trailerVideoId != nil
     }
 
     var body: some View {
@@ -110,6 +107,14 @@ struct ReelCardView: View {
         }
         .onChange(of: cardSize) { _, size in
             overviewMaxHeightValue = computeOverviewMaxHeight(size)
+        }
+        .onChange(of: showRating) { _, rating in
+            guard isActive else { return }
+            if rating {
+                TrailerPlayer.shared.pause()
+            } else {
+                TrailerPlayer.shared.resume()
+            }
         }
     }
 }

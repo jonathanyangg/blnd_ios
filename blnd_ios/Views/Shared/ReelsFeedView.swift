@@ -12,6 +12,7 @@ struct ReelsFeedView: View {
     @State private var toastTask: Task<Void, Never>?
     @State private var watchlistTmdbId: Int?
     @State private var addedToWatchlist: Set<Int> = []
+    @State private var lastHiddenTmdbId: Int?
 
     var body: some View {
         GeometryReader { geo in
@@ -29,9 +30,13 @@ struct ReelsFeedView: View {
                                 && isTabVisible,
                             groupContext: groupContext,
                             onWatchlistAdded: { msg in
-                                addedToWatchlist.insert(
-                                    movie.tmdbId
-                                )
+                                if msg.contains("Won't show") {
+                                    lastHiddenTmdbId = movie.tmdbId
+                                } else {
+                                    addedToWatchlist.insert(
+                                        movie.tmdbId
+                                    )
+                                }
                                 showToast(msg)
                             },
                             onRated: { rating in
@@ -78,14 +83,8 @@ struct ReelsFeedView: View {
             if let toast = toastMessage {
                 ReelToast(
                     message: toast,
-                    actionLabel: toast.contains("Watchlist")
-                        ? "Change" : nil,
-                    onAction: {
-                        toastMessage = nil
-                        if let curId = currentId {
-                            watchlistTmdbId = curId
-                        }
-                    }
+                    actionLabel: toastActionLabel(toast),
+                    onAction: { handleToastAction(toast) }
                 )
                 .padding(.bottom, 24)
                 .transition(
@@ -122,10 +121,30 @@ struct ReelsFeedView: View {
         toastTask?.cancel()
         toastMessage = message
         toastTask = Task {
-            try? await Task.sleep(for: .seconds(1.2))
+            try? await Task.sleep(for: .seconds(2))
             if !Task.isCancelled {
                 toastMessage = nil
             }
+        }
+    }
+
+    private func toastActionLabel(_ toast: String) -> String? {
+        if toast.contains("Watchlist") { return "Change" }
+        if toast.contains("Won't show") { return "Undo" }
+        return nil
+    }
+
+    private func handleToastAction(_ toast: String) {
+        toastMessage = nil
+        if toast.contains("Watchlist") {
+            if let curId = currentId {
+                watchlistTmdbId = curId
+            }
+        } else if toast.contains("Won't show"), let id = lastHiddenTmdbId {
+            Task {
+                try? await RecommendationsAPI.unhideMovie(tmdbId: id)
+            }
+            lastHiddenTmdbId = nil
         }
     }
 }

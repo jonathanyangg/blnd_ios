@@ -52,6 +52,18 @@ final class TrailerPlayer {
         }
     }
 
+    func pause() {
+        if isReady {
+            webView.evaluateJavaScript("pauseVideo();")
+        }
+    }
+
+    func resume() {
+        if isReady {
+            webView.evaluateJavaScript("resumeVideo();")
+        }
+    }
+
     private func markReady() {
         isReady = true
         if let vid = currentVideoId {
@@ -158,6 +170,20 @@ final class TrailerPlayer {
                 .classList.remove('visible');
             document.getElementById('wrap')
                 .classList.add('hidden');
+        }
+
+        function pauseVideo() {
+            wantPlaying = false;
+            if (player && player.pauseVideo) {
+                player.pauseVideo();
+            }
+        }
+
+        function resumeVideo() {
+            wantPlaying = true;
+            if (player && player.playVideo) {
+                player.playVideo();
+            }
         }
         </script>
         </body>

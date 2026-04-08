@@ -1,31 +1,38 @@
-import PostHog
 import SwiftUI
 
 struct FriendProfileView: View {
     let friend: FriendResponse
 
-    @State private var showRemoveAlert = false
-    @State private var isRemoving = false
-    @State private var isSendingRequest = false
-    @State private var friendshipAction: String?
-    @Environment(\.dismiss) private var dismiss
+    @State var showRemoveAlert = false
+    @State var showBlockAlert = false
+    @State var showUnblockAlert = false
+    @State var isRemoving = false
+    @State var isSendingRequest = false
+    @State var isBlocking = false
+    @State var friendshipAction: String?
+    @State var blockOverride: BlockOverride = .none
+    @Environment(\.dismiss) var dismiss
 
-    @State private var publicProfile: PublicProfileResponse?
-    @State private var watchedMovies: [PublicWatchedMovieResponse] = []
-    @State private var watchedTotal = 0
-    @State private var isLoading = true
-    @State private var isLoadingMore = false
-    @State private var watchedGated = false
+    enum BlockOverride {
+        case none, blocked, unblocked
+    }
 
-    @State private var showFriendsList = false
-    @State private var friendsList: [PublicFriendResponse] = []
-    @State private var isLoadingFriends = false
+    @State var publicProfile: PublicProfileResponse?
+    @State var watchedMovies: [PublicWatchedMovieResponse] = []
+    @State var watchedTotal = 0
+    @State var isLoading = true
+    @State var isLoadingMore = false
+    @State var watchedGated = false
 
-    @State private var mutualFriends: [MutualFriendResponse] = []
-    @State private var mutualCount = 0
-    @State private var showMutualsList = false
+    @State var showFriendsList = false
+    @State var friendsList: [PublicFriendResponse] = []
+    @State var isLoadingFriends = false
 
-    @State private var selectedFriendOfFriend: PublicFriendResponse?
+    @State var mutualFriends: [MutualFriendResponse] = []
+    @State var mutualCount = 0
+    @State var showMutualsList = false
+
+    @State var selectedFriendOfFriend: PublicFriendResponse?
 
     var body: some View {
         ScrollView {
@@ -129,7 +136,7 @@ struct FriendProfileView: View {
                 BackButton()
             }
             ToolbarItem(placement: .navigationBarTrailing) {
-                friendshipButton
+                profileMenu
             }
         }
         .alert(
@@ -149,6 +156,25 @@ struct FriendProfileView: View {
                     ? "Remove @\(friend.username) from your friends?"
                     : "Withdraw your friend request to @\(friend.username)?"
             )
+        }
+        .alert("Block @\(friend.username)?", isPresented: $showBlockAlert) {
+            Button("Cancel", role: .cancel) {}
+            Button("Block", role: .destructive) {
+                Task { await blockUser() }
+            }
+        } message: {
+            Text(
+                "They won't be able to find you, send you requests, or see your profile. "
+                    + "You won't see them either. They'll still appear in any blends you share."
+            )
+        }
+        .alert("Unblock @\(friend.username)?", isPresented: $showUnblockAlert) {
+            Button("Cancel", role: .cancel) {}
+            Button("Unblock") {
+                Task { await unblockUser() }
+            }
+        } message: {
+            Text("They'll be able to find you and send friend requests again.")
         }
         .sheet(isPresented: $showFriendsList) {
             FriendsListSheet(friends: friendsList, isLoading: isLoadingFriends) { selected in
@@ -183,130 +209,71 @@ struct FriendProfileView: View {
         .task { await loadData() }
     }
 
-    // MARK: - Data loading
+    // MARK: - Friendship + Profile Menu
 
-    private func loadData() async {
-        isLoading = true
-
-        // Profile + mutuals always load (no friendship required)
-        async let profile = ProfileAPI.getPublicProfile(userId: friend.id)
-        async let mutuals = FriendsAPI.getMutuals(userId: friend.id)
-        do {
-            let (profileResult, mutualsResult) = try await (profile, mutuals)
-            publicProfile = profileResult
-            mutualFriends = mutualsResult.mutuals
-            mutualCount = mutualsResult.count
-        } catch is CancellationError {
-            return
-        } catch { /* Non-critical */ }
-
-        // Watched movies require friendship — 403 means not friends yet
-        do {
-            let watchedResult = try await ProfileAPI.getPublicWatched(
-                userId: friend.id, limit: 20, offset: 0
-            )
-            watchedMovies = watchedResult.results
-            watchedTotal = watchedResult.total
-        } catch is CancellationError {
-            return
-        } catch {
-            // 403 (not friends) or any other error → show gated state
-            watchedGated = true
-        }
-
-        isLoading = false
-    }
-
-    private func loadMoreWatched() async {
-        guard !isLoadingMore, watchedMovies.count < watchedTotal else { return }
-        isLoadingMore = true
-        do {
-            let next = try await ProfileAPI.getPublicWatched(
-                userId: friend.id,
-                limit: 20,
-                offset: watchedMovies.count
-            )
-            watchedMovies.append(contentsOf: next.results)
-        } catch is CancellationError {
-            return
-        } catch { /* Non-critical — pagination stops */ }
-        isLoadingMore = false
-    }
-
-    private func loadFriends() async {
-        isLoadingFriends = true
-        friendsList = []
-        do {
-            let response = try await ProfileAPI.getPublicFriends(userId: friend.id)
-            friendsList = response.friends
-        } catch is CancellationError {
-            return
-        } catch { /* Non-critical — empty list shown */ }
-        isLoadingFriends = false
-    }
-
-    private func removeFriend() async {
-        guard let fid = currentFriendshipId else { return }
-        isRemoving = true
-        do {
-            try await FriendsAPI.removeFriend(friendshipId: fid)
-            if currentStatus == "accepted" {
-                dismiss()
-            } else {
-                friendshipAction = nil
-                publicProfile = nil
-                Task { await loadData() }
-            }
-        } catch { /* Non-critical — user can retry */ }
-        isRemoving = false
-    }
-
-    // MARK: - Friendship Button
-
-    private var currentStatus: String? {
+    var currentStatus: String? {
         friendshipAction ?? publicProfile?.friendshipStatus
     }
 
-    private var currentFriendshipId: Int? {
+    var currentFriendshipId: Int? {
         friend.friendshipId ?? publicProfile?.friendshipId
     }
 
+    private var isCurrentlyBlocked: Bool {
+        switch blockOverride {
+        case .blocked: true
+        case .unblocked: false
+        case .none: publicProfile?.isBlocked ?? false
+        }
+    }
+
     @ViewBuilder
-    private var friendshipButton: some View {
+    private var profileMenu: some View {
         let isSelf = friend.id == (KeychainManager.readString(key: "userId") ?? "")
         if isSelf {
             EmptyView()
         } else if publicProfile == nil {
             EmptyView()
-        } else {
-            Button {
-                if currentStatus == "accepted" || currentStatus == "pending" {
-                    showRemoveAlert = true
-                } else {
-                    Task { await sendFriendRequest() }
+        } else if isBlocking {
+            ProgressView().tint(.white).controlSize(.small)
+        } else if isCurrentlyBlocked {
+            Menu {
+                Button("Unblock", role: .destructive) {
+                    showUnblockAlert = true
                 }
             } label: {
-                if isSendingRequest {
-                    ProgressView().tint(.white).controlSize(.small)
-                } else {
-                    Text(friendshipLabel)
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(
-                            currentStatus == "accepted" ? .red
-                                : currentStatus == nil ? .white
-                                : AppTheme.textMuted
-                        )
-                }
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 32, height: 32)
             }
-            .disabled(isSendingRequest)
-        }
-    }
+        } else {
+            Menu {
+                if currentStatus == "accepted" {
+                    Button("Remove Friend", role: .destructive) {
+                        showRemoveAlert = true
+                    }
+                } else if currentStatus == "pending" {
+                    Button("Withdraw Request", role: .destructive) {
+                        showRemoveAlert = true
+                    }
+                } else {
+                    Button {
+                        Task { await sendFriendRequest() }
+                    } label: {
+                        Label("Add Friend", systemImage: "person.badge.plus")
+                    }
+                }
 
-    private var friendshipLabel: String {
-        switch currentStatus {
-        case "accepted": "Remove"
-        case "pending": "Pending"
-        default: "Add Friend"
+                Button("Block", role: .destructive) {
+                    showBlockAlert = true
+                }
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 32, height: 32)
+            }
         }
     }
 
@@ -318,149 +285,6 @@ struct FriendProfileView: View {
             PostHogSDK.shared.capture("friend_request_sent")
         } catch { /* Non-critical */ }
         isSendingRequest = false
-    }
-}
-
-// MARK: - FriendsListSheet
-
-private struct FriendsListSheet: View {
-    let friends: [PublicFriendResponse]
-    let isLoading: Bool
-    let onSelectFriend: (PublicFriendResponse) -> Void
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        NavigationStack {
-            ScrollView {
-                if isLoading {
-                    ProgressView()
-                        .tint(.white)
-                        .padding(.top, 40)
-                } else if friends.isEmpty {
-                    Text("No friends yet")
-                        .font(.system(size: 14))
-                        .foregroundStyle(AppTheme.textMuted)
-                        .padding(.top, 40)
-                } else {
-                    LazyVStack(spacing: 0) {
-                        ForEach(friends) { friend in
-                            Button {
-                                dismiss()
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                    onSelectFriend(friend)
-                                }
-                            } label: {
-                                HStack(spacing: 12) {
-                                    AvatarView(url: friend.avatarUrl)
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(friend.displayName ?? friend.username)
-                                            .font(.system(size: 16, weight: .medium))
-                                            .foregroundStyle(.white)
-                                        Text("@\(friend.username)")
-                                            .font(.system(size: 13))
-                                            .foregroundStyle(AppTheme.textMuted)
-                                    }
-                                    Spacer()
-                                    Image(systemName: "chevron.right")
-                                        .font(.system(size: 14))
-                                        .foregroundStyle(AppTheme.textDim)
-                                }
-                                .padding(.vertical, 14)
-                                .padding(.horizontal, 24)
-                            }
-                            .buttonStyle(.plain)
-
-                            Divider()
-                                .background(AppTheme.cardSecondary)
-                                .padding(.horizontal, 24)
-                        }
-                    }
-                }
-            }
-            .background(AppTheme.background)
-            .navigationTitle("Friends")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") { dismiss() }
-                        .foregroundStyle(.white)
-                }
-            }
-            .toolbarBackground(AppTheme.background, for: .navigationBar)
-            .toolbarBackground(.visible, for: .navigationBar)
-        }
-    }
-}
-
-// MARK: - MutualsListSheet
-
-private struct MutualsListSheet: View {
-    let mutuals: [MutualFriendResponse]
-    let onSelectFriend: (PublicFriendResponse) -> Void
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        NavigationStack {
-            ScrollView {
-                if mutuals.isEmpty {
-                    Text("No mutual friends")
-                        .font(.system(size: 14))
-                        .foregroundStyle(AppTheme.textMuted)
-                        .padding(.top, 40)
-                } else {
-                    LazyVStack(spacing: 0) {
-                        ForEach(mutuals) { mutual in
-                            Button {
-                                dismiss()
-                                let asFriend = PublicFriendResponse(
-                                    id: mutual.id,
-                                    username: mutual.username,
-                                    displayName: mutual.displayName,
-                                    avatarUrl: mutual.avatarUrl
-                                )
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                    onSelectFriend(asFriend)
-                                }
-                            } label: {
-                                HStack(spacing: 12) {
-                                    AvatarView(url: mutual.avatarUrl)
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(mutual.displayName ?? mutual.username)
-                                            .font(.system(size: 16, weight: .medium))
-                                            .foregroundStyle(.white)
-                                        Text("@\(mutual.username)")
-                                            .font(.system(size: 13))
-                                            .foregroundStyle(AppTheme.textMuted)
-                                    }
-                                    Spacer()
-                                    Image(systemName: "chevron.right")
-                                        .font(.system(size: 14))
-                                        .foregroundStyle(AppTheme.textDim)
-                                }
-                                .padding(.vertical, 14)
-                                .padding(.horizontal, 24)
-                            }
-                            .buttonStyle(.plain)
-
-                            Divider()
-                                .background(AppTheme.cardSecondary)
-                                .padding(.horizontal, 24)
-                        }
-                    }
-                }
-            }
-            .background(AppTheme.background)
-            .navigationTitle("Mutual Friends")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") { dismiss() }
-                        .foregroundStyle(.white)
-                }
-            }
-            .toolbarBackground(AppTheme.background, for: .navigationBar)
-            .toolbarBackground(.visible, for: .navigationBar)
-        }
     }
 }
 
