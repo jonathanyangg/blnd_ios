@@ -7,7 +7,6 @@ struct FindFriendsView: View {
     @Binding var path: NavigationPath
 
     @State private var isSyncing = false
-    @State private var syncFailed = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -26,20 +25,17 @@ struct FindFriendsView: View {
                     .font(.system(size: 32, weight: .bold))
                     .foregroundStyle(.white)
 
-                Text("See which of your contacts are already on blnd")
-                    .font(.system(size: 14))
-                    .foregroundStyle(AppTheme.textMuted)
-                    .multilineTextAlignment(.center)
-                    .padding(.top, 6)
-
-                if syncFailed {
-                    Text("Couldn't access contacts. You can try again later in Settings.")
-                        .font(.system(size: 13))
-                        .foregroundStyle(AppTheme.textMuted)
-                        .multilineTextAlignment(.center)
-                        .padding(.top, 16)
-                        .padding(.horizontal, 24)
-                }
+                Text(
+                    "Next, we'll ask permission to access your contacts. "
+                        + "Phone numbers will be sent to blnd's server to find "
+                        + "friends already on the app. We only store numbers "
+                        + "that match existing users."
+                )
+                .font(.system(size: 13))
+                .foregroundStyle(AppTheme.textMuted)
+                .multilineTextAlignment(.center)
+                .padding(.top, 8)
+                .padding(.horizontal, 32)
             }
             .padding(.horizontal, 24)
 
@@ -65,9 +61,11 @@ struct FindFriendsView: View {
 
         if !numbers.isEmpty {
             do {
-                try await FriendsAPI.uploadContacts(phoneNumbers: numbers)
+                try await FriendsAPI.uploadContacts(
+                    phoneNumbers: numbers
+                )
             } catch {
-                syncFailed = true
+                // Non-critical — user can still proceed
             }
         }
 

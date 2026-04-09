@@ -5,6 +5,6 @@
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>blnd needs access to your photo library to set a profile picture.</string>
 	<key>NSContactsUsageDescription</key>
-	<string>blnd uses your contacts to help you find friends who are already on the app.</string>
+	<string>blnd sends phone numbers from your contacts to our server to find friends already on the app. We only store numbers that match existing users.</string>
 </dict>
 </plist>
