@@ -39,7 +39,8 @@ struct ReelCardView: View {
     }
 
     var showTrailer: Bool {
-        isActive && trailerReady && trailerVideoId != nil
+        !APIConfig.screenshotMode
+            && isActive && trailerReady && trailerVideoId != nil
     }
 
     var body: some View {

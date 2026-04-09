@@ -4,8 +4,17 @@ import SwiftUI
 
 extension MovieDetailView {
     func heroSection(_ movie: MovieResponse) -> some View {
-        Group {
-            if let trailerUrl = movie.trailerUrl, let videoId = YouTubePlayerView.extractVideoId(from: trailerUrl) {
+        let trailerVideoId = movie.trailerUrl
+            .flatMap { YouTubePlayerView.extractVideoId(from: $0) }
+        return Group {
+            if APIConfig.screenshotMode {
+                heroPlaceholder
+                    .overlay {
+                        Image(systemName: "play.circle.fill")
+                            .font(.system(size: 56, weight: .regular))
+                            .foregroundStyle(.white.opacity(0.9))
+                    }
+            } else if let videoId = trailerVideoId {
                 YouTubePlayerView(
                     videoId: videoId,
                     backdropPath: movie.backdropPath

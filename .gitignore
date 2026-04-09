@@ -31,3 +31,9 @@ Pods/
 # Secrets
 .env
 *.env
+
+# Graphify
+graphify-out/
+
+# Playwright MCP session artifacts
+.playwright-mcp/

@@ -102,6 +102,7 @@ extension HomeView {
             )
         } label: {
             MovieCard(
+                tmdbId: movie.tmdbId,
                 title: movie.title,
                 year: movie.yearString,
                 posterPath: movie.posterPath,

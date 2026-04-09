@@ -17,16 +17,20 @@ struct CastSectionView: View {
                         ForEach(
                             Array(cast.enumerated()),
                             id: \.offset
-                        ) { _, member in
+                        ) { idx, member in
                             VStack(spacing: 3) {
                                 castAvatar(member)
-                                Text(member.name)
-                                    .font(.system(size: 9))
-                                    .foregroundStyle(
-                                        AppTheme.textMuted
-                                    )
-                                    .lineLimit(1)
-                                    .frame(width: 36)
+                                Text(
+                                    APIConfig.screenshotMode
+                                        ? ScreenshotDummy.castName(at: idx)
+                                        : member.name
+                                )
+                                .font(.system(size: 9))
+                                .foregroundStyle(
+                                    AppTheme.textMuted
+                                )
+                                .lineLimit(1)
+                                .frame(width: 36)
                             }
                         }
                     }

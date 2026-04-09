@@ -20,13 +20,16 @@ struct FriendsWhoWatchedSection: View {
 
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 12) {
-                        ForEach(friends) { friend in
+                        ForEach(
+                            Array(friends.enumerated()),
+                            id: \.element.id
+                        ) { idx, friend in
                             NavigationLink {
                                 FriendProfileView(
                                     friend: friend.asFriendResponse
                                 )
                             } label: {
-                                friendTile(friend)
+                                friendTile(friend, index: idx)
                             }
                             .buttonStyle(.plain)
                         }
@@ -44,15 +47,20 @@ struct FriendsWhoWatchedSection: View {
     }
 
     private func friendTile(
-        _ friend: FriendWatchedResponse
+        _ friend: FriendWatchedResponse,
+        index: Int
     ) -> some View {
         VStack(spacing: 3) {
             AvatarView(url: friend.avatarUrl, size: 36)
-            Text(friend.displayName ?? friend.username)
-                .font(.system(size: 9))
-                .foregroundStyle(.white)
-                .lineLimit(1)
-                .frame(width: 36)
+            Text(
+                APIConfig.screenshotMode
+                    ? ScreenshotDummy.friendDisplayName(at: index)
+                    : (friend.displayName ?? friend.username)
+            )
+            .font(.system(size: 9))
+            .foregroundStyle(.white)
+            .lineLimit(1)
+            .frame(width: 36)
             if let rating = friend.rating {
                 HStack(spacing: 2) {
                     Image(systemName: "star.fill")

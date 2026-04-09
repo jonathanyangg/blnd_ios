@@ -55,6 +55,7 @@ extension GroupDetailView {
                             )
                         } label: {
                             MovieCard(
+                                tmdbId: movie.tmdbId,
                                 title: movie.title,
                                 year: movie.yearString,
                                 posterPath: movie.posterPath,
@@ -103,6 +104,7 @@ extension GroupDetailView {
                             )
                         } label: {
                             MovieCard(
+                                tmdbId: item.tmdbId,
                                 title: item.title,
                                 posterPath: item.posterPath,
                                 width: cardWidth,

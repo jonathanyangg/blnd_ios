@@ -135,11 +135,18 @@ struct MovieDetailView: View {
     private func detailSection(_ movie: MovieResponse) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .center, spacing: 10) {
-                Text(movie.title)
-                    .font(.system(size: 26, weight: .bold))
-                    .foregroundStyle(.white)
+                Text(
+                    APIConfig.screenshotMode
+                        ? ScreenshotDummy.title(for: movie.tmdbId)
+                        : movie.title
+                )
+                .font(.system(size: 26, weight: .bold))
+                .foregroundStyle(.white)
 
-                if let pct = movie.matchPercent {
+                let displayPct = APIConfig.screenshotMode
+                    ? ScreenshotDummy.matchPercent(for: movie.tmdbId)
+                    : movie.matchPercent
+                if let pct = displayPct {
                     HStack(spacing: 3) {
                         Image(systemName: "sparkles")
                             .font(.system(size: 11))
@@ -182,13 +189,30 @@ struct MovieDetailView: View {
     }
 
     private func metaRow(_ movie: MovieResponse) -> some View {
-        var parts = [movie.yearString, movie.runtimeFormatted]
-            .compactMap { $0?.isEmpty == true ? nil : $0 }
-        if let vote = movie.voteAverage, vote > 0 {
-            parts.append("★ \(String(format: "%.1f", vote))")
-        }
-        if let director = movie.director {
-            parts.append(director)
+        let parts: [String]
+        if APIConfig.screenshotMode {
+            let tid = movie.tmdbId
+            let runtime = ScreenshotDummy.runtime(for: tid)
+            let hours = runtime / 60
+            let minutes = runtime % 60
+            let runtimeStr = hours > 0 ? "\(hours)h \(minutes)m" : "\(minutes)m"
+            let vote = ScreenshotDummy.voteAverage(for: tid)
+            parts = [
+                "\(ScreenshotDummy.year(for: tid))",
+                runtimeStr,
+                "★ \(String(format: "%.1f", vote))",
+                ScreenshotDummy.director(for: tid),
+            ]
+        } else {
+            var result = [movie.yearString, movie.runtimeFormatted]
+                .compactMap { $0?.isEmpty == true ? nil : $0 }
+            if let vote = movie.voteAverage, vote > 0 {
+                result.append("★ \(String(format: "%.1f", vote))")
+            }
+            if let director = movie.director {
+                result.append(director)
+            }
+            parts = result
         }
         let meta = parts.joined(separator: " \u{00B7} ")
         return Group {
@@ -218,7 +242,10 @@ struct MovieDetailView: View {
 
     @ViewBuilder
     private func taglineSection(_ movie: MovieResponse) -> some View {
-        if let tagline = movie.tagline, !tagline.isEmpty {
+        let tagline = APIConfig.screenshotMode
+            ? ScreenshotDummy.tagline(for: movie.tmdbId)
+            : (movie.tagline ?? "")
+        if !tagline.isEmpty {
             Text(tagline)
                 .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(.white.opacity(0.8))
@@ -229,7 +256,10 @@ struct MovieDetailView: View {
 
     @ViewBuilder
     private func overviewSection(_ movie: MovieResponse) -> some View {
-        if let overview = movie.overview, !overview.isEmpty {
+        let overview = APIConfig.screenshotMode
+            ? ScreenshotDummy.overview(for: movie.tmdbId)
+            : (movie.overview ?? "")
+        if !overview.isEmpty {
             VStack(alignment: .leading, spacing: 4) {
                 Text(overview)
                     .font(.system(size: 14))

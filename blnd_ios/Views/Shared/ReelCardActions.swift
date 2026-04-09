@@ -90,6 +90,10 @@ extension ReelCardView {
     }
 
     func loadFriends() {
+        if APIConfig.screenshotMode {
+            friendsWhoWatched = ScreenshotDummy.friendsWhoWatched()
+            return
+        }
         let cache = UserActionCache.shared
         if let cached = cache.getFriendsWhoWatched(movie.tmdbId) {
             friendsWhoWatched = cached

@@ -5,15 +5,28 @@ import SwiftUI
 extension ReelCardView {
     // MARK: - Title
 
+    var displayTitle: String {
+        APIConfig.screenshotMode
+            ? ScreenshotDummy.title(for: movie.tmdbId)
+            : movie.title
+    }
+
+    var displayScorePercent: Int? {
+        if APIConfig.screenshotMode {
+            return ScreenshotDummy.matchPercent(for: movie.tmdbId)
+        }
+        return movie.scorePercent
+    }
+
     var titleRow: some View {
         VStack(alignment: .leading, spacing: 5) {
             HStack(alignment: .center, spacing: 8) {
-                Text(movie.title)
+                Text(displayTitle)
                     .font(.system(size: 22, weight: .bold))
                     .foregroundStyle(.white)
                     .lineLimit(2)
 
-                if let pct = movie.scorePercent {
+                if let pct = displayScorePercent {
                     matchBadge(pct)
                 }
 
@@ -94,6 +107,20 @@ extension ReelCardView {
     }
 
     var metaParts: [String] {
+        if APIConfig.screenshotMode {
+            let tid = movie.tmdbId
+            let runtime = ScreenshotDummy.runtime(for: tid)
+            let hours = runtime / 60
+            let minutes = runtime % 60
+            let runtimeStr = hours > 0 ? "\(hours)h \(minutes)m" : "\(minutes)m"
+            let vote = ScreenshotDummy.voteAverage(for: tid)
+            return [
+                "\(ScreenshotDummy.year(for: tid))",
+                runtimeStr,
+                "★ \(String(format: "%.1f", vote))",
+                ScreenshotDummy.director(for: tid),
+            ]
+        }
         var parts: [String] = []
         if !movie.yearString.isEmpty {
             parts.append(movie.yearString)
@@ -114,7 +141,17 @@ extension ReelCardView {
 
     var mediaSection: some View {
         ZStack {
-            if let path = movie.backdropPath, let url = URL(string: "https://image.tmdb.org/t/p/w780\(path)") {
+            if APIConfig.screenshotMode {
+                // Screenshot mode: gradient placeholder + play icon, no real art
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(AppTheme.posterGradient)
+                    .aspectRatio(16 / 9, contentMode: .fit)
+                    .overlay {
+                        Image(systemName: "play.circle.fill")
+                            .font(.system(size: 56, weight: .regular))
+                            .foregroundStyle(.white.opacity(0.9))
+                    }
+            } else if let path = movie.backdropPath, let url = URL(string: "https://image.tmdb.org/t/p/w780\(path)") {
                 CachedAsyncImage(url: url) { image in
                     image
                         .resizable()
@@ -182,15 +219,16 @@ extension ReelCardView {
                 ) {
                     HStack(spacing: 10) {
                         ForEach(
-                            friendsWhoWatched
-                        ) { friend in
+                            Array(friendsWhoWatched.enumerated()),
+                            id: \.element.id
+                        ) { idx, friend in
                             NavigationLink {
                                 FriendProfileView(
                                     friend: friend
                                         .asFriendResponse
                                 )
                             } label: {
-                                friendTile(friend)
+                                friendTile(friend, index: idx)
                             }
                             .buttonStyle(.plain)
                         }
@@ -200,14 +238,18 @@ extension ReelCardView {
         }
     }
 
-    func friendTile(_ friend: FriendWatchedResponse) -> some View {
+    func friendTile(_ friend: FriendWatchedResponse, index: Int) -> some View {
         VStack(spacing: 3) {
             AvatarView(url: friend.avatarUrl, size: 36)
-            Text(friend.displayName ?? friend.username)
-                .font(.system(size: 9))
-                .foregroundStyle(.white)
-                .lineLimit(1)
-                .frame(width: 36)
+            Text(
+                APIConfig.screenshotMode
+                    ? ScreenshotDummy.friendDisplayName(at: index)
+                    : (friend.displayName ?? friend.username)
+            )
+            .font(.system(size: 9))
+            .foregroundStyle(.white)
+            .lineLimit(1)
+            .frame(width: 36)
             if let rating = friend.rating {
                 let text = rating.truncatingRemainder(dividingBy: 1) == 0
                     ? String(format: "%.0f", rating)
@@ -229,7 +271,11 @@ extension ReelCardView {
 
     @ViewBuilder
     var cardTagline: some View {
-        if let tagline = movie.tagline, !tagline.isEmpty {
+        let realTagline = movie.tagline ?? ""
+        let tagline = APIConfig.screenshotMode
+            ? ScreenshotDummy.tagline(for: movie.tmdbId)
+            : realTagline
+        if !tagline.isEmpty {
             Text(tagline)
                 .font(.system(
                     size: 13, weight: .medium
@@ -269,7 +315,11 @@ extension ReelCardView {
 
     @ViewBuilder
     var cardOverview: some View {
-        if let text = movie.overview, !text.isEmpty {
+        let realText = movie.overview ?? ""
+        let text = APIConfig.screenshotMode
+            ? ScreenshotDummy.overview(for: movie.tmdbId)
+            : realText
+        if !text.isEmpty {
             VStack(alignment: .leading, spacing: 4) {
                 Text(text)
                     .font(.system(size: 13))
@@ -343,16 +393,20 @@ extension ReelCardView {
                                 .enumerated()
                         ),
                         id: \.offset
-                    ) { _, member in
+                    ) { idx, member in
                         VStack(spacing: 3) {
                             castAvatar(member)
-                            Text(member.name)
-                                .font(.system(size: 9))
-                                .foregroundStyle(
-                                    AppTheme.textMuted
-                                )
-                                .lineLimit(1)
-                                .frame(width: 36)
+                            Text(
+                                APIConfig.screenshotMode
+                                    ? ScreenshotDummy.castName(at: idx)
+                                    : member.name
+                            )
+                            .font(.system(size: 9))
+                            .foregroundStyle(
+                                AppTheme.textMuted
+                            )
+                            .lineLimit(1)
+                            .frame(width: 36)
                         }
                     }
                 }

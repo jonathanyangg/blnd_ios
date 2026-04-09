@@ -47,6 +47,7 @@ struct OnboardingCompleteView: View {
                         let isCenter = liked.count > 1
                             && index == liked.count / 2
                         MovieCard(
+                            tmdbId: movie.tmdbId,
                             title: movie.title,
                             year: movie.year.map { String($0) } ?? "",
                             posterPath: movie.posterPath,

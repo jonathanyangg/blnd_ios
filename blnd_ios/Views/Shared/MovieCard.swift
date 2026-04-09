@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct MovieCard: View {
+    var tmdbId: Int?
     var title: String?
     var year: String?
     var posterPath: String?
@@ -10,10 +11,35 @@ struct MovieCard: View {
     var gradientAngle: Int = 135
     var scorePercent: Int?
 
+    private var displayTitle: String? {
+        guard let title else { return nil }
+        if APIConfig.screenshotMode, let tmdbId {
+            return ScreenshotDummy.title(for: tmdbId)
+        }
+        return title
+    }
+
+    private var displayYear: String? {
+        guard let year else { return nil }
+        if APIConfig.screenshotMode, let tmdbId {
+            return "\(ScreenshotDummy.year(for: tmdbId))"
+        }
+        return year
+    }
+
+    private var displayScorePercent: Int? {
+        if APIConfig.screenshotMode, let tmdbId {
+            return ScreenshotDummy.matchPercent(for: tmdbId)
+        }
+        return scorePercent
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             ZStack(alignment: .bottom) {
-                if let posterPath, let url = posterURL(posterPath) {
+                if APIConfig.screenshotMode {
+                    placeholder
+                } else if let posterPath, let url = posterURL(posterPath) {
                     CachedAsyncImage(url: url) { image in
                         image
                             .resizable()
@@ -39,8 +65,8 @@ struct MovieCard: View {
                 .frame(width: width, height: height)
             }
             .overlay(alignment: .topTrailing) {
-                if let scorePercent {
-                    Text("\(scorePercent)%")
+                if let displayScorePercent {
+                    Text("\(displayScorePercent)%")
                         .font(.system(size: 10, weight: .bold))
                         .foregroundStyle(.white)
                         .padding(.horizontal, 6)
@@ -52,16 +78,16 @@ struct MovieCard: View {
             }
             .shadow(color: glow ? .white.opacity(0.13) : .clear, radius: glow ? 12 : 0)
 
-            if let title {
-                Text(APIConfig.screenshotMode ? "Movie" : title)
+            if let displayTitle {
+                Text(displayTitle)
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.white)
                     .lineLimit(1)
                     .frame(width: width, alignment: .leading)
             }
 
-            if let year {
-                Text(APIConfig.screenshotMode ? "2026" : year)
+            if let displayYear {
+                Text(displayYear)
                     .font(.system(size: 10))
                     .foregroundStyle(AppTheme.textMuted)
             }
