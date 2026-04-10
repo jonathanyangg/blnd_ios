@@ -30,12 +30,7 @@ struct ChooseUsernameView: View {
                     AppTextField(placeholder: "Username", text: $state.username)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
-                    AppTextField(
-                        placeholder: "Phone number (optional)",
-                        text: $state.phoneNumber
-                    )
-                    .keyboardType(.phonePad)
-                    .textContentType(.telephoneNumber)
+                    PhoneNumberInputField(phoneNumber: $state.phoneNumber)
 
                     if let error {
                         Text(error)

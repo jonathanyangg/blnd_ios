@@ -70,12 +70,7 @@ struct SignUpView: View {
                         .keyboardType(.emailAddress)
                         .textInputAutocapitalization(.never)
                     AppTextField(placeholder: "Password", text: $state.password, isSecure: true)
-                    AppTextField(
-                        placeholder: "Phone number (optional)",
-                        text: $state.phoneNumber
-                    )
-                    .keyboardType(.phonePad)
-                    .textContentType(.telephoneNumber)
+                    PhoneNumberInputField(phoneNumber: $state.phoneNumber)
 
                     if !state.password.isEmpty {
                         PasswordRequirements(password: state.password)
