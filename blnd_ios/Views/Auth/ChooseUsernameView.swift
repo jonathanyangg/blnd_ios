@@ -27,7 +27,6 @@ struct ChooseUsernameView: View {
                         .padding(.top, 6)
                         .padding(.bottom, 32)
 
-                    AppTextField(placeholder: "Name", text: $state.name)
                     AppTextField(placeholder: "Username", text: $state.username)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
@@ -98,7 +97,7 @@ struct ChooseUsernameView: View {
                 .trimmingCharacters(in: .whitespacesAndNewlines)
             _ = try await AuthAPI.completeOnboarding(
                 username: onboardingState.username,
-                displayName: onboardingState.name.isEmpty ? nil : onboardingState.name,
+                displayName: onboardingState.appleDisplayName,
                 favoriteGenres: genres.isEmpty ? nil : genres,
                 ratedMovies: ratedMovies.isEmpty ? nil : ratedMovies,
                 appleRefreshToken: onboardingState.appleRefreshToken ?? oauthResponse.appleRefreshToken,

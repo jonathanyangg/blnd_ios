@@ -150,9 +150,6 @@ struct LoginView: View {
                 onboardingState.appleDisplayName = displayName.isEmpty ? nil : displayName
                 onboardingState.appleAuthCode = authCode
                 onboardingState.appleRefreshToken = response.appleRefreshToken
-                if let name = onboardingState.appleDisplayName {
-                    onboardingState.name = name
-                }
                 path.append(AuthRoute.chooseUsername)
             }
             // Returning user: loginWithApple already set .authenticated

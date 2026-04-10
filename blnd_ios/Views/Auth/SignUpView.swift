@@ -174,11 +174,6 @@ struct SignUpView: View {
         onboardingState.appleAuthCode = authCode
         // appleRawNonce was already set in the request closure
 
-        // Pre-fill Name field from Apple's fullName
-        if let name = onboardingState.appleDisplayName {
-            onboardingState.name = name
-        }
-
         // Navigate to username screen
         path.append(AuthRoute.chooseUsername)
     }
