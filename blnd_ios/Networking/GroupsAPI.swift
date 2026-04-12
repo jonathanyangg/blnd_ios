@@ -104,7 +104,7 @@ enum GroupsAPI {
     static func getFeed(
         groupId: Int,
         exclude: [Int] = [],
-        limit: Int = 50
+        limit: Int = 20
     ) async throws -> GroupRecommendationsResponse {
         let body = GroupFeedRequest(exclude: exclude, limit: limit)
         return try await APIClient.shared.request(

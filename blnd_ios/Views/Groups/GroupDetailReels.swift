@@ -10,13 +10,14 @@ extension GroupDetailView {
             if recommendations.isEmpty {
                 Spacer()
                 emptyState(
-                    "Rate more movies to get group picks"
+                    "Rate more movies to get blend picks"
                 )
                 Spacer()
             } else {
                 ReelsFeedView(
                     movies: groupReelMovies,
                     groupContext: groupContext,
+                    isTabVisible: tabState.selectedTab == 2,
                     onLoadMore: { await loadMoreRecs() }
                 )
             }
@@ -24,7 +25,7 @@ extension GroupDetailView {
             if watchlist.isEmpty {
                 Spacer()
                 emptyState(
-                    "No movies in the group watchlist yet"
+                    "No movies in the watchlist yet"
                 )
                 Spacer()
             } else {
@@ -32,7 +33,8 @@ extension GroupDetailView {
                     movies: watchlist.map {
                         ReelMovie(from: $0)
                     },
-                    groupContext: groupContext
+                    groupContext: groupContext,
+                    isTabVisible: tabState.selectedTab == 2
                 )
             }
         }

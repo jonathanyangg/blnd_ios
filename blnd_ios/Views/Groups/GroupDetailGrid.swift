@@ -38,7 +38,7 @@ extension GroupDetailView {
         Group {
             if recommendations.isEmpty {
                 emptyState(
-                    "Rate more movies to get group picks"
+                    "Rate more movies to get blend picks"
                 )
             } else {
                 movieGrid {
@@ -55,6 +55,7 @@ extension GroupDetailView {
                             )
                         } label: {
                             MovieCard(
+                                tmdbId: movie.tmdbId,
                                 title: movie.title,
                                 year: movie.yearString,
                                 posterPath: movie.posterPath,
@@ -92,7 +93,7 @@ extension GroupDetailView {
         Group {
             if watchlist.isEmpty {
                 emptyState(
-                    "No movies in the group watchlist yet"
+                    "No movies in the watchlist yet"
                 )
             } else {
                 movieGrid {
@@ -103,6 +104,7 @@ extension GroupDetailView {
                             )
                         } label: {
                             MovieCard(
+                                tmdbId: item.tmdbId,
                                 title: item.title,
                                 posterPath: item.posterPath,
                                 width: cardWidth,

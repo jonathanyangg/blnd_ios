@@ -3,6 +3,7 @@ import SwiftUI
 struct OnboardingCompleteView: View {
     @Environment(AuthState.self) var authState
     @Environment(OnboardingState.self) var onboardingState
+    @Binding var path: NavigationPath
     @State private var isSubmitting = false
 
     var body: some View {
@@ -20,7 +21,7 @@ struct OnboardingCompleteView: View {
 
     private var readyContent: some View {
         VStack(spacing: 0) {
-            OnboardingProgressBar(step: 4, total: 4)
+            OnboardingProgressBar(step: 4, total: 5)
                 .padding(.top, 12)
 
             Spacer()
@@ -30,7 +31,7 @@ struct OnboardingCompleteView: View {
                     .font(.system(size: 32, weight: .bold))
                     .foregroundStyle(.white)
 
-                Text("Here's what we think you'll love")
+                Text("Great taste, let's get started")
                     .font(.system(size: 14))
                     .foregroundStyle(AppTheme.textMuted)
                     .padding(.top, 6)
@@ -46,6 +47,7 @@ struct OnboardingCompleteView: View {
                         let isCenter = liked.count > 1
                             && index == liked.count / 2
                         MovieCard(
+                            tmdbId: movie.tmdbId,
                             title: movie.title,
                             year: movie.year.map { String($0) } ?? "",
                             posterPath: movie.posterPath,
@@ -70,6 +72,8 @@ struct OnboardingCompleteView: View {
     }
 
     private func submitAndFinish() async {
+        defer { isSubmitting = false }
+
         withAnimation(.easeInOut(duration: 0.3)) {
             isSubmitting = true
         }
@@ -98,9 +102,9 @@ struct OnboardingCompleteView: View {
         // Ensure loader shows for at least 3 seconds total
         try? await Task.sleep(for: .seconds(1))
 
+        await authState.fetchCurrentUser()
         await UserActionCache.shared.bootstrap()
-        onboardingState.reset()
-        authState.phase = .authenticated
+        path.append(AuthRoute.findFriends)
     }
 }
 
@@ -206,7 +210,7 @@ private struct OnboardingLoaderView: View {
 
 #Preview {
     NavigationStack {
-        OnboardingCompleteView()
+        OnboardingCompleteView(path: .constant(NavigationPath()))
             .environment(AuthState())
             .environment(OnboardingState())
     }

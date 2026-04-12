@@ -11,7 +11,7 @@ struct ChooseUsernameView: View {
         @Bindable var state = onboardingState
 
         VStack(spacing: 0) {
-            OnboardingProgressBar(step: 3, total: 4)
+            OnboardingProgressBar(step: 3, total: 5)
                 .padding(.top, 12)
 
             ScrollView {
@@ -27,10 +27,10 @@ struct ChooseUsernameView: View {
                         .padding(.top, 6)
                         .padding(.bottom, 32)
 
-                    AppTextField(placeholder: "Name", text: $state.name)
                     AppTextField(placeholder: "Username", text: $state.username)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
+                    PhoneNumberInputField(phoneNumber: $state.phoneNumber)
 
                     if let error {
                         Text(error)
@@ -88,12 +88,15 @@ struct ChooseUsernameView: View {
             }
             let genres = Array(onboardingState.selectedGenres)
 
+            let phone = onboardingState.phoneNumber
+                .trimmingCharacters(in: .whitespacesAndNewlines)
             _ = try await AuthAPI.completeOnboarding(
                 username: onboardingState.username,
-                displayName: onboardingState.name.isEmpty ? nil : onboardingState.name,
+                displayName: onboardingState.appleDisplayName,
                 favoriteGenres: genres.isEmpty ? nil : genres,
                 ratedMovies: ratedMovies.isEmpty ? nil : ratedMovies,
-                appleRefreshToken: onboardingState.appleRefreshToken ?? oauthResponse.appleRefreshToken
+                appleRefreshToken: onboardingState.appleRefreshToken ?? oauthResponse.appleRefreshToken,
+                phoneNumber: phone.isEmpty ? nil : phone
             )
 
             // Both calls succeeded — navigate to completion

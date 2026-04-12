@@ -5,59 +5,77 @@ import SwiftUI
 extension ReelCardView {
     // MARK: - Title
 
+    var displayTitle: String {
+        APIConfig.screenshotMode
+            ? ScreenshotDummy.title(for: movie.tmdbId)
+            : movie.title
+    }
+
+    var displayScorePercent: Int? {
+        if APIConfig.screenshotMode {
+            return ScreenshotDummy.matchPercent(for: movie.tmdbId)
+        }
+        return movie.scorePercent
+    }
+
     var titleRow: some View {
         VStack(alignment: .leading, spacing: 5) {
             HStack(alignment: .center, spacing: 8) {
-                Text(movie.title)
+                Text(displayTitle)
                     .font(.system(size: 22, weight: .bold))
                     .foregroundStyle(.white)
                     .lineLimit(2)
 
-                if let pct = movie.scorePercent {
+                if let pct = displayScorePercent {
                     matchBadge(pct)
                 }
 
                 Spacer()
 
-                hideButton
+                streamingButton
+                rateButton
             }
 
             metaLine
         }
     }
 
-    var hideButton: some View {
+    var streamingButton: some View {
+        Button { showStreamingSheet = true } label: {
+            Image(systemName: "tv")
+                .font(.system(size: 15))
+                .foregroundStyle(AppTheme.textDim)
+        }
+    }
+
+    var rateButton: some View {
         Button {
-            if isHidden {
-                Task { await unhideMovie() }
-            } else {
-                showHideConfirm = true
-            }
+            showRating = true
         } label: {
-            Image(
-                systemName: isHidden
-                    ? "hand.thumbsdown.fill"
-                    : "hand.thumbsdown"
-            )
-            .font(.system(size: 16))
-            .foregroundStyle(
-                isHidden ? .red : AppTheme.textDim
-            )
-        }
-        .confirmationDialog(
-            "Not interested?",
-            isPresented: $showHideConfirm,
-            titleVisibility: .visible
-        ) {
-            Button("Not for me", role: .destructive) {
-                Task { await hideMovie() }
+            if let userRating = UserActionCache.shared.rating(for: movie.tmdbId) {
+                HStack(spacing: 3) {
+                    Image(systemName: "star.fill")
+                        .font(.system(size: 11))
+                    Text(formattedRating(userRating))
+                        .font(.system(size: 12, weight: .bold))
+                }
+                .foregroundStyle(.white)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(.white.opacity(0.15))
+                .clipShape(Capsule())
+            } else {
+                Image(systemName: "star")
+                    .font(.system(size: 16))
+                    .foregroundStyle(AppTheme.textDim)
             }
-        } message: {
-            Text(
-                "This movie won't show in your "
-                    + "recommendations."
-            )
         }
+    }
+
+    private func formattedRating(_ rating: Double) -> String {
+        rating.truncatingRemainder(dividingBy: 1) == 0
+            ? String(format: "%.0f", rating)
+            : String(format: "%.1f", rating)
     }
 
     func matchBadge(_ pct: Int) -> some View {
@@ -89,6 +107,20 @@ extension ReelCardView {
     }
 
     var metaParts: [String] {
+        if APIConfig.screenshotMode {
+            let tid = movie.tmdbId
+            let runtime = ScreenshotDummy.runtime(for: tid)
+            let hours = runtime / 60
+            let minutes = runtime % 60
+            let runtimeStr = hours > 0 ? "\(hours)h \(minutes)m" : "\(minutes)m"
+            let vote = ScreenshotDummy.voteAverage(for: tid)
+            return [
+                "\(ScreenshotDummy.year(for: tid))",
+                runtimeStr,
+                "★ \(String(format: "%.1f", vote))",
+                ScreenshotDummy.director(for: tid),
+            ]
+        }
         var parts: [String] = []
         if !movie.yearString.isEmpty {
             parts.append(movie.yearString)
@@ -109,18 +141,33 @@ extension ReelCardView {
 
     var mediaSection: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 14)
-                .fill(AppTheme.posterGradient)
-                .aspectRatio(16 / 9, contentMode: .fit)
-                .overlay {
-                    if !showTrailer {
-                        Image(systemName: "play.fill")
-                            .font(.system(size: 28))
-                            .foregroundStyle(
-                                .white.opacity(0.5)
-                            )
+            if APIConfig.screenshotMode {
+                // Screenshot mode: gradient placeholder + play icon, no real art
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(AppTheme.posterGradient)
+                    .aspectRatio(16 / 9, contentMode: .fit)
+                    .overlay {
+                        Image(systemName: "play.circle.fill")
+                            .font(.system(size: 56, weight: .regular))
+                            .foregroundStyle(.white.opacity(0.9))
                     }
+            } else if let path = movie.backdropPath, let url = URL(string: "https://image.tmdb.org/t/p/w780\(path)") {
+                CachedAsyncImage(url: url) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(16 / 9, contentMode: .fit)
+                        .posterBlur()
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                } placeholder: {
+                    RoundedRectangle(cornerRadius: 14)
+                        .fill(AppTheme.posterGradient)
+                        .aspectRatio(16 / 9, contentMode: .fit)
                 }
+            } else {
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(AppTheme.posterGradient)
+                    .aspectRatio(16 / 9, contentMode: .fit)
+            }
 
             if showTrailer, let videoId = trailerVideoId {
                 ReelTrailerView(videoId: videoId)
@@ -172,15 +219,16 @@ extension ReelCardView {
                 ) {
                     HStack(spacing: 10) {
                         ForEach(
-                            friendsWhoWatched
-                        ) { friend in
+                            Array(friendsWhoWatched.enumerated()),
+                            id: \.element.id
+                        ) { idx, friend in
                             NavigationLink {
                                 FriendProfileView(
                                     friend: friend
                                         .asFriendResponse
                                 )
                             } label: {
-                                friendTile(friend)
+                                friendTile(friend, index: idx)
                             }
                             .buttonStyle(.plain)
                         }
@@ -190,14 +238,18 @@ extension ReelCardView {
         }
     }
 
-    func friendTile(_ friend: FriendWatchedResponse) -> some View {
+    func friendTile(_ friend: FriendWatchedResponse, index: Int) -> some View {
         VStack(spacing: 3) {
             AvatarView(url: friend.avatarUrl, size: 36)
-            Text(friend.displayName ?? friend.username)
-                .font(.system(size: 9))
-                .foregroundStyle(.white)
-                .lineLimit(1)
-                .frame(width: 36)
+            Text(
+                APIConfig.screenshotMode
+                    ? ScreenshotDummy.friendDisplayName(at: index)
+                    : (friend.displayName ?? friend.username)
+            )
+            .font(.system(size: 9))
+            .foregroundStyle(.white)
+            .lineLimit(1)
+            .frame(width: 36)
             if let rating = friend.rating {
                 let text = rating.truncatingRemainder(dividingBy: 1) == 0
                     ? String(format: "%.0f", rating)
@@ -219,7 +271,11 @@ extension ReelCardView {
 
     @ViewBuilder
     var cardTagline: some View {
-        if let tagline = movie.tagline, !tagline.isEmpty {
+        let realTagline = movie.tagline ?? ""
+        let tagline = APIConfig.screenshotMode
+            ? ScreenshotDummy.tagline(for: movie.tmdbId)
+            : realTagline
+        if !tagline.isEmpty {
             Text(tagline)
                 .font(.system(
                     size: 13, weight: .medium
@@ -232,35 +288,38 @@ extension ReelCardView {
 
     // MARK: - Overview (Expandable)
 
-    private var overviewMaxHeight: CGFloat {
-        guard cardSize.height > 0,
-              cardSize.width > 0
+    func computeOverviewMaxHeight(_ size: CGSize) -> CGFloat {
+        guard size.height > 0,
+              size.width > 0
         else { return 80 }
-        let mediaH = (cardSize.width - 32) * 9 / 16
-        // Estimate fixed content heights
-        var fixedH: CGFloat = 81 + mediaH + 14
-        var items = 1 // overview
+        let mediaH = (size.width - 32) * 9 / 16
+        var fixedH: CGFloat = 95 + mediaH + 14
+        var items = 1
         if !genres.isEmpty {
             fixedH += 30
             items += 1
         }
         if let tag = movie.tagline, !tag.isEmpty {
-            fixedH += 16
+            fixedH += 36
             items += 1
         }
         if !movie.cast.isEmpty {
             fixedH += 51
             items += 1
         }
-        fixedH += 90 // friends section
+        fixedH += 90
         items += 1
         fixedH += CGFloat(items - 1) * 12
-        return max(80, cardSize.height - fixedH - 40)
+        return max(60, size.height - fixedH - 40)
     }
 
     @ViewBuilder
     var cardOverview: some View {
-        if let text = movie.overview, !text.isEmpty {
+        let realText = movie.overview ?? ""
+        let text = APIConfig.screenshotMode
+            ? ScreenshotDummy.overview(for: movie.tmdbId)
+            : realText
+        if !text.isEmpty {
             VStack(alignment: .leading, spacing: 4) {
                 Text(text)
                     .font(.system(size: 13))
@@ -273,7 +332,12 @@ extension ReelCardView {
                     .frame(
                         maxWidth: .infinity,
                         maxHeight: overviewExpanded
-                            ? nil : overviewMaxHeight,
+                            ? nil : min(
+                                overviewFullHeight > 0
+                                    ? overviewFullHeight
+                                    : overviewMaxHeightValue,
+                                overviewMaxHeightValue
+                            ),
                         alignment: .topLeading
                     )
                     .clipped()
@@ -297,7 +361,7 @@ extension ReelCardView {
                         overviewFullHeight = $0
                     }
 
-                if overviewExpanded || overviewFullHeight > overviewMaxHeight + 1 {
+                if overviewExpanded || overviewFullHeight > overviewMaxHeightValue + 1 {
                     Button {
                         withAnimation(.easeInOut(duration: 0.2)) {
                             overviewExpanded.toggle()
@@ -329,16 +393,20 @@ extension ReelCardView {
                                 .enumerated()
                         ),
                         id: \.offset
-                    ) { _, member in
+                    ) { idx, member in
                         VStack(spacing: 3) {
                             castAvatar(member)
-                            Text(member.name)
-                                .font(.system(size: 9))
-                                .foregroundStyle(
-                                    AppTheme.textMuted
-                                )
-                                .lineLimit(1)
-                                .frame(width: 36)
+                            Text(
+                                APIConfig.screenshotMode
+                                    ? ScreenshotDummy.castName(at: idx)
+                                    : member.name
+                            )
+                            .font(.system(size: 9))
+                            .foregroundStyle(
+                                AppTheme.textMuted
+                            )
+                            .lineLimit(1)
+                            .frame(width: 36)
                         }
                     }
                 }
@@ -374,23 +442,22 @@ extension ReelCardView {
     // MARK: - Genre Pills
 
     var genrePills: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
-                ForEach(genres.prefix(4)) { genre in
-                    Text(genre.name ?? "")
-                        .font(.system(
-                            size: 11,
-                            weight: .medium
-                        ))
-                        .padding(.vertical, 5)
-                        .padding(.horizontal, 10)
-                        .background(AppTheme.card)
-                        .foregroundStyle(
-                            AppTheme.textMuted
-                        )
-                        .clipShape(Capsule())
-                }
+        HStack(spacing: 6) {
+            ForEach(genres.prefix(4)) { genre in
+                Text(genre.name ?? "")
+                    .font(.system(
+                        size: 11,
+                        weight: .medium
+                    ))
+                    .padding(.vertical, 5)
+                    .padding(.horizontal, 10)
+                    .background(AppTheme.card)
+                    .foregroundStyle(
+                        AppTheme.textMuted
+                    )
+                    .clipShape(Capsule())
             }
+            Spacer()
         }
     }
 

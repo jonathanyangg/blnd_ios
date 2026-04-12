@@ -8,6 +8,8 @@ enum AuthRoute: Hashable {
     case createAccount
     case chooseUsername
     case onboardingComplete
+    case findFriends
+    case forgotPassword
 }
 
 /// Landing screen that routes to Sign Up or Login.
@@ -58,7 +60,11 @@ struct WelcomeView: View {
                 case .chooseUsername:
                     ChooseUsernameView(path: $path)
                 case .onboardingComplete:
-                    OnboardingCompleteView()
+                    OnboardingCompleteView(path: $path)
+                case .findFriends:
+                    FindFriendsView(path: $path)
+                case .forgotPassword:
+                    ForgotPasswordView(path: $path)
                 }
             }
         }

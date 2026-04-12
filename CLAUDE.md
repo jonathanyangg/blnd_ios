@@ -5,9 +5,9 @@ SwiftUI iOS app for blnd — movie taste syncing with AI recommendations.
 ## Tech Stack
 
 - Swift / SwiftUI, iOS 17+
-- Zero third-party dependencies
 - `@Observable` for state, `async/await` for networking
 - Talks to FastAPI backend for API, Supabase Storage for avatar uploads
+- PostHog iOS SDK (`posthog-ios`) for product analytics
 
 ## Architecture
 
@@ -157,6 +157,24 @@ blnd_ios/blnd_ios/
 - Auth: uses same JWT from backend (Bearer token) for storage uploads
 - Cache busting: append `?v=<timestamp>` to public URL on upload so AsyncImage doesn't serve stale cache
 
+## Analytics (PostHog)
+
+- **SDK**: `posthog-ios` v3.49+, initialized in `blndApp.swift`
+- **API Key**: configured in `blndApp.init()`
+- **Auto-captured**: screen views, app lifecycle (open/close/background)
+- **User identification**: `identify(userId)` on login, Apple Sign In, session restore. `reset()` on logout.
+- **Event naming**: `verb_noun`, snake_case. Add `source` property when same action can happen from multiple places.
+- **Tracked events**:
+  - `movie_rated` — properties: `tmdb_id`, `rating`, `source` (reels/detail)
+  - `watchlist_added` — properties: `tmdb_id`, `source` (reels)
+  - `movie_hidden` — properties: `tmdb_id`
+  - `trailer_played` — properties: `video_id`
+  - `tab_switched` — properties: `tab` (For You/Discover)
+  - `onboarding_completed` — no properties
+  - `friend_request_sent` — no properties
+  - `group_created` — no properties
+- **Files with PostHog imports**: blndApp.swift, AuthState.swift, ReelCardActions.swift, ReelRatingOverlay.swift, ReelTrailerView.swift, HomeView.swift, FindFriendsView.swift, AddFriendView.swift, FriendProfileView.swift, CreateGroupView.swift, RateMovieSheet.swift
+
 ## Design
 
 - **Theme**: Dark monochrome, Cal.com/X aesthetic
@@ -230,7 +248,7 @@ blnd_ios/blnd_ios/
 50. Reels inline detail: removed tap-to-navigate in reels mode (grid mode unaffected), expanded reel cards with tagline, expandable overview ("more" button), compact cast section (36x36 avatars, max 8). ReelCardView split into extensions (ReelCardSections.swift for view sections). Removed onNavigateToDetail from entire chain (8 files).
 51. YouTube autoplay fix: replaced plain iframe embed with YouTube IFrame Player API in ReelTrailerView — uses onReady callback with explicit mute() + playVideo() for reliable autoplay on iOS WKWebView.
 52. Screenshot mode: `APIConfig.screenshotMode` flag + `.posterBlur()` ViewModifier blurs all TMDB images (posters, backdrops, cast photos) across 7 files when enabled. For taking App Store screenshots without copyrighted movie art. No-op when false.
-53. Infinite scroll for FYP: `RecommendationsAPI.getFeed(exclude:limit:)` POST endpoint, `HomeView` tracks `seenFYPIds`, `loadMoreFYP()` sends exclude list for fresh batches. Triggers at last 4 items in both reels and grid modes. No auto-rebuild of taste profile on rating — only on explicit refresh, genre update, or onboarding.
+53. Infinite scroll for FYP: `RecommendationsAPI.getFeed(exclude:limit:)` POST endpoint, `HomeView` tracks `seenFYPIds`, `loadMoreFYP()` sends exclude list for fresh batches. Default batch size: 20. Triggers at last 4 items in both reels and grid modes. Backend rebuilds taste profile every 5 actions (rate/hide/watchlist) in background.
 54. Infinite scroll for Discover: replace page-based pagination with exclude-based (`seenIds` set). `MoviesAPI.trending(exclude:)`, `.topRated(exclude:)`, `.discover(genres:exclude:)` — backend softmax-samples 20 from 100 TMDB movies per call, exclude ensures no duplicates across batches.
 55. Infinite scroll for Groups: `GroupsAPI.getFeed(groupId:exclude:limit:)` POST endpoint, `GroupDetailView` tracks `seenRecIds`, `loadMoreRecs()` in both reels and grid modes.
 56. No re-fetch on navigate back: `loadForYou()` guards on `recommendations.isEmpty`, `loadMovies()` guards on `movies.isEmpty`, `loadAll()` guards on `group == nil`. Rating a movie does not trigger taste rebuild or page refresh.
@@ -241,7 +259,7 @@ blnd_ios/blnd_ios/
 61. UserActionCache: singleton in-memory cache bootstrapped on login. Tracks watched ratings + watchlisted IDs. Updated inline on all rate/watchlist/unwatch actions. Eliminates redundant status API calls.
 62. Tutorial overlay: 3-step walkthrough (scroll, swipe-left watchlist, swipe-right rate) with progress dots + Next/Skip/Got it. Persisted via UserDefaults, shown once per install.
 63. Smoother swipe gestures: spring snap-back animation, haptic on threshold cross, optimistic watchlist toast. `@State swipeOffset` replaces `@GestureState` for animated reset.
-64. YouTube trailer optimizations: `controls: 0` for faster load, CSS opacity mask (invisible until playing state 1), no artificial delay, `WKNavigationDelegate` for YouTube link handling.
+64. YouTube trailer optimizations: `controls: 1` (native YouTube controls for seeking/progress), CSS opacity mask (invisible until playing state 1), no artificial delay, `WKNavigationDelegate` for YouTube link handling.
 65. Swift 6 concurrency fixes: `Sendable` on KeychainManager/LoginResponse/RefreshTokenRequest, `@unchecked Sendable` on APIClient, `@MainActor` on TokenRefresher task.
 66. Cleaner Letterboxd import page: left-aligned header, step titles + descriptions, privacy note, split into extension file.
 67. Cleaner rating overlay: minimal 3-element design (title, stars, capsule button), appear/dismiss animations.
@@ -262,13 +280,37 @@ blnd_ios/blnd_ios/
 82. Dynamic overview height: `overviewMaxHeight` computed from card geometry (card height minus title, media, genres, tagline, cast, friends heights). Overview fills available space instead of hardcoded 80pt cap. "more" only shows when text still overflows. Expanded overview uses `.fixedSize(vertical: true)` so "less" button sits right below last line.
 83. YouTube button fix: added `WKUIDelegate` + `createWebViewWith` to both `TrailerPlayer.Coordinator` (ReelTrailerView) and `YouTubeWebView.Coordinator` (YouTubePlayerView). YouTube logo `target="_blank"` / `window.open()` now opens in Safari/YouTube app instead of silently failing.
 84. Reel media gradient: trailer placeholder uses `AppTheme.posterGradient` (blue-to-red) instead of flat `AppTheme.card`, matching MovieDetailView's `heroPlaceholder` style.
+85. Reels paging fix: replaced `.scrollTargetBehavior(.paging)` with `.viewAligned(limitBehavior: .alwaysByOne)` to eliminate sub-pixel drift that skipped cards after ~10 swipes. Load-more moved from `onAppear` to `onChange(of: currentId)` to prevent array mutation during active scroll.
+86. Trailer tab isolation: `ReelsFeedView` accepts `isTabVisible` param. Home passes `tabState.selectedTab == 0`, Groups passes `tabState.selectedTab == 2`. When a tab is inactive, its reel cards become inactive → trailers stop and resources are freed for the active tab.
+87. Group rename: any member can tap pencil icon on group name to rename. Input sanitized (trim whitespace, reject empty, 50-char max). Optimistic UI update with rollback on API failure. `GroupDetailResponse.name` changed to `var`.
+88. Watchlist reels enrichment: backend `_watchlist_to_response` now returns full movie details (year, overview, genres, runtime, vote_average, director, cast, tagline, backdrop_path). iOS `WatchlistMovieResponse` + `ReelMovie(from:)` updated to map all fields. Group/personal watchlist reels now show full cards.
+89. Screenshot blur reduced from 20 → 5 for lighter obscuring of poster art.
+90. Refresh trailer fix: `ReelsFeedView.onChange(of: movies)` now resets `currentId` when the current movie is no longer in the list (e.g., after FYP refresh), so the first card becomes active and its trailer autoplays.
+91. Tutorial overlay: animated gesture demos replacing static SF Symbol icons. `ScrollDemo` (cards float up with chevron), `SwipeLeftDemo` (card slides left, bookmark fades in), `SwipeRightDemo` (card slides right, star fades in). All loop with `repeatForever(autoreverses: true)`.
+92. User search by display name: backend `search_users` now matches `username ILIKE 'q%'` OR `display_name ILIKE '%q%'`. No iOS changes needed.
+93. Onboarding swipe card poster fix: added `.id(currentIndex)` to front `SwipeCard` in `RateMoviesView` so `CachedAsyncImage` recreates on advance instead of showing stale poster from previous card.
+
+94. Find Friends from Contacts: onboarding step 5/5 (`FindFriendsView`), requests contacts permission, uploads phone numbers via `FriendsAPI.uploadContacts()`, shows sync count. Skip option. Auth finalization moved here from OnboardingCompleteView.
+95. Change Password: `ChangePasswordView` in Account Settings, validates 8+ chars + 1 uppercase + confirm match, calls `AuthAPI.changePassword()`. NavigationLink from AccountSettingsView.
+96. Tutorial overlay per-user: `@AppStorage("hasSeenReelsTutorial")` / `hasSeenBlendsTutorial` — one flag per device (not per-user). Tutorial only shows when feed is loaded (`!isLoadingFYP, !fypReelMovies.isEmpty`).
+97. For You tutorial animation: replaced scroll-up demo with `ForYouTasteDemo` (film icons converging into sparkle) to match blends tutorial style.
+98. Fix loadFriends() race condition: task cancellation before new fetch, removed duplicate call from `.onAppear`.
+99. Cancel stacked toast tasks in Home, Groups, and ReelsFeedView.
+100. Memoize `overviewMaxHeight`: computed once on cardSize change via `.onChange`, stored in `@State`.
+101. Reduce FYP/group feed batch size from 50 to 20 for faster taste rebuild responsiveness.
+102. Profile avatar fix: `fetchCurrentUser()` now called after `login()` and `loginWithApple()` so `currentUser` (including avatarUrl) is populated before ProfileView renders.
+103. Search result profiles: `userRow()` and `suggestionRow()` in AddFriendView wrapped in NavigationLink → FriendProfileView. Non-friends see gated watched movies.
+104. Forgot password: `ForgotPasswordView` + `.forgotPassword` AuthRoute, linked from LoginView.
+105. Phone number in signup: optional phone field in SignUpView, passed through OnboardingState → AuthState.signup().
+106. PrivacyInfo.xcprivacy: privacy manifest declaring collected data (email, phone, contacts, user ID, usage data) and UserDefaults API usage.
+107. Friendship status on search results: `addButton` shows "Friends" / "Pending" / "Add" based on `friendshipStatus` from backend.
 
 ## Next Steps
 
-85. Letterboxd import (POST /import/letterboxd — file upload in settings)
-86. Add avatar_url to backend GroupMemberResponse so group member avatars show
-87. Profile edit UI (taste bio — backend already wired)
-88. Polish: empty states, error handling
+108. Letterboxd import (POST /import/letterboxd — file upload in settings)
+109. Add avatar_url to backend GroupMemberResponse so group member avatars show
+110. Profile edit UI (taste bio — backend already wired)
+111. Polish: empty states, error handling
 
 ## Linting
 
@@ -285,4 +327,13 @@ blnd_ios/blnd_ios/
 
 ## Last Updated
 
-2026-03-29
+2026-04-02
+
+## graphify
+
+This project has a graphify knowledge graph at graphify-out/.
+
+Rules:
+- Before answering architecture or codebase questions, read graphify-out/GRAPH_REPORT.md for god nodes and community structure
+- If graphify-out/wiki/index.md exists, navigate it instead of reading raw files
+- After modifying code files in this session, run `python3 -c "from graphify.watch import _rebuild_code; from pathlib import Path; _rebuild_code(Path('.'))"` to keep the graph current

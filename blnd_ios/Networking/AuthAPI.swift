@@ -5,13 +5,15 @@ enum AuthAPI {
         email: String,
         password: String,
         username: String,
-        displayName: String?
+        displayName: String?,
+        phoneNumber: String? = nil
     ) async throws -> LoginResponse {
         let body = SignupRequest(
             email: email,
             password: password,
             username: username,
-            displayName: displayName
+            displayName: displayName,
+            phoneNumber: phoneNumber
         )
         return try await APIClient.shared.request(
             endpoint: "/auth/signup",
@@ -27,18 +29,6 @@ enum AuthAPI {
         let body = LoginRequest(email: email, password: password)
         return try await APIClient.shared.request(
             endpoint: "/auth/login",
-            method: "POST",
-            body: body
-        )
-    }
-
-    /// POST /auth/refresh — exchange refresh token for new tokens
-    static func refresh(
-        refreshToken: String
-    ) async throws -> LoginResponse {
-        let body = RefreshTokenRequest(refreshToken: refreshToken)
-        return try await APIClient.shared.request(
-            endpoint: "/auth/refresh",
             method: "POST",
             body: body
         )
@@ -86,17 +76,40 @@ enum AuthAPI {
         displayName: String?,
         favoriteGenres: [String]?,
         ratedMovies: [RatedMovieRequest]?,
-        appleRefreshToken: String? = nil
+        appleRefreshToken: String? = nil,
+        phoneNumber: String? = nil
     ) async throws -> CompleteOnboardingResponse {
         let body = CompleteOnboardingRequest(
             username: username,
             displayName: displayName,
             favoriteGenres: favoriteGenres,
             ratedMovies: ratedMovies,
-            appleRefreshToken: appleRefreshToken
+            appleRefreshToken: appleRefreshToken,
+            phoneNumber: phoneNumber
         )
         return try await APIClient.shared.request(
             endpoint: "/auth/complete-onboarding",
+            method: "POST",
+            body: body,
+            authenticated: true
+        )
+    }
+
+    /// POST /auth/forgot-password — send password reset email
+    static func forgotPassword(email: String) async throws {
+        let body = ForgotPasswordRequest(email: email)
+        try await APIClient.shared.requestVoid(
+            endpoint: "/auth/forgot-password",
+            method: "POST",
+            body: body
+        )
+    }
+
+    /// POST /auth/change-password — change the authenticated user's password
+    static func changePassword(currentPassword: String, newPassword: String) async throws {
+        let body = ChangePasswordRequest(currentPassword: currentPassword, newPassword: newPassword)
+        try await APIClient.shared.requestVoid(
+            endpoint: "/auth/change-password",
             method: "POST",
             body: body,
             authenticated: true
@@ -118,14 +131,16 @@ enum AuthAPI {
         displayName: String? = nil,
         tasteBio: String? = nil,
         favoriteGenres: [String]? = nil,
-        avatarUrl: String? = nil
+        avatarUrl: String? = nil,
+        phoneNumber: String? = nil
     ) async throws -> UserResponse {
         let body = UpdateProfileRequest(
             username: username,
             displayName: displayName,
             tasteBio: tasteBio,
             favoriteGenres: favoriteGenres,
-            avatarUrl: avatarUrl
+            avatarUrl: avatarUrl,
+            phoneNumber: phoneNumber
         )
         return try await APIClient.shared.request(
             endpoint: "/auth/profile",

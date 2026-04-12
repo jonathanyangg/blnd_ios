@@ -81,6 +81,16 @@ struct LoginView: View {
                     }
 
                     Button {
+                        path.append(AuthRoute.forgotPassword)
+                    } label: {
+                        Text("Forgot password?")
+                            .font(.system(size: 14))
+                            .foregroundStyle(AppTheme.textMuted)
+                            .frame(maxWidth: .infinity)
+                            .padding(.top, 12)
+                    }
+
+                    Button {
                         // Pop to root, then push sign up
                         path.removeLast(path.count)
                         path.append(AuthRoute.pickGenres)
@@ -140,9 +150,6 @@ struct LoginView: View {
                 onboardingState.appleDisplayName = displayName.isEmpty ? nil : displayName
                 onboardingState.appleAuthCode = authCode
                 onboardingState.appleRefreshToken = response.appleRefreshToken
-                if let name = onboardingState.appleDisplayName {
-                    onboardingState.name = name
-                }
                 path.append(AuthRoute.chooseUsername)
             }
             // Returning user: loginWithApple already set .authenticated

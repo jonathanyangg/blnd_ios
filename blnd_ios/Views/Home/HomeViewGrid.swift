@@ -102,6 +102,7 @@ extension HomeView {
             )
         } label: {
             MovieCard(
+                tmdbId: movie.tmdbId,
                 title: movie.title,
                 year: movie.yearString,
                 posterPath: movie.posterPath,
@@ -139,16 +140,7 @@ extension HomeView {
         message: String,
         retry: @escaping () -> Void
     ) -> some View {
-        VStack(spacing: 12) {
-            Text(message)
-                .font(.system(size: 14))
-                .foregroundStyle(AppTheme.textMuted)
-                .multilineTextAlignment(.center)
-            Button("Retry") { retry() }
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(.white)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.top, 60)
+        ErrorStateView(message: message, retry: retry)
+            .padding(.top, 60)
     }
 }

@@ -22,8 +22,9 @@ struct ReelCardView: View {
     @State var overviewTruncatedHeight: CGFloat = 0
     @State var friendsWhoWatched: [FriendWatchedResponse] = []
     @State var cardSize: CGSize = .zero
-    @State var isHidden = false
-    @State var showHideConfirm = false
+    @State var showStreamingSheet = false
+    @State var friendsLoadTask: Task<Void, Never>?
+    @State var overviewMaxHeightValue: CGFloat = 80
 
     let swipeThreshold: CGFloat = 120
 
@@ -38,8 +39,8 @@ struct ReelCardView: View {
     }
 
     var showTrailer: Bool {
-        isActive && trailerReady && !showRating
-            && trailerVideoId != nil
+        !APIConfig.screenshotMode
+            && isActive && trailerReady && trailerVideoId != nil
     }
 
     var body: some View {
@@ -76,19 +77,44 @@ struct ReelCardView: View {
                 ratingOverlay
             }
         }
+        .sheet(isPresented: $showStreamingSheet) {
+            StreamingSheet(tmdbId: movie.tmdbId, title: movie.title)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+                .presentationBackground(AppTheme.card)
+        }
         .onAppear {
             if isActive {
                 trailerReady = true
-                loadFriends()
+                if let vid = trailerVideoId {
+                    TrailerPlayer.shared.play(videoId: vid)
+                }
             }
         }
         .onChange(of: isActive) { _, active in
             if active {
                 trailerReady = true
                 loadFriends()
+                if let vid = trailerVideoId {
+                    TrailerPlayer.shared.play(videoId: vid)
+                }
             } else {
                 trailerReady = false
                 overviewExpanded = false
+                // Don't call stop() here — loadVideo() on the next card
+                // implicitly replaces the current video. An explicit stop()
+                // races with the next card's play() and kills it.
+            }
+        }
+        .onChange(of: cardSize) { _, size in
+            overviewMaxHeightValue = computeOverviewMaxHeight(size)
+        }
+        .onChange(of: showRating) { _, rating in
+            guard isActive else { return }
+            if rating {
+                TrailerPlayer.shared.pause()
+            } else {
+                TrailerPlayer.shared.resume()
             }
         }
     }

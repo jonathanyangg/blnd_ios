@@ -1,3 +1,4 @@
+import PostHog
 import SwiftUI
 
 struct ScrollOffsetKey: PreferenceKey {
@@ -28,14 +29,13 @@ struct HomeView: View {
     @State var isLoadingMoreFYP = false
     @State var fypError: String?
     @State var toastMessage: String?
+    @State var toastTask: Task<Void, Never>?
     @State var showStickySearch = false
     @State var lastScrollOffset: CGFloat = 0
     @State var deepLinkTmdbId: Int?
 
-    private static let tutorialKey = "hasSeenReelsTutorial"
-
     /// Show tutorial overlay on first launch only
-    @State private var showTutorial = !UserDefaults.standard.bool(forKey: tutorialKey)
+    @AppStorage("hasSeenReelsTutorial") private var hasSeenTutorial = false
 
     var body: some View {
         NavigationStack {
@@ -53,13 +53,15 @@ struct HomeView: View {
             .fullScreenCover(isPresented: $showSearch) {
                 NavigationStack { SearchView() }
             }
+            .onChange(of: showSearch) { _, isShowing in
+                if isShowing {
+                    TrailerPlayer.shared.stop()
+                }
+            }
             .overlay {
-                if showTutorial, !recommendations.isEmpty {
+                if !hasSeenTutorial, viewMode == .reels, !isLoadingFYP, !fypReelMovies.isEmpty {
                     ScrollHintOverlay {
-                        showTutorial = false
-                        UserDefaults.standard.set(
-                            true, forKey: Self.tutorialKey
-                        )
+                        hasSeenTutorial = true
                     }
                 }
             }
@@ -113,9 +115,13 @@ struct HomeView: View {
     var homeHeader: some View {
         VStack(spacing: 0) {
             HStack {
-                Text("blnd")
-                    .font(.system(size: 24, weight: .bold))
-                    .foregroundStyle(.white)
+                Button {
+                    Task { await refreshCurrentTab() }
+                } label: {
+                    Text("blnd")
+                        .font(.system(size: 24, weight: .bold))
+                        .foregroundStyle(.white)
+                }
                 Spacer()
                 HStack(spacing: 16) {
                     Button {
@@ -159,6 +165,7 @@ struct HomeView: View {
                 Button {
                     withAnimation(.easeInOut(duration: 0.2)) {
                         selectedTab = tab
+                        PostHogSDK.shared.capture("tab_switched", properties: ["tab": tab.rawValue])
                     }
                 } label: {
                     VStack(spacing: 8) {

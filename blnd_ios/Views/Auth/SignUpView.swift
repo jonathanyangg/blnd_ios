@@ -9,7 +9,7 @@ struct SignUpView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            OnboardingProgressBar(step: 3, total: 4)
+            OnboardingProgressBar(step: 3, total: 5)
                 .padding(.top, 12)
 
             ScrollView {
@@ -70,6 +70,7 @@ struct SignUpView: View {
                         .keyboardType(.emailAddress)
                         .textInputAutocapitalization(.never)
                     AppTextField(placeholder: "Password", text: $state.password, isSecure: true)
+                    PhoneNumberInputField(phoneNumber: $state.phoneNumber)
 
                     if !state.password.isEmpty {
                         PasswordRequirements(password: state.password)
@@ -104,11 +105,17 @@ struct SignUpView: View {
                         }
                         emailError = nil
                         Task {
+                            let phone = state.phoneNumber
+                                .trimmingCharacters(
+                                    in: .whitespacesAndNewlines
+                                )
                             await authState.signup(
                                 email: state.email,
                                 password: state.password,
                                 username: state.username,
-                                displayName: state.name
+                                displayName: state.name,
+                                phoneNumber: phone.isEmpty
+                                    ? nil : phone
                             )
                             if authState.error == nil {
                                 path.append(AuthRoute.onboardingComplete)
@@ -161,11 +168,6 @@ struct SignUpView: View {
         onboardingState.appleDisplayName = displayName.isEmpty ? nil : displayName
         onboardingState.appleAuthCode = authCode
         // appleRawNonce was already set in the request closure
-
-        // Pre-fill Name field from Apple's fullName
-        if let name = onboardingState.appleDisplayName {
-            onboardingState.name = name
-        }
 
         // Navigate to username screen
         path.append(AuthRoute.chooseUsername)

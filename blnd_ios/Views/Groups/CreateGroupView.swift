@@ -1,3 +1,4 @@
+import PostHog
 import SwiftUI
 
 struct CreateGroupView: View {
@@ -52,7 +53,7 @@ struct CreateGroupView: View {
 
             VStack(alignment: .leading, spacing: 16) {
                 AppTextField(
-                    placeholder: "Group name...",
+                    placeholder: "Blend name...",
                     text: $groupName
                 )
 
@@ -61,7 +62,7 @@ struct CreateGroupView: View {
                         ProgressView()
                             .tint(.white)
                             .scaleEffect(0.8)
-                        Text("Creating group...")
+                        Text("Creating blend...")
                             .font(.system(size: 14))
                             .foregroundStyle(AppTheme.textMuted)
                     }
@@ -98,6 +99,7 @@ struct CreateGroupView: View {
                 name: trimmedName
             )
             UserActionCache.shared.invalidateGroups()
+            PostHogSDK.shared.capture("group_created")
             await onCreated?()
             withAnimation { createdGroup = group }
         } catch let APIError.badRequest(message) {

@@ -1,7 +1,7 @@
 import SwiftUI
 
 private enum SettingsDestination: Hashable {
-    case account, notifications, about
+    case account, notifications, blocked, about
 }
 
 struct SettingsView: View {
@@ -19,6 +19,10 @@ struct SettingsView: View {
                         Divider().background(AppTheme.cardSecondary)
                         settingsRow("Notifications", icon: "bell") {
                             destination = .notifications
+                        }
+                        Divider().background(AppTheme.cardSecondary)
+                        settingsRow("Blocked Users", icon: "hand.raised") {
+                            destination = .blocked
                         }
                         Divider().background(AppTheme.cardSecondary)
                         settingsRow("Support", icon: "questionmark.circle") {
@@ -67,6 +71,8 @@ struct SettingsView: View {
                 AccountSettingsView()
             case .notifications:
                 NotificationsSettingsView()
+            case .blocked:
+                BlockedUsersView()
             case .about:
                 AboutSettingsView()
             }

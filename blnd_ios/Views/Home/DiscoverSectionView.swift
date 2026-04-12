@@ -4,7 +4,6 @@ enum DiscoverFilter: String, CaseIterable {
     case trending = "Trending"
     case topRated = "Top Rated"
     case genre = "Genre"
-    case describe = "Describe"
 }
 
 let discoverGenres = [
@@ -17,6 +16,7 @@ struct DiscoverSectionView: View {
     let cardWidth: CGFloat
     let cardHeight: CGFloat
     var viewMode: ViewMode = .grid
+    var isTabVisible: Bool = true
 
     @State var activeFilter: DiscoverFilter = .trending
     @State var movies: [MovieResponse] = []
@@ -24,7 +24,7 @@ struct DiscoverSectionView: View {
     @State var isLoading = false
     @State var errorMessage: String?
     @State var selectedGenres: Set<String> = []
-    @State var showGenrePicker = false
+    @State var showGenreSheet = false
     @State var seenIds: Set<Int> = []
     @State var hasMorePages = true
     @State var isLoadingMore = false
@@ -50,11 +50,6 @@ struct DiscoverSectionView: View {
                 .padding(.top, 10)
                 .padding(.bottom, 12)
 
-            if showGenrePicker {
-                genrePickerRow
-                    .padding(.bottom, 10)
-            }
-
             Divider().overlay(AppTheme.border)
         }
         .background(AppTheme.background)
@@ -79,6 +74,7 @@ struct DiscoverSectionView: View {
         } else {
             ReelsFeedView(
                 movies: discoverReelMovies,
+                isTabVisible: isTabVisible,
                 onLoadMore: { await loadNextPage() },
                 onRefresh: { await refresh() }
             )
@@ -163,6 +159,7 @@ struct DiscoverSectionView: View {
         index: Int
     ) -> some View {
         MovieCard(
+            tmdbId: movie.tmdbId,
             title: movie.title,
             year: movie.yearString,
             posterPath: movie.posterPath,
@@ -193,88 +190,79 @@ struct DiscoverSectionView: View {
                     DiscoverFilter.allCases,
                     id: \.self
                 ) { filter in
-                    if filter == .describe {
-                        describeChip
-                    } else {
-                        filterButton(filter)
-                    }
+                    filterButton(filter)
                 }
             }
         }
     }
 
+    @ViewBuilder
     private func filterButton(
         _ filter: DiscoverFilter
     ) -> some View {
-        Button { selectFilter(filter) } label: {
-            Text(filter.rawValue)
-                .font(.system(size: 12, weight: .medium))
-                .padding(.vertical, 6)
-                .padding(.horizontal, 12)
-                .background(
-                    activeFilter == filter
-                        ? .white : AppTheme.card
-                )
-                .foregroundStyle(
-                    activeFilter == filter
-                        ? .black : AppTheme.textMuted
-                )
-                .clipShape(Capsule())
+        if filter == .genre {
+            genreMenuButton
+        } else {
+            Button { selectFilter(filter) } label: {
+                Text(filter.rawValue)
+                    .font(.system(size: 12, weight: .medium))
+                    .padding(.vertical, 6)
+                    .padding(.horizontal, 12)
+                    .background(
+                        activeFilter == filter
+                            ? .white : AppTheme.card
+                    )
+                    .foregroundStyle(
+                        activeFilter == filter
+                            ? .black : AppTheme.textMuted
+                    )
+                    .clipShape(Capsule())
+            }
         }
     }
 
-    private var describeChip: some View {
-        Button {} label: {
+    // MARK: - Genre Menu
+
+    private var genreMenuButton: some View {
+        Button { showGenreSheet = true } label: {
             HStack(spacing: 4) {
-                Image(systemName: "sparkles")
-                    .font(.system(size: 10))
-                Text("Describe")
+                Text("Genre")
                     .font(.system(size: 12, weight: .medium))
+                if selectedGenres.isEmpty {
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 8, weight: .bold))
+                } else {
+                    Text("\u{00B7} \(selectedGenres.count)")
+                        .font(.system(size: 12, weight: .bold))
+                }
             }
             .padding(.vertical, 6)
             .padding(.horizontal, 12)
-            .background(AppTheme.card)
-            .foregroundStyle(AppTheme.textDim)
-            .clipShape(Capsule())
-            .overlay(
-                Capsule()
-                    .stroke(AppTheme.border, lineWidth: 1)
+            .background(
+                !selectedGenres.isEmpty
+                    ? .white : AppTheme.card
             )
+            .foregroundStyle(
+                !selectedGenres.isEmpty
+                    ? .black : AppTheme.textMuted
+            )
+            .clipShape(Capsule())
         }
-    }
-
-    // MARK: - Genre Picker
-
-    var genrePickerRow: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
-                ForEach(
-                    discoverGenres,
-                    id: \.self
-                ) { genre in
-                    let active =
-                        selectedGenres.contains(genre)
-                    Button { toggleGenre(genre) } label: {
-                        Text(genre)
-                            .font(.system(
-                                size: 11,
-                                weight: .medium
-                            ))
-                            .padding(.vertical, 5)
-                            .padding(.horizontal, 10)
-                            .background(
-                                active ? .white
-                                    : AppTheme.card
-                            )
-                            .foregroundStyle(
-                                active ? .black
-                                    : AppTheme.textMuted
-                            )
-                            .clipShape(Capsule())
+        .sheet(isPresented: $showGenreSheet) {
+            GenrePickerSheet(
+                genres: discoverGenres,
+                selected: $selectedGenres,
+                onChanged: {
+                    activeFilter = .genre
+                    resetPagination()
+                    if !selectedGenres.isEmpty {
+                        Task { await loadMovies(forceRefresh: true) }
                     }
                 }
-            }
-            .padding(.horizontal, 24)
+            )
+            .presentationDetents([.height(300)])
+            .presentationDragIndicator(.visible)
+            .presentationBackground(AppTheme.card)
         }
     }
 
@@ -303,18 +291,9 @@ struct DiscoverSectionView: View {
     private func errorView(
         message: String
     ) -> some View {
-        VStack(spacing: 12) {
-            Text(message)
-                .font(.system(size: 14))
-                .foregroundStyle(AppTheme.textMuted)
-                .multilineTextAlignment(.center)
-            Button("Retry") {
-                Task { await loadMovies() }
-            }
-            .font(.system(size: 14, weight: .semibold))
-            .foregroundStyle(.white)
+        ErrorStateView(message: message) {
+            Task { await loadMovies() }
         }
-        .frame(maxWidth: .infinity)
         .padding(.top, 60)
     }
 }

@@ -40,7 +40,7 @@ struct GroupResponse: Decodable, Identifiable {
 
 struct GroupDetailResponse: Decodable, Identifiable {
     let id: Int
-    let name: String
+    var name: String
     let createdBy: String
     let members: [GroupMemberResponse]
     let createdAt: String

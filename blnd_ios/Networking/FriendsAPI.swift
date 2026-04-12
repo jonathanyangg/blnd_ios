@@ -38,11 +38,46 @@ enum FriendsAPI {
         )
     }
 
-    /// POST /friends/{id}/reject — reject a friend request
+    /// POST /friends/{id}/reject — reject a friend request (addressee only)
     static func rejectRequest(friendshipId: Int) async throws -> FriendRequestResponse {
         try await APIClient.shared.request(
             endpoint: "/friends/\(friendshipId)/reject",
             method: "POST",
+            authenticated: true
+        )
+    }
+
+    /// DELETE /friends/{id}/withdraw — withdraw an outgoing pending request (requester only)
+    static func withdrawRequest(friendshipId: Int) async throws {
+        try await APIClient.shared.requestVoid(
+            endpoint: "/friends/\(friendshipId)/withdraw",
+            method: "DELETE",
+            authenticated: true
+        )
+    }
+
+    /// POST /friends/blocks/{userId} — block a user (auto-removes any friendship)
+    static func blockUser(userId: String) async throws {
+        try await APIClient.shared.requestVoid(
+            endpoint: "/friends/blocks/\(userId)",
+            method: "POST",
+            authenticated: true
+        )
+    }
+
+    /// DELETE /friends/blocks/{userId} — unblock a user
+    static func unblockUser(userId: String) async throws {
+        try await APIClient.shared.requestVoid(
+            endpoint: "/friends/blocks/\(userId)",
+            method: "DELETE",
+            authenticated: true
+        )
+    }
+
+    /// GET /friends/blocks — list all blocked users
+    static func listBlockedUsers() async throws -> BlockedUsersResponse {
+        try await APIClient.shared.request(
+            endpoint: "/friends/blocks",
             authenticated: true
         )
     }
@@ -52,6 +87,33 @@ enum FriendsAPI {
         try await APIClient.shared.requestVoid(
             endpoint: "/friends/\(friendshipId)",
             method: "DELETE",
+            authenticated: true
+        )
+    }
+
+    /// POST /friends/contacts — upload phone numbers for contact matching
+    static func uploadContacts(phoneNumbers: [String]) async throws {
+        let body = UploadContactsRequest(phoneNumbers: phoneNumbers)
+        try await APIClient.shared.requestVoid(
+            endpoint: "/friends/contacts",
+            method: "POST",
+            body: body,
+            authenticated: true
+        )
+    }
+
+    /// GET /friends/suggestions — contact matches + mutual friends
+    static func getSuggestions() async throws -> FriendSuggestionsResponse {
+        try await APIClient.shared.request(
+            endpoint: "/friends/suggestions",
+            authenticated: true
+        )
+    }
+
+    /// GET /friends/{userId}/mutuals — mutual friends with a specific user
+    static func getMutuals(userId: String) async throws -> MutualFriendsResponse {
+        try await APIClient.shared.request(
+            endpoint: "/friends/\(userId)/mutuals",
             authenticated: true
         )
     }

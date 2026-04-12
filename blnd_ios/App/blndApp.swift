@@ -1,3 +1,4 @@
+import PostHog
 import SwiftUI
 
 @main
@@ -7,15 +8,27 @@ struct BlndApp: App {
     @State private var onboardingState = OnboardingState()
     @State private var deepLinkState = DeepLinkState()
 
+    init() {
+        let config = PostHogConfig(apiKey: "phc_o8gysMyjwxqas8WBdUzNXwiQN9xsASDhCyetHvfnSWY5")
+        config.captureScreenViews = true
+        config.captureApplicationLifecycleEvents = true
+        PostHogSDK.shared.setup(config)
+    }
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .environment(authState)
-                .environment(onboardingState)
-                .environment(deepLinkState)
-                .onAppear {
-                    appDelegate.deepLinkState = deepLinkState
-                }
+            ZStack {
+                AppTheme.background
+                    .ignoresSafeArea()
+                ContentView()
+                    .environment(authState)
+                    .environment(onboardingState)
+                    .environment(deepLinkState)
+                    .onAppear {
+                        appDelegate.deepLinkState = deepLinkState
+                    }
+            }
+            .preferredColorScheme(.dark)
         }
     }
 }

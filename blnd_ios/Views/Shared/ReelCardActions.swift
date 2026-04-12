@@ -1,3 +1,4 @@
+import PostHog
 import SwiftUI
 
 // MARK: - Gestures & Actions
@@ -36,9 +37,9 @@ extension ReelCardView {
                 }
                 let off = value.translation.width
                 if off < -swipeThreshold {
-                    addToWatchlist()
+                    Task { await hideMovie() }
                 } else if off > swipeThreshold {
-                    showRating = true
+                    addToWatchlist()
                 }
                 resetSwipe()
             }
@@ -55,6 +56,7 @@ extension ReelCardView {
     func addToWatchlist() {
         UINotificationFeedbackGenerator()
             .notificationOccurred(.success)
+        PostHogSDK.shared.capture("watchlist_added", properties: ["tmdb_id": movie.tmdbId, "source": "reels"])
 
         // Optimistic — show toast + update cache
         if let ctx = groupContext {
@@ -88,19 +90,26 @@ extension ReelCardView {
     }
 
     func loadFriends() {
+        if APIConfig.screenshotMode {
+            friendsWhoWatched = ScreenshotDummy.friendsWhoWatched()
+            return
+        }
         let cache = UserActionCache.shared
         if let cached = cache.getFriendsWhoWatched(movie.tmdbId) {
             friendsWhoWatched = cached
             return
         }
-        Task {
+        friendsLoadTask?.cancel()
+        friendsLoadTask = Task {
             do {
                 let response = try await TrackingAPI
                     .friendsWhoWatched(tmdbId: movie.tmdbId)
-                cache.cacheFriendsWhoWatched(
-                    movie.tmdbId, friends: response.results
-                )
-                friendsWhoWatched = response.results
+                if !Task.isCancelled {
+                    cache.cacheFriendsWhoWatched(
+                        movie.tmdbId, friends: response.results
+                    )
+                    friendsWhoWatched = response.results
+                }
             } catch {
                 // Non-fatal
             }
@@ -108,20 +117,14 @@ extension ReelCardView {
     }
 
     func hideMovie() async {
+        UINotificationFeedbackGenerator()
+            .notificationOccurred(.success)
+        onWatchlistAdded?("Won't show again")
         do {
             _ = try await RecommendationsAPI.hideMovie(
                 tmdbId: movie.tmdbId
             )
-            isHidden = true
-        } catch {}
-    }
-
-    func unhideMovie() async {
-        do {
-            try await RecommendationsAPI.unhideMovie(
-                tmdbId: movie.tmdbId
-            )
-            isHidden = false
+            PostHogSDK.shared.capture("movie_hidden", properties: ["tmdb_id": movie.tmdbId])
         } catch {}
     }
 

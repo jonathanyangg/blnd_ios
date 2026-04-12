@@ -25,10 +25,11 @@ struct OnboardingProgressBar: View {
 
 #Preview {
     VStack(spacing: 20) {
-        OnboardingProgressBar(step: 1, total: 4)
-        OnboardingProgressBar(step: 2, total: 4)
-        OnboardingProgressBar(step: 3, total: 4)
-        OnboardingProgressBar(step: 4, total: 4)
+        OnboardingProgressBar(step: 1, total: 5)
+        OnboardingProgressBar(step: 2, total: 5)
+        OnboardingProgressBar(step: 3, total: 5)
+        OnboardingProgressBar(step: 4, total: 5)
+        OnboardingProgressBar(step: 5, total: 5)
     }
     .padding()
     .background(AppTheme.background)

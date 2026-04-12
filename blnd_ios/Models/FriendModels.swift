@@ -48,3 +48,55 @@ struct PendingRequestsResponse: Decodable {
     let incoming: [FriendRequestResponse]
     let outgoing: [FriendRequestResponse]
 }
+
+// MARK: - Contact Discovery
+
+struct SuggestedFriendResponse: Decodable, Identifiable {
+    let id: String
+    let username: String
+    let displayName: String?
+    let avatarUrl: String?
+    let source: String
+    let mutualCount: Int
+
+    enum CodingKeys: String, CodingKey {
+        case id, username, source
+        case displayName = "display_name"
+        case avatarUrl = "avatar_url"
+        case mutualCount = "mutual_count"
+    }
+}
+
+struct FriendSuggestionsResponse: Decodable {
+    let contacts: [SuggestedFriendResponse]
+    let mutuals: [SuggestedFriendResponse]
+}
+
+struct UploadContactsRequest: Encodable {
+    let phoneNumbers: [String]
+
+    enum CodingKeys: String, CodingKey {
+        case phoneNumbers = "phone_numbers"
+    }
+}
+
+// MARK: - Blocking
+
+struct BlockedUserResponse: Decodable, Identifiable {
+    let id: String
+    let username: String
+    let displayName: String?
+    let avatarUrl: String?
+    let blockedAt: String
+
+    enum CodingKeys: String, CodingKey {
+        case id, username
+        case displayName = "display_name"
+        case avatarUrl = "avatar_url"
+        case blockedAt = "blocked_at"
+    }
+}
+
+struct BlockedUsersResponse: Decodable {
+    let blocked: [BlockedUserResponse]
+}

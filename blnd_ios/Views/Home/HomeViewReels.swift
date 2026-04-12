@@ -20,6 +20,7 @@ extension HomeView {
             } else {
                 ReelsFeedView(
                     movies: fypReelMovies,
+                    isTabVisible: tabState.selectedTab == 0,
                     onLoadMore: { await loadMoreFYP() },
                     onRefresh: { await refreshFYP() }
                 )
@@ -28,7 +29,8 @@ extension HomeView {
             DiscoverSectionView(
                 cardWidth: 0,
                 cardHeight: 0,
-                viewMode: .reels
+                viewMode: .reels,
+                isTabVisible: tabState.selectedTab == 0
             )
         }
     }

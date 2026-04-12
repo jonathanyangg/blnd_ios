@@ -6,6 +6,7 @@ struct FriendsListView: View {
     @State private var friends: [FriendResponse] = []
     @State private var pendingRequests: PendingRequestsResponse?
     @State private var isLoading = true
+    @State private var errorMessage: String?
     @State private var showAddFriend = false
     @State private var selectedTab = 0
 
@@ -43,6 +44,11 @@ struct FriendsListView: View {
                         ProgressView()
                             .tint(.white)
                             .padding(.top, 40)
+                    } else if let error = errorMessage {
+                        ErrorStateView(message: error) {
+                            Task { await loadData() }
+                        }
+                        .padding(.top, 40)
                     } else if selectedTab == 0 {
                         friendsTab
                     } else {
@@ -131,11 +137,29 @@ struct FriendsListView: View {
             if !incoming.isEmpty {
                 sectionHeader("Incoming")
                 ForEach(incoming) { request in
-                    IncomingRequestRow(request: request) {
-                        await handleAccept(request)
-                    } onReject: {
-                        await handleReject(request)
+                    NavigationLink {
+                        FriendProfileView(
+                            friend: FriendResponse(
+                                friendshipId: nil,
+                                id: request.requester.id,
+                                username: request.requester
+                                    .username,
+                                displayName: request.requester
+                                    .displayName,
+                                avatarUrl: request.requester
+                                    .avatarUrl
+                            )
+                        )
+                    } label: {
+                        IncomingRequestRow(
+                            request: request
+                        ) {
+                            await handleAccept(request)
+                        } onReject: {
+                            await handleReject(request)
+                        }
                     }
+                    .buttonStyle(.plain)
 
                     Divider()
                         .background(AppTheme.cardSecondary)
@@ -146,7 +170,20 @@ struct FriendsListView: View {
             if !outgoing.isEmpty {
                 sectionHeader("Sent")
                 ForEach(outgoing) { request in
-                    OutgoingRequestRow(request: request)
+                    OutgoingRequestRow(
+                        request: request,
+                        destination: FriendProfileView(
+                            friend: FriendResponse(
+                                friendshipId: nil,
+                                id: request.addressee.id,
+                                username: request.addressee.username,
+                                displayName: request.addressee.displayName,
+                                avatarUrl: request.addressee.avatarUrl
+                            )
+                        )
+                    ) {
+                        await handleWithdraw(request)
+                    }
 
                     Divider()
                         .background(AppTheme.cardSecondary)
@@ -189,10 +226,14 @@ struct FriendsListView: View {
     // MARK: - Actions
 
     private func loadData() async {
+        errorMessage = nil
         let cache = UserActionCache.shared
         await cache.fetchFriends()
         friends = cache.friends
         pendingRequests = cache.pendingRequests
+        if friends.isEmpty, pendingRequests == nil, !cache.didLoadFriends {
+            errorMessage = "Could not load friends"
+        }
         isLoading = false
     }
 
@@ -215,6 +256,16 @@ struct FriendsListView: View {
             UserActionCache.shared.invalidateFriends()
             await loadData()
             await tabState.refreshPendingCount()
+        } catch { /* Non-critical — list will refresh on next pull */ }
+    }
+
+    private func handleWithdraw(_ request: FriendRequestResponse) async {
+        do {
+            try await FriendsAPI.withdrawRequest(
+                friendshipId: request.id
+            )
+            UserActionCache.shared.invalidateFriends()
+            await loadData()
         } catch { /* Non-critical — list will refresh on next pull */ }
     }
 }
@@ -300,6 +351,7 @@ private struct FriendRow: View {
         }
         .padding(.vertical, 14)
         .padding(.horizontal, 24)
+        .contentShape(Rectangle())
     }
 }
 
@@ -370,36 +422,71 @@ private struct IncomingRequestRow: View {
 
 // MARK: - Outgoing Request Row
 
-private struct OutgoingRequestRow: View {
+private struct OutgoingRequestRow<Destination: View>: View {
     let request: FriendRequestResponse
+    let destination: Destination
+    let onWithdraw: () async -> Void
+    @State private var showWithdrawAlert = false
+    @State private var isWithdrawing = false
 
     var body: some View {
         HStack(spacing: 12) {
-            AvatarView(url: request.addressee.avatarUrl)
+            NavigationLink {
+                destination
+            } label: {
+                HStack(spacing: 12) {
+                    AvatarView(url: request.addressee.avatarUrl)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(
-                    request.addressee.displayName
-                        ?? request.addressee.username
-                )
-                .font(.system(size: 16, weight: .medium))
-                .foregroundStyle(.white)
-                Text("@\(request.addressee.username)")
-                    .font(.system(size: 13))
-                    .foregroundStyle(AppTheme.textMuted)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(
+                            request.addressee.displayName
+                                ?? request.addressee.username
+                        )
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(.white)
+                        Text("@\(request.addressee.username)")
+                            .font(.system(size: 13))
+                            .foregroundStyle(AppTheme.textMuted)
+                    }
+
+                    Spacer()
+                }
+                .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
 
-            Spacer()
-
-            Text("Pending")
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(AppTheme.textDim)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(AppTheme.card)
-                .clipShape(Capsule())
+            if isWithdrawing {
+                ProgressView()
+                    .tint(.white)
+                    .scaleEffect(0.8)
+            } else {
+                Button {
+                    showWithdrawAlert = true
+                } label: {
+                    Text("Pending")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(AppTheme.textDim)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(AppTheme.card)
+                        .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+            }
         }
         .padding(.vertical, 14)
         .padding(.horizontal, 24)
+        .alert("Withdraw request?", isPresented: $showWithdrawAlert) {
+            Button("Cancel", role: .cancel) {}
+            Button("Withdraw", role: .destructive) {
+                isWithdrawing = true
+                Task {
+                    await onWithdraw()
+                    isWithdrawing = false
+                }
+            }
+        } message: {
+            Text("Cancel your friend request to @\(request.addressee.username)?")
+        }
     }
 }

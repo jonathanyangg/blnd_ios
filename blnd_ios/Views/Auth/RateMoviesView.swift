@@ -17,7 +17,7 @@ struct RateMoviesView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            OnboardingProgressBar(step: 2, total: 4)
+            OnboardingProgressBar(step: 2, total: 5)
                 .padding(.top, 12)
 
             VStack(alignment: .leading, spacing: 0) {
@@ -67,6 +67,7 @@ struct RateMoviesView: View {
                                 year: movie.year.map { String($0) } ?? "",
                                 posterPath: movie.posterPath
                             )
+                            .id(currentIndex)
                             .offset(offset)
                             .rotationEffect(.degrees(Double(offset.width) * 0.04))
                             .gesture(

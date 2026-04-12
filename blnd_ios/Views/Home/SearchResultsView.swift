@@ -86,6 +86,7 @@ struct SearchView: View {
                                     MovieDetailView(tmdbId: movie.tmdbId, title: movie.title)
                                 } label: {
                                     MovieCard(
+                                        tmdbId: movie.tmdbId,
                                         title: movie.title,
                                         year: movie.yearString,
                                         posterPath: movie.posterPath,

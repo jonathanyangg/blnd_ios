@@ -15,12 +15,17 @@ struct GroupDetailView: View {
     @State var isLoadingMoreRecs = false
     @State var watchlist: [WatchlistMovieResponse] = []
     @State var isLoading = true
+    @State var loadError: String?
     @State var showMembers = false
     @State var selectedTab: GroupTab = .blendPicks
     @State var viewMode: ViewMode = .reels
     @State var toastMessage: String?
+    @State var toastTask: Task<Void, Never>?
+    @State var isEditingName = false
+    @State var editedName = ""
     @Namespace var tabNamespace
     @Environment(\.dismiss) var dismiss
+    @Environment(TabState.self) var tabState
 
     var groupContext: ReelCardView.GroupContext? {
         guard let group else { return nil }
@@ -43,6 +48,12 @@ struct GroupDetailView: View {
                 Spacer()
                 ProgressView().tint(.white)
                 Spacer()
+            } else if let error = loadError {
+                Spacer()
+                ErrorStateView(message: error) {
+                    Task { await loadAll(forceRefresh: true) }
+                }
+                Spacer()
             } else if viewMode == .reels {
                 reelsFeed
             } else {
@@ -61,6 +72,17 @@ struct GroupDetailView: View {
         .refreshable { await loadAll(forceRefresh: true) }
         .sheet(isPresented: $showMembers) {
             membersSheet
+        }
+        .overlay {
+            if isEditingName {
+                RenameOverlay(
+                    title: "Rename Blend",
+                    placeholder: "Blend name",
+                    text: $editedName,
+                    onSave: { saveGroupName() },
+                    onDismiss: { isEditingName = false }
+                )
+            }
         }
         .overlay(alignment: .top) {
             if let toast = toastMessage {
@@ -96,11 +118,7 @@ struct GroupDetailView: View {
             if let group {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(group.name)
-                            .font(.system(
-                                size: 18, weight: .bold
-                            ))
-                            .foregroundStyle(.white)
+                        groupNameRow(group)
 
                         Button {
                             showMembers = true
@@ -189,6 +207,26 @@ struct GroupDetailView: View {
                             .frame(height: 2)
                     }
                 }
+            }
+        }
+    }
+
+    func groupNameRow(
+        _ group: GroupDetailResponse
+    ) -> some View {
+        Button {
+            editedName = group.name
+            isEditingName = true
+        } label: {
+            HStack(spacing: 6) {
+                Text(group.name)
+                    .font(.system(
+                        size: 18, weight: .bold
+                    ))
+                    .foregroundStyle(.white)
+                Image(systemName: "pencil")
+                    .font(.system(size: 12))
+                    .foregroundStyle(AppTheme.textDim)
             }
         }
     }

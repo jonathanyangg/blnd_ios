@@ -1,4 +1,5 @@
 import Foundation
+import PostHog
 
 enum AuthPhase {
     case unauthenticated
@@ -49,6 +50,9 @@ class AuthState {
             phase = user.username != nil ? .authenticated : .onboardingPending
             if phase == .authenticated {
                 await UserActionCache.shared.bootstrap()
+                if let uid = KeychainManager.readString(key: "userId") {
+                    PostHogSDK.shared.identify(uid)
+                }
             }
         } catch {
             // Token invalid/expired — APIClient retry + forceLogoutNotification
@@ -59,7 +63,13 @@ class AuthState {
         isCheckingSession = false
     }
 
-    func signup(email: String, password: String, username: String, displayName: String?) async {
+    func signup(
+        email: String,
+        password: String,
+        username: String,
+        displayName: String?,
+        phoneNumber: String? = nil
+    ) async {
         isLoading = true
         error = nil
 
@@ -68,7 +78,8 @@ class AuthState {
                 email: email,
                 password: password,
                 username: username,
-                displayName: displayName
+                displayName: displayName,
+                phoneNumber: phoneNumber
             )
             KeychainManager.save(key: "accessToken", string: response.accessToken)
             KeychainManager.save(key: "refreshToken", string: response.refreshToken)
@@ -100,8 +111,10 @@ class AuthState {
             KeychainManager.save(key: "userId", string: response.userId)
 
             if !response.isNewUser {
+                await fetchCurrentUser()
                 phase = .authenticated
                 await UserActionCache.shared.bootstrap()
+                PostHogSDK.shared.identify(response.userId)
             }
             isLoading = false
             return response
@@ -121,8 +134,15 @@ class AuthState {
             KeychainManager.save(key: "accessToken", string: response.accessToken)
             KeychainManager.save(key: "refreshToken", string: response.refreshToken)
             KeychainManager.save(key: "userId", string: response.userId)
+            await fetchCurrentUser()
             phase = .authenticated
             await UserActionCache.shared.bootstrap()
+            if let user = currentUser {
+                PostHogSDK.shared.identify(
+                    response.userId,
+                    userProperties: ["username": user.username ?? "", "email": email]
+                )
+            }
         } catch {
             self.error = error.localizedDescription
         }
@@ -155,8 +175,11 @@ class AuthState {
         KeychainManager.delete(key: "refreshToken")
         KeychainManager.delete(key: "userId")
         currentUser = nil
+        error = nil
+        isLoading = false
         phase = .unauthenticated
         UserActionCache.shared.reset()
+        PostHogSDK.shared.reset()
     }
 
     func fetchCurrentUser() async {
