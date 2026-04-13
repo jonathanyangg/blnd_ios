@@ -6,6 +6,7 @@ import UserNotifications
 /// to onboarding or main tab view based on AuthPhase.
 struct ContentView: View {
     @Environment(AuthState.self) var authState
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         Group {
@@ -29,6 +30,12 @@ struct ContentView: View {
         .onChange(of: authState.phase) { _, newPhase in
             if newPhase == .authenticated {
                 requestNotificationPermission()
+            }
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .active, authState.phase == .authenticated {
+                UIApplication.shared.applicationIconBadgeNumber = 0
+                Task { try? await NotificationAPI.resetBadge() }
             }
         }
     }

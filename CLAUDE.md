@@ -84,7 +84,8 @@ blnd_ios/blnd_ios/
 │   ├── Friends/
 │   │   ├── FriendsListView.swift  Friends/Requests tabs, accept/reject, pull-to-refresh, avatar support
 │   │   ├── FriendProfileView.swift  friend data with avatar, remove friend with confirmation
-│   │   └── AddFriendView.swift    Instagram-style live user search, send request inline, avatars
+│   │   ├── AddFriendView.swift    Instagram-style live user search, send request inline, avatars
+│   │   └── ActivityFeedView.swift  Unified notification inbox (GET /notifications/inbox)
 │   ├── Groups/
 │   │   ├── GroupsListView.swift   real data, member count + avatar stack, pull-to-refresh
 │   │   ├── GroupDetailView.swift  blend picks, group watchlist, reels/grid toggle, members
@@ -95,10 +96,10 @@ blnd_ios/blnd_ios/
 │   │   ├── GroupMembersSheet.swift  member list with kick/leave actions
 │   │   └── AddGroupMemberSheet.swift  friends picker to add members, avatars
 │   ├── Profile/
-│   │   ├── ProfileView.swift      real user data + avatar, watched/watchlist poster grids, tappable friends/groups stats switch tab
+│   │   ├── ProfileView.swift      real user data + avatar, watched/watchlist poster grids, bell icon (notifications), tappable friends/groups stats
 │   │   ├── SettingsView.swift     navigates to Account/Notifications/Privacy/About with icons, logout
 │   │   ├── AccountSettingsView.swift  edit display name, username, avatar upload (PhotosPicker) / remove via Supabase
-│   │   ├── NotificationsSettingsView.swift  Apple-style green toggles (coming soon placeholder)
+│   │   ├── NotificationsSettingsView.swift  Wired to GET/PATCH /notifications/preferences (4 toggles)
 │   │   ├── PrivacySettingsView.swift  Apple-style green toggles (coming soon placeholder)
 │   │   └── AboutSettingsView.swift  app version, branding
 │   └── Shared/
@@ -305,9 +306,15 @@ blnd_ios/blnd_ios/
 106. PrivacyInfo.xcprivacy: privacy manifest declaring collected data (email, phone, contacts, user ID, usage data) and UserDefaults API usage.
 107. Friendship status on search results: `addButton` shows "Friends" / "Pending" / "Add" based on `friendshipStatus` from backend.
 
+108. Notification inbox: bell icon on Profile page opens ActivityFeedView (GET /notifications/inbox). Shows all events (friend requests, accepts, blend invites, watchlist adds, friend ratings, digests) with avatar, body, time ago, unread dot. Marks all read on open. Unread count loaded on profile appear, refreshed on return. NotificationAPI: getInbox(), markInboxRead(). InboxItem + InboxResponse models.
+109. Notification settings wired: NotificationsSettingsView loads from GET /notifications/preferences, saves via PATCH. 4 toggles (Friend Requests, Blend Invites, Recommendations, Friend Activity) with subtitles. Reverts on API failure. System settings link.
+110. Badge reset on foreground: ContentView watches scenePhase, clears iOS badge + calls POST /notifications/badge/reset when app becomes active.
+111. Push registration: AppDelegate registers APNs token → POST /notifications/device. Deep link routing for friend_request, friend_accepted, group_invite, group_watchlist, friend_activity notifications.
+112. "Group" → "Blend" rename in notification settings subtitle.
+
 ## Next Steps
 
-108. Letterboxd import (POST /import/letterboxd — file upload in settings)
+113. Letterboxd import (POST /import/letterboxd — file upload in settings)
 109. Add avatar_url to backend GroupMemberResponse so group member avatars show
 110. Profile edit UI (taste bio — backend already wired)
 111. Polish: empty states, error handling
@@ -327,7 +334,7 @@ blnd_ios/blnd_ios/
 
 ## Last Updated
 
-2026-04-02
+2026-04-13
 
 ## graphify
 

@@ -59,9 +59,13 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
                 if let idStr = userInfo["group_id"] as? String, let groupId = Int(idStr) {
                     deepLinkState?.pending = .groupDetail(groupId: groupId)
                 }
-            case "friend_activity":
+            case "friend_activity", "friend_accepted":
                 if let idStr = userInfo["tmdb_id"] as? String, let tmdbId = Int(idStr) {
                     deepLinkState?.pending = .movieDetail(tmdbId: tmdbId)
+                }
+            case "group_watchlist":
+                if let idStr = userInfo["group_id"] as? String, let groupId = Int(idStr) {
+                    deepLinkState?.pending = .groupDetail(groupId: groupId)
                 }
             case "weekly_digest":
                 break

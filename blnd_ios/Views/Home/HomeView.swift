@@ -14,8 +14,8 @@ enum HomeTab: String, CaseIterable {
 }
 
 struct HomeView: View {
-    @Environment(TabState.self) private var tabState
-    @Environment(DeepLinkState.self) private var deepLinkState
+    @Environment(TabState.self) var tabState
+    @Environment(DeepLinkState.self) var deepLinkState
     @State var selectedTab: HomeTab = .forYou
     @State var showSearch = false
     @State var viewMode: ViewMode = .reels

@@ -56,8 +56,8 @@ struct NotificationsSettingsView: View {
             }
             Divider().background(AppTheme.cardSecondary)
             toggleRow(
-                label: "Group Invites",
-                subtitle: "When someone adds you to a group",
+                label: "Blend Invites",
+                subtitle: "When someone adds you to a blend",
                 isOn: $groupInvites
             ) {
                 await updatePreference(groupInvites: groupInvites)

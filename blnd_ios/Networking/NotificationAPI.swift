@@ -30,6 +30,32 @@ enum NotificationAPI {
         )
     }
 
+    /// POST /notifications/badge/reset — reset badge count to 0
+    static func resetBadge() async throws {
+        try await APIClient.shared.requestVoid(
+            endpoint: "/notifications/badge/reset",
+            method: "POST",
+            authenticated: true
+        )
+    }
+
+    /// GET /notifications/inbox — get unified notification feed
+    static func getInbox(limit: Int = 30, offset: Int = 0) async throws -> InboxResponse {
+        try await APIClient.shared.request(
+            endpoint: "/notifications/inbox?limit=\(limit)&offset=\(offset)",
+            authenticated: true
+        )
+    }
+
+    /// POST /notifications/inbox/read — mark all inbox items as read
+    static func markInboxRead() async throws {
+        try await APIClient.shared.requestVoid(
+            endpoint: "/notifications/inbox/read",
+            method: "POST",
+            authenticated: true
+        )
+    }
+
     /// PATCH /notifications/preferences — update notification preference toggles (partial)
     static func updatePreferences(
         _ prefs: UpdatePreferencesRequest

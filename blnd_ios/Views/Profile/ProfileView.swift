@@ -11,6 +11,8 @@ struct ProfileView: View {
     @Environment(TabState.self) private var tabState
     @State private var showSettings = false
     @State private var showImportContext = false
+    @State private var showNotifications = false
+    @State private var unreadCount = 0
     @State private var selectedTab: ProfileTab = .watched
     @Namespace private var profileTabNamespace
 
@@ -66,12 +68,22 @@ struct ProfileView: View {
             .navigationDestination(isPresented: $showImportContext) {
                 ImportContextView()
             }
+            .navigationDestination(isPresented: $showNotifications) {
+                ActivityFeedView()
+            }
             .task {
                 async let watched: () = loadWatched()
                 async let watchlist: () = loadWatchlist()
                 async let counts: () = loadCounts()
                 async let taste: () = loadTaste()
-                _ = await (watched, watchlist, counts, taste)
+                async let unread: () = loadUnreadCount()
+                _ = await (watched, watchlist, counts, taste, unread)
+            }
+            .onChange(of: showNotifications) {
+                if !showNotifications {
+                    // Refresh unread count when coming back from notifications
+                    Task { await loadUnreadCount() }
+                }
             }
         }
     }
@@ -94,6 +106,21 @@ struct ProfileView: View {
                 .foregroundStyle(AppTheme.textDim)
             }
             Spacer()
+            Button {
+                showNotifications = true
+            } label: {
+                ZStack(alignment: .topTrailing) {
+                    Image(systemName: "bell")
+                        .font(.system(size: 20))
+                        .foregroundStyle(AppTheme.textDim)
+                    if unreadCount > 0 {
+                        Circle()
+                            .fill(.red)
+                            .frame(width: 8, height: 8)
+                            .offset(x: 2, y: -2)
+                    }
+                }
+            }
             Button {
                 showSettings = true
             } label: {
@@ -295,6 +322,15 @@ struct ProfileView: View {
             return
         } catch { /* Non-critical — empty state shown */ }
         isLoadingWatchlist = false
+    }
+
+    private func loadUnreadCount() async {
+        do {
+            let response = try await NotificationAPI.getInbox(limit: 1)
+            unreadCount = response.unreadCount
+        } catch {
+            // Non-critical
+        }
     }
 
     private func loadTaste() async {

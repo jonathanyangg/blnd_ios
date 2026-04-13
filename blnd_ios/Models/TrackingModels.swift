@@ -154,3 +154,68 @@ struct FriendsWhoWatchedResponse: Decodable {
     let results: [FriendWatchedResponse]
     let total: Int
 }
+
+// MARK: - Activity Feed
+
+struct ActivityFeedItem: Decodable, Identifiable {
+    let id: Int
+    let userId: String
+    let username: String
+    let displayName: String?
+    let avatarUrl: String?
+    let action: String
+    let tmdbId: Int
+    let title: String?
+    let posterPath: String?
+    let rating: Double?
+    let createdAt: String
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case userId = "user_id"
+        case username
+        case displayName = "display_name"
+        case avatarUrl = "avatar_url"
+        case action
+        case tmdbId = "tmdb_id"
+        case title
+        case posterPath = "poster_path"
+        case rating
+        case createdAt = "created_at"
+    }
+
+    var actionText: String {
+        switch action {
+        case "rated":
+            if let rating {
+                let formatted = rating.truncatingRemainder(dividingBy: 1) == 0
+                    ? String(format: "%.0f", rating)
+                    : String(format: "%.1f", rating)
+                return "rated \(title ?? "a movie") ★ \(formatted)"
+            }
+            return "rated \(title ?? "a movie")"
+        case "watched":
+            return "watched \(title ?? "a movie")"
+        case "watchlisted":
+            return "added \(title ?? "a movie") to watchlist"
+        default:
+            return "\(action) \(title ?? "a movie")"
+        }
+    }
+
+    var timeAgo: String {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        guard let date = formatter.date(from: createdAt) else { return "" }
+        let seconds = Int(Date().timeIntervalSince(date))
+        if seconds < 60 { return "just now" }
+        if seconds < 3600 { return "\(seconds / 60)m ago" }
+        if seconds < 86400 { return "\(seconds / 3600)h ago" }
+        if seconds < 604_800 { return "\(seconds / 86400)d ago" }
+        return "\(seconds / 604_800)w ago"
+    }
+}
+
+struct ActivityFeedResponse: Decodable {
+    let results: [ActivityFeedItem]
+}
