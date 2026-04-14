@@ -32,7 +32,7 @@ enum TutorialPreset {
             demo: .swipeLeft
         ),
         .init(
-            text: "Tap the star to rate",
+            text: "Tap a star to rate instantly",
             demo: .rateButton
         ),
     ]

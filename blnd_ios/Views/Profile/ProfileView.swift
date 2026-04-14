@@ -13,6 +13,7 @@ struct ProfileView: View {
     @State private var showImportContext = false
     @State private var showNotifications = false
     @State private var unreadCount = 0
+    @State private var showFullAvatar = false
     @State private var selectedTab: ProfileTab = .watched
     @Namespace private var profileTabNamespace
 
@@ -70,6 +71,11 @@ struct ProfileView: View {
             }
             .navigationDestination(isPresented: $showNotifications) {
                 ActivityFeedView()
+            }
+            .fullScreenCover(isPresented: $showFullAvatar) {
+                FullAvatarView(url: authState.currentUser?.avatarUrl) {
+                    showFullAvatar = false
+                }
             }
             .task {
                 async let watched: () = loadWatched()
@@ -138,8 +144,10 @@ struct ProfileView: View {
 
     private var userInfo: some View {
         VStack(spacing: 0) {
-            AvatarView(url: authState.currentUser?.avatarUrl, size: 80)
-                .padding(.bottom, 12)
+            Button { showFullAvatar = true } label: {
+                AvatarView(url: authState.currentUser?.avatarUrl, size: 80)
+            }
+            .padding(.bottom, 12)
 
             Text(authState.currentUser?.displayName ?? authState.currentUser?.username ?? "User")
                 .font(.system(size: 22, weight: .bold))
@@ -289,10 +297,12 @@ struct ProfileView: View {
             .frame(maxWidth: .infinity)
             .padding(.top, 40)
     }
+}
 
-    // MARK: - Data Loading
+// MARK: - Data Loading
 
-    private func loadWatched() async {
+extension ProfileView {
+    func loadWatched() async {
         isLoadingWatched = true
         do {
             let response = try await TrackingAPI.getWatchHistory(limit: 50)
@@ -304,7 +314,7 @@ struct ProfileView: View {
         isLoadingWatched = false
     }
 
-    private func loadCounts() async {
+    func loadCounts() async {
         let cache = UserActionCache.shared
         await cache.fetchFriends()
         let groups = await cache.fetchGroups()
@@ -312,7 +322,7 @@ struct ProfileView: View {
         groupsCount = groups.count
     }
 
-    private func loadWatchlist() async {
+    func loadWatchlist() async {
         isLoadingWatchlist = true
         do {
             let response = try await TrackingAPI.getWatchlist(limit: 50)
@@ -324,7 +334,7 @@ struct ProfileView: View {
         isLoadingWatchlist = false
     }
 
-    private func loadUnreadCount() async {
+    func loadUnreadCount() async {
         do {
             let response = try await NotificationAPI.getInbox(limit: 1)
             unreadCount = response.unreadCount
@@ -333,7 +343,7 @@ struct ProfileView: View {
         }
     }
 
-    private func loadTaste() async {
+    func loadTaste() async {
         isLoadingTaste = true
         do {
             genreTaste = try await ProfileAPI.getGenreTaste()

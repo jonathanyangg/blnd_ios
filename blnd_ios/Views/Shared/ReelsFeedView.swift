@@ -38,16 +38,9 @@ struct ReelsFeedView: View {
                                     )
                                 }
                                 showToast(msg)
+                                advanceToNext(from: movie.tmdbId)
                             },
-                            onRated: { rating in
-                                let text = String(
-                                    format: "%.1f",
-                                    rating
-                                )
-                                showToast(
-                                    "Rated \(text) stars"
-                                )
-                            }
+                            onRated: { _ in }
                         )
                         .frame(height: cardHeight)
                         .id(movie.tmdbId)
@@ -112,6 +105,20 @@ struct ReelsFeedView: View {
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
                 .presentationBackground(AppTheme.card)
+        }
+    }
+
+    // MARK: - Navigation
+
+    private func advanceToNext(from tmdbId: Int) {
+        guard let idx = movies.firstIndex(where: { $0.tmdbId == tmdbId }),
+              idx + 1 < movies.count
+        else { return }
+        let nextId = movies[idx + 1].tmdbId
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+            withAnimation(.easeInOut(duration: 0.35)) {
+                currentId = nextId
+            }
         }
     }
 

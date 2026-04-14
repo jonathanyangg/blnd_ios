@@ -1,3 +1,4 @@
+import PostHog
 import SwiftUI
 
 // MARK: - UI Sections
@@ -47,61 +48,21 @@ extension MovieDetailView {
         .padding(.horizontal, 24)
     }
 
-    var watchNowButton: some View {
-        Button { showStreamingSheet = true } label: {
-            HStack(spacing: 6) {
-                Image(systemName: "play.circle.fill")
-                    .font(.system(size: 14, weight: .semibold))
-                Text("Watch Now")
-            }
-            .font(.system(size: 15, weight: .semibold))
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 13)
-            .background(.white)
-            .foregroundStyle(.black)
-            .clipShape(
-                RoundedRectangle(
-                    cornerRadius: AppTheme.cornerRadiusMedium
-                )
-            )
-        }
-        .padding(.bottom, 8)
-    }
-
-    var actionButtons: some View {
+    var actionButtonsRow: some View {
         HStack(spacing: 10) {
-            Button {
-                if isWatched {
-                    showWatchedOptions = true
-                } else {
-                    showRatingSheet = true
-                }
-            } label: {
+            Button { showStreamingSheet = true } label: {
                 HStack(spacing: 6) {
-                    Image(
-                        systemName: isWatched
-                            ? "checkmark.circle.fill" : "eye"
-                    )
-                    .font(.system(size: 14, weight: .semibold))
-                    if isWatched {
-                        if let userRating {
-                            Text("★ \(String(format: "%.1f", userRating))")
-                        } else {
-                            Text("Watched")
-                        }
-                    } else {
-                        Text("Mark Watched")
-                    }
+                    Image(systemName: "play.circle.fill")
+                        .font(.system(size: 14, weight: .semibold))
+                    Text("Watch Now")
                 }
                 .font(.system(size: 15, weight: .semibold))
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 13)
-                .background(isWatched ? .white : AppTheme.card)
-                .foregroundStyle(isWatched ? .black : .white)
+                .background(.white)
+                .foregroundStyle(.black)
                 .clipShape(
-                    RoundedRectangle(
-                        cornerRadius: AppTheme.cornerRadiusMedium
-                    )
+                    RoundedRectangle(cornerRadius: AppTheme.cornerRadiusMedium)
                 )
             }
 
@@ -117,49 +78,14 @@ extension MovieDetailView {
                 .font(.system(size: 15, weight: .semibold))
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 13)
-                .background(
-                    isInWatchlist ? AppTheme.card : .white
-                )
-                .foregroundStyle(
-                    isInWatchlist ? .white : .black
-                )
+                .background(isInWatchlist ? AppTheme.card : .white)
+                .foregroundStyle(isInWatchlist ? .white : .black)
                 .clipShape(
-                    RoundedRectangle(
-                        cornerRadius: AppTheme.cornerRadiusMedium
-                    )
+                    RoundedRectangle(cornerRadius: AppTheme.cornerRadiusMedium)
                 )
             }
         }
         .padding(.bottom, 20)
-        .confirmationDialog(
-            "Watched",
-            isPresented: $showWatchedOptions,
-            titleVisibility: .visible
-        ) {
-            Button("Change Rating") {
-                showRatingSheet = true
-            }
-            Button(
-                "Remove from Watched",
-                role: .destructive
-            ) {
-                showUnwatchConfirm = true
-            }
-        }
-        .confirmationDialog(
-            "Remove from watched?",
-            isPresented: $showUnwatchConfirm,
-            titleVisibility: .visible
-        ) {
-            Button("Remove", role: .destructive) {
-                Task { await unwatchMovie() }
-            }
-        } message: {
-            Text(
-                "This will remove your rating and watch "
-                    + "history for this movie."
-            )
-        }
         .sheet(isPresented: $showWatchlistSheet) {
             WatchlistPickerSheet(
                 tmdbId: tmdbId,
@@ -178,6 +104,103 @@ extension MovieDetailView {
         RoundedRectangle(cornerRadius: 14)
             .fill(AppTheme.posterGradient)
             .frame(height: 200)
+    }
+
+    var detailRatingBar: some View {
+        HStack(spacing: 0) {
+            Color.clear.frame(width: 32, height: 36)
+
+            Spacer(minLength: 0)
+
+            HStack(spacing: 12) {
+                ForEach(1 ... 5, id: \.self) { index in
+                    detailRatingStar(index: index)
+                }
+            }
+
+            Spacer(minLength: 0)
+
+            if userRating != nil {
+                Button { clearDetailRating() } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 20))
+                        .foregroundStyle(AppTheme.textMuted)
+                        .frame(width: 32, height: 36)
+                }
+            } else {
+                Color.clear.frame(width: 32, height: 36)
+            }
+        }
+        .padding(.bottom, 20)
+    }
+
+    @ViewBuilder
+    private func detailRatingStar(index: Int) -> some View {
+        let rating = userRating ?? 0
+        let full = Double(index)
+        let half = full - 0.5
+        let icon = if rating >= full {
+            "star.fill"
+        } else if rating >= half {
+            "star.leadinghalf.filled"
+        } else {
+            "star"
+        }
+        let tint: Color = rating >= half ? .white : AppTheme.border
+
+        HStack(spacing: 0) {
+            Color.clear
+                .frame(width: 18, height: 32)
+                .contentShape(Rectangle())
+                .onTapGesture { saveDetailRating(half) }
+            Color.clear
+                .frame(width: 18, height: 32)
+                .contentShape(Rectangle())
+                .onTapGesture { saveDetailRating(full) }
+        }
+        .overlay {
+            Image(systemName: icon)
+                .font(.system(size: 30))
+                .foregroundStyle(tint)
+                .allowsHitTesting(false)
+        }
+    }
+
+    private func saveDetailRating(_ value: Double) {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        let cache = UserActionCache.shared
+        let wasWatched = isWatched
+        userRating = value
+        isWatched = true
+        cache.didRate(tmdbId, rating: value)
+
+        Task {
+            do {
+                if wasWatched {
+                    _ = try await TrackingAPI.updateRating(tmdbId: tmdbId, rating: value)
+                } else {
+                    _ = try await TrackingAPI.trackMovie(tmdbId: tmdbId, rating: value)
+                    onHide?()
+                }
+                PostHogSDK.shared.capture(
+                    "movie_rated",
+                    properties: ["tmdb_id": tmdbId, "rating": value, "source": "detail"]
+                )
+            } catch {
+                // Non-critical — cache stays updated
+            }
+        }
+    }
+
+    private func clearDetailRating() {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        guard isWatched else { return }
+        userRating = nil
+        isWatched = false
+        UserActionCache.shared.didUnwatch(tmdbId)
+        Task {
+            try? await TrackingAPI.deleteWatchedMovie(tmdbId: tmdbId)
+        }
     }
 }
 
@@ -209,15 +232,6 @@ extension MovieDetailView {
                 cache.didWatch(tmdbId)
             }
         }
-    }
-
-    func unwatchMovie() async {
-        do {
-            try await TrackingAPI.deleteWatchedMovie(tmdbId: tmdbId)
-            isWatched = false
-            userRating = nil
-            UserActionCache.shared.didUnwatch(tmdbId)
-        } catch { errorMessage = error.localizedDescription }
     }
 
     func loadFriendsWhoWatched() async {
@@ -257,23 +271,5 @@ extension MovieDetailView {
             )
             isHidden = false
         } catch { errorMessage = error.localizedDescription }
-    }
-
-    func toggleWatchlist() async {
-        isWatchlistLoading = true
-        do {
-            if isInWatchlist {
-                try await TrackingAPI.removeFromWatchlist(
-                    tmdbId: tmdbId
-                )
-                isInWatchlist = false
-            } else {
-                _ = try await TrackingAPI.addToWatchlist(
-                    tmdbId: tmdbId
-                )
-                isInWatchlist = true
-            }
-        } catch { errorMessage = error.localizedDescription }
-        isWatchlistLoading = false
     }
 }

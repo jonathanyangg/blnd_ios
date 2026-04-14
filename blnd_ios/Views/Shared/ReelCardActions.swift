@@ -4,45 +4,68 @@ import SwiftUI
 // MARK: - Gestures & Actions
 
 extension ReelCardView {
+    /// Scrubber zone: bottom strip of the media where YouTube's progress
+    /// bar lives. Drags starting here skip the card swipe so the scrubber
+    /// remains usable when controls are visible.
+    var scrubberZoneHeight: CGFloat {
+        48
+    }
+
     var horizontalSwipe: some Gesture {
-        DragGesture(minimumDistance: 25)
+        DragGesture(minimumDistance: 25, coordinateSpace: .named("reelCard"))
             .onChanged { value in
-                let dxx = abs(value.translation.width)
-                let dyy = abs(value.translation.height)
-                guard dxx > dyy * 1.5 else { return }
-                isDragging = true
-
-                // Clamp offset with rubber-band feel past threshold
-                let raw = value.translation.width
-                let maxOffset = swipeThreshold + 30
-                let clamped = max(-maxOffset, min(maxOffset, raw))
-                swipeOffset = clamped
-
-                let crossed = abs(swipeOffset) >= swipeThreshold
-                if crossed, !swipeTriggeredHaptic {
-                    UIImpactFeedbackGenerator(style: .medium)
-                        .impactOccurred()
-                    swipeTriggeredHaptic = true
-                } else if !crossed, swipeTriggeredHaptic {
-                    // Reset haptic when user pulls back below threshold
-                    swipeTriggeredHaptic = false
-                }
+                if isInScrubberZone(value.startLocation.y) { return }
+                handleSwipeChanged(deltaX: value.translation.width, deltaY: value.translation.height)
             }
             .onEnded { value in
-                let dxx = abs(value.translation.width)
-                let dyy = abs(value.translation.height)
-                guard dxx > dyy * 1.5 else {
+                if isInScrubberZone(value.startLocation.y) {
                     resetSwipe()
                     return
                 }
-                let off = value.translation.width
-                if off < -swipeThreshold {
-                    Task { await hideMovie() }
-                } else if off > swipeThreshold {
-                    addToWatchlist()
-                }
-                resetSwipe()
+                handleSwipeEnded(deltaX: value.translation.width, deltaY: value.translation.height)
             }
+    }
+
+    func isInScrubberZone(_ posY: CGFloat) -> Bool {
+        mediaBottomY > 0
+            && posY >= mediaBottomY - scrubberZoneHeight
+            && posY <= mediaBottomY
+    }
+
+    /// Shared swipe-progress handler. Called from both SwiftUI's DragGesture
+    /// (title/details/rating-bar areas) and the UIKit pan installed on the
+    /// trailer container (media area).
+    func handleSwipeChanged(deltaX: CGFloat, deltaY: CGFloat) {
+        let absX = abs(deltaX)
+        let absY = abs(deltaY)
+        guard absX > absY * 1.5 else { return }
+        isDragging = true
+
+        let maxOffset = swipeThreshold + 30
+        swipeOffset = max(-maxOffset, min(maxOffset, deltaX))
+
+        let crossed = abs(swipeOffset) >= swipeThreshold
+        if crossed, !swipeTriggeredHaptic {
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            swipeTriggeredHaptic = true
+        } else if !crossed, swipeTriggeredHaptic {
+            swipeTriggeredHaptic = false
+        }
+    }
+
+    func handleSwipeEnded(deltaX: CGFloat, deltaY: CGFloat) {
+        let absX = abs(deltaX)
+        let absY = abs(deltaY)
+        guard absX > absY * 1.5 else {
+            resetSwipe()
+            return
+        }
+        if deltaX < -swipeThreshold {
+            Task { await hideMovie() }
+        } else if deltaX > swipeThreshold {
+            addToWatchlist()
+        }
+        resetSwipe()
     }
 
     func resetSwipe() {

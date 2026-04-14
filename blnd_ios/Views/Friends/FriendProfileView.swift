@@ -33,6 +33,7 @@ struct FriendProfileView: View {
     @State var showMutualsList = false
 
     @State var selectedFriendOfFriend: PublicFriendResponse?
+    @State var showFullAvatar = false
 
     var body: some View {
         ScrollView {
@@ -131,14 +132,25 @@ struct FriendProfileView: View {
             }
         }
         .task { await loadData() }
+        .fullScreenCover(isPresented: $showFullAvatar) {
+            FullAvatarView(url: avatarUrl) {
+                showFullAvatar = false
+            }
+        }
     }
 
     // MARK: - Profile Header
 
+    private var avatarUrl: String? {
+        publicProfile?.avatarUrl ?? friend.avatarUrl
+    }
+
     private var profileHeader: some View {
         VStack(spacing: 0) {
-            AvatarView(url: publicProfile?.avatarUrl ?? friend.avatarUrl, size: 80)
-                .padding(.bottom, 12)
+            Button { showFullAvatar = true } label: {
+                AvatarView(url: avatarUrl, size: 80)
+            }
+            .padding(.bottom, 12)
 
             Text(publicProfile?.displayName ?? friend.displayName ?? friend.username)
                 .font(.system(size: 22, weight: .bold))

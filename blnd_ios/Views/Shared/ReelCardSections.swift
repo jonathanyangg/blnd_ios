@@ -24,7 +24,8 @@ extension ReelCardView {
                 Text(displayTitle)
                     .font(.system(size: 22, weight: .bold))
                     .foregroundStyle(.white)
-                    .lineLimit(2)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
 
                 if let pct = displayScorePercent {
                     matchBadge(pct)
@@ -33,7 +34,6 @@ extension ReelCardView {
                 Spacer()
 
                 streamingButton
-                rateButton
             }
 
             metaLine
@@ -46,36 +46,6 @@ extension ReelCardView {
                 .font(.system(size: 15))
                 .foregroundStyle(AppTheme.textDim)
         }
-    }
-
-    var rateButton: some View {
-        Button {
-            showRating = true
-        } label: {
-            if let userRating = UserActionCache.shared.rating(for: movie.tmdbId) {
-                HStack(spacing: 3) {
-                    Image(systemName: "star.fill")
-                        .font(.system(size: 11))
-                    Text(formattedRating(userRating))
-                        .font(.system(size: 12, weight: .bold))
-                }
-                .foregroundStyle(.white)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(.white.opacity(0.15))
-                .clipShape(Capsule())
-            } else {
-                Image(systemName: "star")
-                    .font(.system(size: 16))
-                    .foregroundStyle(AppTheme.textDim)
-            }
-        }
-    }
-
-    private func formattedRating(_ rating: Double) -> String {
-        rating.truncatingRemainder(dividingBy: 1) == 0
-            ? String(format: "%.0f", rating)
-            : String(format: "%.1f", rating)
     }
 
     func matchBadge(_ pct: Int) -> some View {
@@ -187,37 +157,40 @@ extension ReelCardView {
         VStack(alignment: .leading, spacing: 12) {
             if !genres.isEmpty {
                 genrePills
+                    .layoutPriority(3)
             }
 
             cardTagline
+                .layoutPriority(2)
 
             cardOverview
+                .layoutPriority(1)
 
-            if !overviewExpanded {
+            if overviewExpanded {
                 compactCastSection
+                    .layoutPriority(4)
+            } else {
                 compactFriendsSection
+                    .layoutPriority(5)
             }
         }
     }
 
-    // MARK: - Friends Who Watched (Compact, always visible)
+    // MARK: - Friends Who Watched (Compact, only when at least one friend watched)
 
+    @ViewBuilder
     var compactFriendsSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Watched by")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(AppTheme.textMuted)
+        if !friendsWhoWatched.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Watched by")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white)
 
-            if friendsWhoWatched.isEmpty {
-                Text("No friends have seen this movie")
-                    .font(.system(size: 12))
-                    .foregroundStyle(AppTheme.textDim)
-            } else {
                 ScrollView(
                     .horizontal,
                     showsIndicators: false
                 ) {
-                    HStack(spacing: 10) {
+                    HStack(alignment: .top, spacing: 10) {
                         ForEach(
                             Array(friendsWhoWatched.enumerated()),
                             id: \.element.id
@@ -288,29 +261,10 @@ extension ReelCardView {
 
     // MARK: - Overview (Expandable)
 
-    func computeOverviewMaxHeight(_ size: CGSize) -> CGFloat {
-        guard size.height > 0,
-              size.width > 0
-        else { return 80 }
-        let mediaH = (size.width - 32) * 9 / 16
-        var fixedH: CGFloat = 95 + mediaH + 14
-        var items = 1
-        if !genres.isEmpty {
-            fixedH += 30
-            items += 1
-        }
-        if let tag = movie.tagline, !tag.isEmpty {
-            fixedH += 36
-            items += 1
-        }
-        if !movie.cast.isEmpty {
-            fixedH += 51
-            items += 1
-        }
-        fixedH += 90
-        items += 1
-        fixedH += CGFloat(items - 1) * 12
-        return max(60, size.height - fixedH - 40)
+    /// True when the rendered Text is shorter than its full intrinsic
+    /// height, meaning SwiftUI truncated it to fit the available space.
+    var isOverviewTruncated: Bool {
+        overviewFullHeight > overviewCappedHeight + 1
     }
 
     @ViewBuilder
@@ -321,61 +275,63 @@ extension ReelCardView {
             : realText
         if !text.isEmpty {
             VStack(alignment: .leading, spacing: 4) {
+                // No .fixedSize — Text stays flexible in height so SwiftUI
+                // can compress it when siblings have higher layoutPriority.
+                // lineLimit(10) is a hard upper bound; actual line count
+                // falls out of the space SwiftUI grants us.
                 Text(text)
                     .font(.system(size: 13))
                     .foregroundStyle(AppTheme.textMuted)
                     .lineSpacing(3)
-                    .fixedSize(
-                        horizontal: false,
-                        vertical: overviewExpanded
-                    )
-                    .frame(
-                        maxWidth: .infinity,
-                        maxHeight: overviewExpanded
-                            ? nil : min(
-                                overviewFullHeight > 0
-                                    ? overviewFullHeight
-                                    : overviewMaxHeightValue,
-                                overviewMaxHeightValue
-                            ),
-                        alignment: .topLeading
-                    )
-                    .clipped()
-                    .overlay {
-                        Text(text)
-                            .font(.system(size: 13))
-                            .lineSpacing(3)
-                            .fixedSize(
-                                horizontal: false,
-                                vertical: true
-                            )
-                            .hidden()
-                            .background(GeometryReader { geo in
-                                Color.clear.preference(
-                                    key: OverviewFullH.self,
-                                    value: geo.size.height
-                                )
-                            })
-                    }
+                    .lineLimit(overviewExpanded ? nil : 10)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                    .background(GeometryReader { geo in
+                        Color.clear.preference(
+                            key: OverviewTruncH.self,
+                            value: geo.size.height
+                        )
+                    })
+                    .background(overviewMeasurer(text))
                     .onPreferenceChange(OverviewFullH.self) {
                         overviewFullHeight = $0
                     }
+                    .onPreferenceChange(OverviewTruncH.self) {
+                        overviewCappedHeight = $0
+                    }
 
-                if overviewExpanded || overviewFullHeight > overviewMaxHeightValue + 1 {
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            overviewExpanded.toggle()
+                if overviewExpanded || isOverviewTruncated {
+                    HStack {
+                        Spacer()
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                overviewExpanded.toggle()
+                            }
+                        } label: {
+                            Text(overviewExpanded ? "less" : "more")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(.white)
                         }
-                    } label: {
-                        Text(overviewExpanded ? "less" : "more")
-                            .font(.system(
-                                size: 13, weight: .medium
-                            ))
-                            .foregroundStyle(.white)
                     }
                 }
             }
         }
+    }
+
+    private func overviewMeasurer(_ text: String) -> some View {
+        // Hidden sibling that reports the full intrinsic height of the
+        // overview. Compared against the visible Text's rendered height
+        // to decide whether to show the "more" button.
+        Text(text)
+            .font(.system(size: 13))
+            .lineSpacing(3)
+            .fixedSize(horizontal: false, vertical: true)
+            .hidden()
+            .background(GeometryReader { geo in
+                Color.clear.preference(
+                    key: OverviewFullH.self,
+                    value: geo.size.height
+                )
+            })
     }
 
     // MARK: - Compact Cast
@@ -479,14 +435,5 @@ extension ReelCardView {
                 Spacer()
             }
         }
-    }
-
-    // MARK: - Rating Overlay
-
-    var ratingOverlay: some View {
-        ReelRatingOverlay(title: movie.title, tmdbId: movie.tmdbId, onDismiss: { showRating = false }, onSaved: {
-            showRating = false
-            onRated?($0)
-        })
     }
 }
