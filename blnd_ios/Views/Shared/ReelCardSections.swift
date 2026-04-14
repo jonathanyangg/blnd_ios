@@ -267,6 +267,18 @@ extension ReelCardView {
         overviewFullHeight > overviewCappedHeight + 1
     }
 
+    /// Whether the card has a tagline ("hero description") above the
+    /// overview. When it does, overview can disappear entirely under
+    /// pressure; when it doesn't, overview holds at least 1 line to
+    /// act as the tagline stand-in.
+    var hasTagline: Bool {
+        let real = movie.tagline ?? ""
+        let tag = APIConfig.screenshotMode
+            ? ScreenshotDummy.tagline(for: movie.tmdbId)
+            : real
+        return !tag.isEmpty
+    }
+
     @ViewBuilder
     var cardOverview: some View {
         let realText = movie.overview ?? ""
@@ -279,12 +291,20 @@ extension ReelCardView {
                 // can compress it when siblings have higher layoutPriority.
                 // lineLimit(10) is a hard upper bound; actual line count
                 // falls out of the space SwiftUI grants us.
+                //
+                // When there's no tagline, reserve at least 1 line via
+                // minHeight so the overview stands in for the tagline and
+                // can't be compressed to 0.
                 Text(text)
                     .font(.system(size: 13))
                     .foregroundStyle(AppTheme.textMuted)
                     .lineSpacing(3)
                     .lineLimit(overviewExpanded ? nil : 10)
-                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                    .frame(
+                        maxWidth: .infinity,
+                        minHeight: hasTagline || overviewExpanded ? 0 : 19,
+                        alignment: .topLeading
+                    )
                     .background(GeometryReader { geo in
                         Color.clear.preference(
                             key: OverviewTruncH.self,
