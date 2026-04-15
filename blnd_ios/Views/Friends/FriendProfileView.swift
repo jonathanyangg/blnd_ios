@@ -6,9 +6,13 @@ struct FriendProfileView: View {
     @State var showRemoveAlert = false
     @State var showBlockAlert = false
     @State var showUnblockAlert = false
+    @State var showReportDialog = false
+    @State var showReportConfirmation = false
+    @State var reportReason: String = ""
     @State var isRemoving = false
     @State var isSendingRequest = false
     @State var isBlocking = false
+    @State var isReporting = false
     @State var friendshipAction: String?
     @State var blockOverride: BlockOverride = .none
     @Environment(\.dismiss) var dismiss
@@ -100,6 +104,29 @@ struct FriendProfileView: View {
             }
         } message: {
             Text("They'll be able to find you and send friend requests again.")
+        }
+        .confirmationDialog(
+            "Report @\(friend.username)",
+            isPresented: $showReportDialog,
+            titleVisibility: .visible
+        ) {
+            Button("Spam") { submitReport("spam") }
+            Button("Harassment or bullying") { submitReport("harassment") }
+            Button("Hate speech or symbols") { submitReport("hate") }
+            Button("Sexual or inappropriate content") { submitReport("sexual") }
+            Button("Impersonation") { submitReport("impersonation") }
+            Button("Something else") { submitReport("other") }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(
+                "Reports are reviewed within 24 hours. Offending content "
+                    + "will be removed and repeat offenders will be ejected from blnd."
+            )
+        }
+        .alert("Thanks for the report", isPresented: $showReportConfirmation) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("We'll review this report within 24 hours.")
         }
         .sheet(isPresented: $showFriendsList) {
             FriendsListSheet(friends: friendsList, isLoading: isLoadingFriends) { selected in
@@ -265,9 +292,13 @@ struct FriendProfileView: View {
         case .none: publicProfile?.isBlocked ?? false
         }
     }
+}
 
+// MARK: - Profile Menu
+
+extension FriendProfileView {
     @ViewBuilder
-    private var profileMenu: some View {
+    var profileMenu: some View {
         let isSelf = friend.id == (KeychainManager.readString(key: "userId") ?? "")
         if isSelf {
             EmptyView()
@@ -302,6 +333,10 @@ struct FriendProfileView: View {
                     }
                 }
 
+                Button("Report", role: .destructive) {
+                    showReportDialog = true
+                }
+
                 Button("Block", role: .destructive) {
                     showBlockAlert = true
                 }
@@ -311,6 +346,20 @@ struct FriendProfileView: View {
                     .foregroundStyle(.white)
                     .frame(width: 32, height: 32)
             }
+        }
+    }
+
+    func submitReport(_ reason: String) {
+        guard !isReporting else { return }
+        isReporting = true
+        Task {
+            defer { isReporting = false }
+            do {
+                try await FriendsAPI.reportUser(userId: friend.id, reason: reason)
+            } catch {
+                // Non-fatal — still show confirmation so user knows we heard them
+            }
+            showReportConfirmation = true
         }
     }
 }

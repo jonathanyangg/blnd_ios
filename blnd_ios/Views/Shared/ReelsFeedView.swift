@@ -12,6 +12,7 @@ struct ReelsFeedView: View {
     @State private var toastTask: Task<Void, Never>?
     @State private var watchlistTmdbId: Int?
     @State private var addedToWatchlist: Set<Int> = []
+    @State private var lastWatchlistedTmdbId: Int?
     @State private var lastHiddenTmdbId: Int?
 
     var body: some View {
@@ -36,6 +37,7 @@ struct ReelsFeedView: View {
                                     addedToWatchlist.insert(
                                         movie.tmdbId
                                     )
+                                    lastWatchlistedTmdbId = movie.tmdbId
                                 }
                                 showToast(msg)
                                 advanceToNext(from: movie.tmdbId)
@@ -144,8 +146,8 @@ struct ReelsFeedView: View {
     private func handleToastAction(_ toast: String) {
         toastMessage = nil
         if toast.contains("Watchlist") {
-            if let curId = currentId {
-                watchlistTmdbId = curId
+            if let id = lastWatchlistedTmdbId {
+                watchlistTmdbId = id
             }
         } else if toast.contains("Won't show"), let id = lastHiddenTmdbId {
             Task {

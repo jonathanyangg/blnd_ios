@@ -137,6 +137,10 @@ struct SignUpView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.top, 20)
                     }
+
+                    termsFooter
+                        .padding(.top, 16)
+                        .padding(.bottom, 24)
                 }
                 .padding(.horizontal, 24)
             }
@@ -180,6 +184,39 @@ struct SignUpView: View {
 
     private func isValidPassword(_ password: String) -> Bool {
         password.count >= 8 && password.contains(where: \.isUppercase)
+    }
+
+    /// EULA/Terms disclosure required by App Store guideline 1.2 for apps with UGC.
+    /// Links out to hosted Terms of Use + Privacy Policy.
+    private var termsFooter: some View {
+        VStack(spacing: 2) {
+            Text("By creating an account, you agree to our")
+                .font(.system(size: 11))
+                .foregroundStyle(AppTheme.textMuted)
+            HStack(spacing: 4) {
+                Link(
+                    "Terms of Use",
+                    destination: URL(string: "https://blnd.movie/terms")!
+                )
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.white)
+                Text("and")
+                    .font(.system(size: 11))
+                    .foregroundStyle(AppTheme.textMuted)
+                Link(
+                    "Privacy Policy",
+                    destination: URL(string: "https://blnd.movie/privacy")!
+                )
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.white)
+            }
+            Text("blnd has zero tolerance for objectionable content or abusive users.")
+                .font(.system(size: 11))
+                .foregroundStyle(AppTheme.textMuted)
+                .multilineTextAlignment(.center)
+                .padding(.top, 4)
+        }
+        .frame(maxWidth: .infinity)
     }
 }
 

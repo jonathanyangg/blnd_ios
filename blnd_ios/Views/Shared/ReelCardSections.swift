@@ -163,7 +163,7 @@ extension ReelCardView {
             cardTagline
                 .layoutPriority(2)
 
-            cardOverview
+            overviewGroup
                 .layoutPriority(1)
 
             if overviewExpanded {
@@ -172,6 +172,71 @@ extension ReelCardView {
             } else {
                 compactFriendsSection
                     .layoutPriority(5)
+            }
+        }
+    }
+
+    /// Overview + its toggle button. In collapsed state, `ViewThatFits`
+    /// picks the first variant that fits — so the overview grows up to
+    /// 5 lines when there's room, shrinks down to 1 line when tight,
+    /// and disappears entirely when there isn't even room for one line
+    /// (tagline wins, since it has higher layoutPriority).
+    @ViewBuilder
+    var overviewGroup: some View {
+        if overviewExpanded {
+            VStack(alignment: .leading, spacing: 3) {
+                cardOverview
+                lessButton
+            }
+        } else if !overviewText.isEmpty {
+            ViewThatFits(in: .vertical) {
+                collapsedOverviewBlock(lines: 5)
+                collapsedOverviewBlock(lines: 4)
+                collapsedOverviewBlock(lines: 3)
+                collapsedOverviewBlock(lines: 2)
+                collapsedOverviewBlock(lines: 1)
+                EmptyView()
+            }
+        }
+    }
+
+    /// One collapsed-state variant: overview capped at `lines` plus the
+    /// "more" button underneath if the full text is truncated at that cap.
+    func collapsedOverviewBlock(lines: Int) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            overviewTextView(lineCap: lines)
+            if isOverviewTruncated {
+                moreButton
+            }
+        }
+    }
+
+    var moreButton: some View {
+        HStack {
+            Spacer()
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    overviewExpanded = true
+                }
+            } label: {
+                Text("more")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white)
+            }
+        }
+    }
+
+    var lessButton: some View {
+        HStack {
+            Spacer()
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    overviewExpanded = false
+                }
+            } label: {
+                Text("less")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white)
             }
         }
     }
@@ -257,101 +322,6 @@ extension ReelCardView {
                 .italic()
                 .lineLimit(2)
         }
-    }
-
-    // MARK: - Overview (Expandable)
-
-    /// True when the rendered Text is shorter than its full intrinsic
-    /// height, meaning SwiftUI truncated it to fit the available space.
-    var isOverviewTruncated: Bool {
-        overviewFullHeight > overviewCappedHeight + 1
-    }
-
-    /// Whether the card has a tagline ("hero description") above the
-    /// overview. When it does, overview can disappear entirely under
-    /// pressure; when it doesn't, overview holds at least 1 line to
-    /// act as the tagline stand-in.
-    var hasTagline: Bool {
-        let real = movie.tagline ?? ""
-        let tag = APIConfig.screenshotMode
-            ? ScreenshotDummy.tagline(for: movie.tmdbId)
-            : real
-        return !tag.isEmpty
-    }
-
-    @ViewBuilder
-    var cardOverview: some View {
-        let realText = movie.overview ?? ""
-        let text = APIConfig.screenshotMode
-            ? ScreenshotDummy.overview(for: movie.tmdbId)
-            : realText
-        if !text.isEmpty {
-            VStack(alignment: .leading, spacing: 4) {
-                // No .fixedSize — Text stays flexible in height so SwiftUI
-                // can compress it when siblings have higher layoutPriority.
-                // lineLimit(10) is a hard upper bound; actual line count
-                // falls out of the space SwiftUI grants us.
-                //
-                // When there's no tagline, reserve at least 1 line via
-                // minHeight so the overview stands in for the tagline and
-                // can't be compressed to 0.
-                Text(text)
-                    .font(.system(size: 13))
-                    .foregroundStyle(AppTheme.textMuted)
-                    .lineSpacing(3)
-                    .lineLimit(overviewExpanded ? nil : 10)
-                    .frame(
-                        maxWidth: .infinity,
-                        minHeight: hasTagline || overviewExpanded ? 0 : 19,
-                        alignment: .topLeading
-                    )
-                    .background(GeometryReader { geo in
-                        Color.clear.preference(
-                            key: OverviewTruncH.self,
-                            value: geo.size.height
-                        )
-                    })
-                    .background(overviewMeasurer(text))
-                    .onPreferenceChange(OverviewFullH.self) {
-                        overviewFullHeight = $0
-                    }
-                    .onPreferenceChange(OverviewTruncH.self) {
-                        overviewCappedHeight = $0
-                    }
-
-                if overviewExpanded || isOverviewTruncated {
-                    HStack {
-                        Spacer()
-                        Button {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                overviewExpanded.toggle()
-                            }
-                        } label: {
-                            Text(overviewExpanded ? "less" : "more")
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundStyle(.white)
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private func overviewMeasurer(_ text: String) -> some View {
-        // Hidden sibling that reports the full intrinsic height of the
-        // overview. Compared against the visible Text's rendered height
-        // to decide whether to show the "more" button.
-        Text(text)
-            .font(.system(size: 13))
-            .lineSpacing(3)
-            .fixedSize(horizontal: false, vertical: true)
-            .hidden()
-            .background(GeometryReader { geo in
-                Color.clear.preference(
-                    key: OverviewFullH.self,
-                    value: geo.size.height
-                )
-            })
     }
 
     // MARK: - Compact Cast
