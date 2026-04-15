@@ -24,7 +24,8 @@ extension ReelCardView {
                 Text(displayTitle)
                     .font(.system(size: 22, weight: .bold))
                     .foregroundStyle(.white)
-                    .lineLimit(2)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
 
                 if let pct = displayScorePercent {
                     matchBadge(pct)
@@ -33,7 +34,6 @@ extension ReelCardView {
                 Spacer()
 
                 streamingButton
-                rateButton
             }
 
             metaLine
@@ -46,36 +46,6 @@ extension ReelCardView {
                 .font(.system(size: 15))
                 .foregroundStyle(AppTheme.textDim)
         }
-    }
-
-    var rateButton: some View {
-        Button {
-            showRating = true
-        } label: {
-            if let userRating = UserActionCache.shared.rating(for: movie.tmdbId) {
-                HStack(spacing: 3) {
-                    Image(systemName: "star.fill")
-                        .font(.system(size: 11))
-                    Text(formattedRating(userRating))
-                        .font(.system(size: 12, weight: .bold))
-                }
-                .foregroundStyle(.white)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(.white.opacity(0.15))
-                .clipShape(Capsule())
-            } else {
-                Image(systemName: "star")
-                    .font(.system(size: 16))
-                    .foregroundStyle(AppTheme.textDim)
-            }
-        }
-    }
-
-    private func formattedRating(_ rating: Double) -> String {
-        rating.truncatingRemainder(dividingBy: 1) == 0
-            ? String(format: "%.0f", rating)
-            : String(format: "%.1f", rating)
     }
 
     func matchBadge(_ pct: Int) -> some View {
@@ -187,37 +157,105 @@ extension ReelCardView {
         VStack(alignment: .leading, spacing: 12) {
             if !genres.isEmpty {
                 genrePills
+                    .layoutPriority(3)
             }
 
             cardTagline
+                .layoutPriority(2)
 
-            cardOverview
+            overviewGroup
+                .layoutPriority(1)
 
-            if !overviewExpanded {
+            if overviewExpanded {
                 compactCastSection
+                    .layoutPriority(4)
+            } else {
                 compactFriendsSection
+                    .layoutPriority(5)
             }
         }
     }
 
-    // MARK: - Friends Who Watched (Compact, always visible)
+    /// Overview + its toggle button. In collapsed state, `ViewThatFits`
+    /// picks the first variant that fits — so the overview grows up to
+    /// 5 lines when there's room, shrinks down to 1 line when tight,
+    /// and disappears entirely when there isn't even room for one line
+    /// (tagline wins, since it has higher layoutPriority).
+    @ViewBuilder
+    var overviewGroup: some View {
+        if overviewExpanded {
+            VStack(alignment: .leading, spacing: 3) {
+                cardOverview
+                lessButton
+            }
+        } else if !overviewText.isEmpty {
+            ViewThatFits(in: .vertical) {
+                collapsedOverviewBlock(lines: 5)
+                collapsedOverviewBlock(lines: 4)
+                collapsedOverviewBlock(lines: 3)
+                collapsedOverviewBlock(lines: 2)
+                collapsedOverviewBlock(lines: 1)
+                EmptyView()
+            }
+        }
+    }
 
+    /// One collapsed-state variant: overview capped at `lines` plus the
+    /// "more" button underneath if the full text is truncated at that cap.
+    func collapsedOverviewBlock(lines: Int) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            overviewTextView(lineCap: lines)
+            if isOverviewTruncated {
+                moreButton
+            }
+        }
+    }
+
+    var moreButton: some View {
+        HStack {
+            Spacer()
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    overviewExpanded = true
+                }
+            } label: {
+                Text("more")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white)
+            }
+        }
+    }
+
+    var lessButton: some View {
+        HStack {
+            Spacer()
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    overviewExpanded = false
+                }
+            } label: {
+                Text("less")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white)
+            }
+        }
+    }
+
+    // MARK: - Friends Who Watched (Compact, only when at least one friend watched)
+
+    @ViewBuilder
     var compactFriendsSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Watched by")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(AppTheme.textMuted)
+        if !friendsWhoWatched.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Watched by")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white)
 
-            if friendsWhoWatched.isEmpty {
-                Text("No friends have seen this movie")
-                    .font(.system(size: 12))
-                    .foregroundStyle(AppTheme.textDim)
-            } else {
                 ScrollView(
                     .horizontal,
                     showsIndicators: false
                 ) {
-                    HStack(spacing: 10) {
+                    HStack(alignment: .top, spacing: 10) {
                         ForEach(
                             Array(friendsWhoWatched.enumerated()),
                             id: \.element.id
@@ -283,98 +321,6 @@ extension ReelCardView {
                 .foregroundStyle(.white.opacity(0.7))
                 .italic()
                 .lineLimit(2)
-        }
-    }
-
-    // MARK: - Overview (Expandable)
-
-    func computeOverviewMaxHeight(_ size: CGSize) -> CGFloat {
-        guard size.height > 0,
-              size.width > 0
-        else { return 80 }
-        let mediaH = (size.width - 32) * 9 / 16
-        var fixedH: CGFloat = 95 + mediaH + 14
-        var items = 1
-        if !genres.isEmpty {
-            fixedH += 30
-            items += 1
-        }
-        if let tag = movie.tagline, !tag.isEmpty {
-            fixedH += 36
-            items += 1
-        }
-        if !movie.cast.isEmpty {
-            fixedH += 51
-            items += 1
-        }
-        fixedH += 90
-        items += 1
-        fixedH += CGFloat(items - 1) * 12
-        return max(60, size.height - fixedH - 40)
-    }
-
-    @ViewBuilder
-    var cardOverview: some View {
-        let realText = movie.overview ?? ""
-        let text = APIConfig.screenshotMode
-            ? ScreenshotDummy.overview(for: movie.tmdbId)
-            : realText
-        if !text.isEmpty {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(text)
-                    .font(.system(size: 13))
-                    .foregroundStyle(AppTheme.textMuted)
-                    .lineSpacing(3)
-                    .fixedSize(
-                        horizontal: false,
-                        vertical: overviewExpanded
-                    )
-                    .frame(
-                        maxWidth: .infinity,
-                        maxHeight: overviewExpanded
-                            ? nil : min(
-                                overviewFullHeight > 0
-                                    ? overviewFullHeight
-                                    : overviewMaxHeightValue,
-                                overviewMaxHeightValue
-                            ),
-                        alignment: .topLeading
-                    )
-                    .clipped()
-                    .overlay {
-                        Text(text)
-                            .font(.system(size: 13))
-                            .lineSpacing(3)
-                            .fixedSize(
-                                horizontal: false,
-                                vertical: true
-                            )
-                            .hidden()
-                            .background(GeometryReader { geo in
-                                Color.clear.preference(
-                                    key: OverviewFullH.self,
-                                    value: geo.size.height
-                                )
-                            })
-                    }
-                    .onPreferenceChange(OverviewFullH.self) {
-                        overviewFullHeight = $0
-                    }
-
-                if overviewExpanded || overviewFullHeight > overviewMaxHeightValue + 1 {
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            overviewExpanded.toggle()
-                        }
-                    } label: {
-                        Text(overviewExpanded ? "less" : "more")
-                            .font(.system(
-                                size: 13, weight: .medium
-                            ))
-                            .foregroundStyle(.white)
-                    }
-                }
-            }
         }
     }
 
@@ -479,14 +425,5 @@ extension ReelCardView {
                 Spacer()
             }
         }
-    }
-
-    // MARK: - Rating Overlay
-
-    var ratingOverlay: some View {
-        ReelRatingOverlay(title: movie.title, tmdbId: movie.tmdbId, onDismiss: { showRating = false }, onSaved: {
-            showRating = false
-            onRated?($0)
-        })
     }
 }

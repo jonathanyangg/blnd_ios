@@ -117,4 +117,26 @@ enum FriendsAPI {
             authenticated: true
         )
     }
+
+    /// POST /reports — flag a user for objectionable content / abusive behavior.
+    /// Backend is expected to action reports within 24 hours per App Store guidelines.
+    static func reportUser(userId: String, reason: String) async throws {
+        let body = ReportUserRequest(reportedUserId: userId, reason: reason)
+        try await APIClient.shared.requestVoid(
+            endpoint: "/reports",
+            method: "POST",
+            body: body,
+            authenticated: true
+        )
+    }
+}
+
+struct ReportUserRequest: Encodable {
+    let reportedUserId: String
+    let reason: String
+
+    enum CodingKeys: String, CodingKey {
+        case reportedUserId = "reported_user_id"
+        case reason
+    }
 }

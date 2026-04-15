@@ -14,17 +14,15 @@ struct ReelCardView: View {
 
     @State var swipeOffset: CGFloat = 0
     @State var swipeTriggeredHaptic = false
-    @State var showRating = false
     @State var isDragging = false
     @State var trailerReady = false
     @State var overviewExpanded = false
     @State var overviewFullHeight: CGFloat = 0
-    @State var overviewTruncatedHeight: CGFloat = 0
+    @State var overviewCappedHeight: CGFloat = 0
     @State var friendsWhoWatched: [FriendWatchedResponse] = []
-    @State var cardSize: CGSize = .zero
     @State var showStreamingSheet = false
     @State var friendsLoadTask: Task<Void, Never>?
-    @State var overviewMaxHeightValue: CGFloat = 80
+    @State var mediaBottomY: CGFloat = 0
 
     let swipeThreshold: CGFloat = 120
 
@@ -49,34 +47,55 @@ struct ReelCardView: View {
                 .padding(.top, 16)
                 .padding(.horizontal, 20)
                 .padding(.bottom, 12)
+                .layoutPriority(10)
 
             mediaSection
-                .padding(.horizontal, 16)
+                .padding(.horizontal, 4)
+                .background(GeometryReader { geo in
+                    Color.clear.preference(
+                        key: MediaBottomYKey.self,
+                        value: geo.frame(in: .named("reelCard")).maxY
+                    )
+                })
+                .layoutPriority(10)
 
             detailsSection
                 .padding(.top, 14)
                 .padding(.horizontal, 20)
+                .layoutPriority(5)
 
-            Spacer(minLength: 0)
-        }
-        .frame(maxWidth: .infinity)
-        .background(Color.black)
-        .background(GeometryReader { geo in
-            Color.clear.onAppear {
-                cardSize = geo.size
+            Spacer(minLength: 8)
+
+            if !overviewExpanded {
+                Divider()
+                    .overlay(AppTheme.border)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 10)
+                    .layoutPriority(10)
+
+                inlineRatingBar
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 26)
+                    .layoutPriority(10)
             }
-        })
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(Color.black)
+        .coordinateSpace(name: "reelCard")
+        .onPreferenceChange(MediaBottomYKey.self) { mediaBottomY = $0 }
+        .clipShape(RoundedRectangle(cornerRadius: 22))
+        .overlay(
+            RoundedRectangle(cornerRadius: 22)
+                .stroke(AppTheme.border, lineWidth: 0.5)
+        )
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
         .offset(x: swipeOffset)
         .rotationEffect(
             .degrees(Double(swipeOffset) * 0.02)
         )
         .simultaneousGesture(horizontalSwipe)
         .overlay { swipeIndicators }
-        .overlay {
-            if showRating {
-                ratingOverlay
-            }
-        }
         .sheet(isPresented: $showStreamingSheet) {
             StreamingSheet(tmdbId: movie.tmdbId, title: movie.title)
                 .presentationDetents([.medium, .large])
@@ -104,17 +123,6 @@ struct ReelCardView: View {
                 // Don't call stop() here — loadVideo() on the next card
                 // implicitly replaces the current video. An explicit stop()
                 // races with the next card's play() and kills it.
-            }
-        }
-        .onChange(of: cardSize) { _, size in
-            overviewMaxHeightValue = computeOverviewMaxHeight(size)
-        }
-        .onChange(of: showRating) { _, rating in
-            guard isActive else { return }
-            if rating {
-                TrailerPlayer.shared.pause()
-            } else {
-                TrailerPlayer.shared.resume()
             }
         }
     }

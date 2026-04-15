@@ -3,8 +3,10 @@ import SwiftUI
 
 @main
 struct BlndApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @State private var authState = AuthState()
     @State private var onboardingState = OnboardingState()
+    @State private var deepLinkState = DeepLinkState()
 
     init() {
         let config = PostHogConfig(apiKey: "phc_o8gysMyjwxqas8WBdUzNXwiQN9xsASDhCyetHvfnSWY5")
@@ -21,6 +23,10 @@ struct BlndApp: App {
                 ContentView()
                     .environment(authState)
                     .environment(onboardingState)
+                    .environment(deepLinkState)
+                    .onAppear {
+                        appDelegate.deepLinkState = deepLinkState
+                    }
             }
             .preferredColorScheme(.dark)
         }

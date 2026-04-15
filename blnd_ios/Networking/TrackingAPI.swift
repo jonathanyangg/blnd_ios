@@ -101,6 +101,17 @@ enum TrackingAPI {
         )
     }
 
+    /// GET /tracking/feed — get friends' activity feed
+    static func getFeed(
+        limit: Int = 50,
+        offset: Int = 0
+    ) async throws -> ActivityFeedResponse {
+        try await APIClient.shared.request(
+            endpoint: "/tracking/feed?limit=\(limit)&offset=\(offset)",
+            authenticated: true
+        )
+    }
+
     /// GET /watchlist/ — get user's watchlist
     static func getWatchlist(
         limit: Int = 20,

@@ -12,6 +12,7 @@ struct ReelsFeedView: View {
     @State private var toastTask: Task<Void, Never>?
     @State private var watchlistTmdbId: Int?
     @State private var addedToWatchlist: Set<Int> = []
+    @State private var lastWatchlistedTmdbId: Int?
     @State private var lastHiddenTmdbId: Int?
 
     var body: some View {
@@ -36,18 +37,12 @@ struct ReelsFeedView: View {
                                     addedToWatchlist.insert(
                                         movie.tmdbId
                                     )
+                                    lastWatchlistedTmdbId = movie.tmdbId
                                 }
                                 showToast(msg)
+                                advanceToNext(from: movie.tmdbId)
                             },
-                            onRated: { rating in
-                                let text = String(
-                                    format: "%.1f",
-                                    rating
-                                )
-                                showToast(
-                                    "Rated \(text) stars"
-                                )
-                            }
+                            onRated: { _ in }
                         )
                         .frame(height: cardHeight)
                         .id(movie.tmdbId)
@@ -115,6 +110,20 @@ struct ReelsFeedView: View {
         }
     }
 
+    // MARK: - Navigation
+
+    private func advanceToNext(from tmdbId: Int) {
+        guard let idx = movies.firstIndex(where: { $0.tmdbId == tmdbId }),
+              idx + 1 < movies.count
+        else { return }
+        let nextId = movies[idx + 1].tmdbId
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+            withAnimation(.easeInOut(duration: 0.35)) {
+                currentId = nextId
+            }
+        }
+    }
+
     // MARK: - Toast
 
     private func showToast(_ message: String) {
@@ -137,8 +146,8 @@ struct ReelsFeedView: View {
     private func handleToastAction(_ toast: String) {
         toastMessage = nil
         if toast.contains("Watchlist") {
-            if let curId = currentId {
-                watchlistTmdbId = curId
+            if let id = lastWatchlistedTmdbId {
+                watchlistTmdbId = id
             }
         } else if toast.contains("Won't show"), let id = lastHiddenTmdbId {
             Task {

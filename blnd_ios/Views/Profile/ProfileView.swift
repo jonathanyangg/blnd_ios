@@ -11,6 +11,9 @@ struct ProfileView: View {
     @Environment(TabState.self) private var tabState
     @State private var showSettings = false
     @State private var showImportContext = false
+    @State private var showNotifications = false
+    @State private var unreadCount = 0
+    @State private var showFullAvatar = false
     @State private var selectedTab: ProfileTab = .watched
     @Namespace private var profileTabNamespace
 
@@ -66,12 +69,27 @@ struct ProfileView: View {
             .navigationDestination(isPresented: $showImportContext) {
                 ImportContextView()
             }
+            .navigationDestination(isPresented: $showNotifications) {
+                ActivityFeedView()
+            }
+            .fullScreenCover(isPresented: $showFullAvatar) {
+                FullAvatarView(url: authState.currentUser?.avatarUrl) {
+                    showFullAvatar = false
+                }
+            }
             .task {
                 async let watched: () = loadWatched()
                 async let watchlist: () = loadWatchlist()
                 async let counts: () = loadCounts()
                 async let taste: () = loadTaste()
-                _ = await (watched, watchlist, counts, taste)
+                async let unread: () = loadUnreadCount()
+                _ = await (watched, watchlist, counts, taste, unread)
+            }
+            .onChange(of: showNotifications) {
+                if !showNotifications {
+                    // Refresh unread count when coming back from notifications
+                    Task { await loadUnreadCount() }
+                }
             }
         }
     }
@@ -95,6 +113,21 @@ struct ProfileView: View {
             }
             Spacer()
             Button {
+                showNotifications = true
+            } label: {
+                ZStack(alignment: .topTrailing) {
+                    Image(systemName: "bell")
+                        .font(.system(size: 20))
+                        .foregroundStyle(AppTheme.textDim)
+                    if unreadCount > 0 {
+                        Circle()
+                            .fill(.red)
+                            .frame(width: 8, height: 8)
+                            .offset(x: 2, y: -2)
+                    }
+                }
+            }
+            Button {
                 showSettings = true
             } label: {
                 Image(systemName: "gearshape")
@@ -111,8 +144,10 @@ struct ProfileView: View {
 
     private var userInfo: some View {
         VStack(spacing: 0) {
-            AvatarView(url: authState.currentUser?.avatarUrl, size: 80)
-                .padding(.bottom, 12)
+            Button { showFullAvatar = true } label: {
+                AvatarView(url: authState.currentUser?.avatarUrl, size: 80)
+            }
+            .padding(.bottom, 12)
 
             Text(authState.currentUser?.displayName ?? authState.currentUser?.username ?? "User")
                 .font(.system(size: 22, weight: .bold))
@@ -262,10 +297,12 @@ struct ProfileView: View {
             .frame(maxWidth: .infinity)
             .padding(.top, 40)
     }
+}
 
-    // MARK: - Data Loading
+// MARK: - Data Loading
 
-    private func loadWatched() async {
+extension ProfileView {
+    func loadWatched() async {
         isLoadingWatched = true
         do {
             let response = try await TrackingAPI.getWatchHistory(limit: 50)
@@ -277,7 +314,7 @@ struct ProfileView: View {
         isLoadingWatched = false
     }
 
-    private func loadCounts() async {
+    func loadCounts() async {
         let cache = UserActionCache.shared
         await cache.fetchFriends()
         let groups = await cache.fetchGroups()
@@ -285,7 +322,7 @@ struct ProfileView: View {
         groupsCount = groups.count
     }
 
-    private func loadWatchlist() async {
+    func loadWatchlist() async {
         isLoadingWatchlist = true
         do {
             let response = try await TrackingAPI.getWatchlist(limit: 50)
@@ -297,7 +334,16 @@ struct ProfileView: View {
         isLoadingWatchlist = false
     }
 
-    private func loadTaste() async {
+    func loadUnreadCount() async {
+        do {
+            let response = try await NotificationAPI.getInbox(limit: 1)
+            unreadCount = response.unreadCount
+        } catch {
+            // Non-critical
+        }
+    }
+
+    func loadTaste() async {
         isLoadingTaste = true
         do {
             genreTaste = try await ProfileAPI.getGenreTaste()

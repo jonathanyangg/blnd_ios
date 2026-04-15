@@ -8,14 +8,10 @@ struct MovieDetailView: View {
     @State var movie: MovieResponse?
     @State var isLoading = true
     @State var errorMessage: String?
-    @State var showRatingSheet = false
     @State var isInWatchlist = false
     @State var isWatched = false
     @State var userRating: Double?
-    @State var isWatchlistLoading = false
-    @State var showUnwatchConfirm = false
     @State var showWatchlistSheet = false
-    @State var showWatchedOptions = false
     @State var friendsWhoWatched: [FriendWatchedResponse] = []
     @State var isHidden = false
     @State var showHideConfirm = false
@@ -88,24 +84,6 @@ struct MovieDetailView: View {
                     )
                 }
             }
-        }
-        .sheet(isPresented: $showRatingSheet) {
-            RateMovieSheet(
-                title: displayTitle,
-                year: displayYear,
-                tmdbId: tmdbId,
-                posterPath: movie?.posterPath,
-                existingRating: isWatched ? userRating : nil,
-                onSaved: { savedRating in
-                    let wasNew = !isWatched
-                    isWatched = true
-                    userRating = savedRating
-                    if wasNew { onHide?() }
-                }
-            )
-            .presentationDetents([.medium])
-            .presentationDragIndicator(.visible)
-            .presentationBackground(AppTheme.card)
         }
         .sheet(isPresented: $showStreamingSheet) {
             StreamingSheet(tmdbId: tmdbId, title: displayTitle)
@@ -181,8 +159,8 @@ struct MovieDetailView: View {
                 .overlay(AppTheme.border)
                 .padding(.bottom, 20)
 
-            watchNowButton
-            actionButtons
+            detailRatingBar
+            actionButtonsRow
             FriendsWhoWatchedSection(friends: friendsWhoWatched)
         }
         .padding(.horizontal, 24)

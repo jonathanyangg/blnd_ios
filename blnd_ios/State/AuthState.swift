@@ -167,6 +167,10 @@ class AuthState {
     }
 
     func logout() {
+        // Unregister device token from backend (fire-and-forget before clearing tokens)
+        if let token = UserDefaults.standard.string(forKey: "apnsDeviceToken") {
+            Task { try? await NotificationAPI.unregisterDevice(token: token) }
+        }
         KeychainManager.delete(key: "accessToken")
         KeychainManager.delete(key: "refreshToken")
         KeychainManager.delete(key: "userId")

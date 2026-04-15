@@ -2,6 +2,7 @@ import SwiftUI
 
 struct FriendsListView: View {
     @Environment(TabState.self) private var tabState
+    @Environment(DeepLinkState.self) private var deepLinkState
     @State private var friends: [FriendResponse] = []
     @State private var pendingRequests: PendingRequestsResponse?
     @State private var isLoading = true
@@ -71,6 +72,18 @@ struct FriendsListView: View {
                 if !showAddFriend {
                     UserActionCache.shared.invalidateFriends()
                     Task { await loadData() }
+                }
+            }
+            .onChange(of: deepLinkState.pending) { _, newValue in
+                if case .friendRequests = newValue {
+                    selectedTab = 1
+                    deepLinkState.pending = nil
+                }
+            }
+            .onAppear {
+                if case .friendRequests = deepLinkState.pending {
+                    selectedTab = 1
+                    deepLinkState.pending = nil
                 }
             }
         }
