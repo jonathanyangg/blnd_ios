@@ -4,6 +4,7 @@ enum DiscoverFilter: String, CaseIterable {
     case trending = "Trending"
     case topRated = "Top Rated"
     case genre = "Genre"
+    case actor = "Actor"
 }
 
 let discoverGenres = [
@@ -25,6 +26,8 @@ struct DiscoverSectionView: View {
     @State var errorMessage: String?
     @State var selectedGenres: Set<String> = []
     @State var showGenreSheet = false
+    @State var selectedActor: PersonResult?
+    @State var showActorSheet = false
     @State var seenIds: Set<Int> = []
     @State var hasMorePages = true
     @State var isLoadingMore = false
@@ -71,6 +74,10 @@ struct DiscoverSectionView: View {
             Spacer()
             genreEmptyState
             Spacer()
+        } else if activeFilter == .actor, selectedActor == nil {
+            Spacer()
+            actorEmptyState
+            Spacer()
         } else {
             ReelsFeedView(
                 movies: discoverReelMovies,
@@ -113,6 +120,8 @@ struct DiscoverSectionView: View {
             errorView(message: error)
         } else if activeFilter == .genre, selectedGenres.isEmpty {
             genreEmptyState
+        } else if activeFilter == .actor, selectedActor == nil {
+            actorEmptyState
         } else {
             movieGridView
         }
@@ -202,6 +211,8 @@ struct DiscoverSectionView: View {
     ) -> some View {
         if filter == .genre {
             genreMenuButton
+        } else if filter == .actor {
+            actorMenuButton
         } else {
             Button { selectFilter(filter) } label: {
                 Text(filter.rawValue)

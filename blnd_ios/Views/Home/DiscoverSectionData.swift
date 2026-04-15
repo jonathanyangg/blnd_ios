@@ -10,6 +10,7 @@ extension DiscoverSectionView {
         guard changed else { return }
         resetPagination()
         if filter == .genre, selectedGenres.isEmpty { return }
+        if filter == .actor, selectedActor == nil { return }
         Task { await loadMovies(forceRefresh: true) }
     }
 
@@ -94,11 +95,71 @@ extension DiscoverSectionView {
             return try await MoviesAPI.discover(
                 genres: Array(selectedGenres), exclude: exclude
             )
+        case .actor:
+            guard let actor = selectedActor else {
+                return MovieSearchResult(results: [], totalResults: 0)
+            }
+            return try await MoviesAPI.discover(
+                withCast: actor.id, exclude: exclude
+            )
         }
     }
 
     func refresh() async {
         resetPagination()
         await loadMovies(forceRefresh: true)
+    }
+
+    // MARK: - Actor Menu
+
+    var actorMenuButton: some View {
+        Button { showActorSheet = true } label: {
+            HStack(spacing: 4) {
+                if let actor = selectedActor {
+                    Text(String(actor.name.prefix(15)))
+                        .font(.system(size: 12, weight: .medium))
+                } else {
+                    Text("Actor")
+                        .font(.system(size: 12, weight: .medium))
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 8, weight: .bold))
+                }
+            }
+            .padding(.vertical, 6)
+            .padding(.horizontal, 12)
+            .background(
+                selectedActor != nil
+                    ? .white : AppTheme.card
+            )
+            .foregroundStyle(
+                selectedActor != nil
+                    ? .black : AppTheme.textMuted
+            )
+            .clipShape(Capsule())
+        }
+        .sheet(isPresented: $showActorSheet) {
+            ActorSearchSheet { person in
+                selectedActor = person
+                activeFilter = .actor
+                resetPagination()
+                Task { await loadMovies(forceRefresh: true) }
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+            .presentationBackground(AppTheme.card)
+        }
+    }
+
+    var actorEmptyState: some View {
+        VStack(spacing: 8) {
+            Text("Search for an actor")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(.white)
+            Text("Tap the Actor chip to find movies by actor")
+                .font(.system(size: 13))
+                .foregroundStyle(AppTheme.textDim)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 60)
     }
 }
