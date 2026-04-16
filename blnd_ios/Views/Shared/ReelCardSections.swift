@@ -201,11 +201,12 @@ extension ReelCardView {
     }
 
     /// One collapsed-state variant: overview capped at `lines` plus the
-    /// "more" button underneath if the full text is truncated at that cap.
+    /// "more" button. Button shows if either the overview is truncated at
+    /// this cap OR there's a cast to reveal in the expanded state.
     func collapsedOverviewBlock(lines: Int) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             overviewTextView(lineCap: lines)
-            if isOverviewTruncated {
+            if isOverviewTruncated || !movie.cast.isEmpty {
                 moreButton
             }
         }
