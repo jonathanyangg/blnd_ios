@@ -7,11 +7,10 @@ struct ActorSearchSheet: View {
     @FocusState private var isFieldFocused: Bool
 
     @State private var searchText = ""
-    @State private var debouncedQuery = ""
     @State private var results: [PersonResult] = []
     @State private var isLoading = false
     @State private var hasSearched = false
-    @State private var debounceTask: Task<Void, Never>?
+    @State private var searchTask: Task<Void, Never>?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -49,9 +48,9 @@ struct ActorSearchSheet: View {
                 if !searchText.isEmpty {
                     Button {
                         searchText = ""
-                        debouncedQuery = ""
                         results = []
                         hasSearched = false
+                        searchTask?.cancel()
                     } label: {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundStyle(AppTheme.textDim)
@@ -101,17 +100,20 @@ struct ActorSearchSheet: View {
             }
         }
         .background(AppTheme.card)
-        .onAppear {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                isFieldFocused = true
-            }
-        }
+        .onAppear { isFieldFocused = true }
         .onChange(of: searchText) { _, newValue in
-            debounceSearch(newValue)
-        }
-        .task(id: debouncedQuery) {
-            guard !debouncedQuery.isEmpty else { return }
-            await search(query: debouncedQuery)
+            searchTask?.cancel()
+            let trimmed = newValue.trimmingCharacters(in: .whitespaces)
+            guard !trimmed.isEmpty else {
+                results = []
+                hasSearched = false
+                return
+            }
+            searchTask = Task {
+                try? await Task.sleep(for: .milliseconds(350))
+                guard !Task.isCancelled else { return }
+                await search(query: trimmed)
+            }
         }
     }
 
@@ -156,6 +158,7 @@ struct ActorSearchSheet: View {
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 10)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
@@ -170,34 +173,19 @@ struct ActorSearchSheet: View {
         }
     }
 
-    // MARK: - Debounce
-
-    private func debounceSearch(_ query: String) {
-        debounceTask?.cancel()
-        let trimmed = query.trimmingCharacters(in: .whitespaces)
-        if trimmed.isEmpty {
-            debouncedQuery = ""
-            results = []
-            hasSearched = false
-            return
-        }
-        debounceTask = Task {
-            try? await Task.sleep(for: .milliseconds(350))
-            guard !Task.isCancelled else { return }
-            debouncedQuery = trimmed
-        }
-    }
+    // MARK: - Search
 
     private func search(query: String) async {
         isLoading = true
         do {
             let response = try await MoviesAPI.searchPerson(query: query)
-            if debouncedQuery == query {
+            if !Task.isCancelled {
                 results = response.results
                 hasSearched = true
             }
         } catch {
             if !Task.isCancelled {
+                print("[ActorSearch] Error: \(error)")
                 hasSearched = true
             }
         }
