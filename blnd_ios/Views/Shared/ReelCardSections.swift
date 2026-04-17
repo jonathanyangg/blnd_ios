@@ -166,10 +166,11 @@ extension ReelCardView {
             overviewGroup
                 .layoutPriority(1)
 
-            if overviewExpanded {
+            if friendsWhoWatched.isEmpty || overviewExpanded {
                 compactCastSection
                     .layoutPriority(4)
-            } else {
+            }
+            if !friendsWhoWatched.isEmpty, !overviewExpanded {
                 compactFriendsSection
                     .layoutPriority(5)
             }
@@ -206,7 +207,7 @@ extension ReelCardView {
     func collapsedOverviewBlock(lines: Int) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             overviewTextView(lineCap: lines)
-            if isOverviewTruncated || !movie.cast.isEmpty {
+            if isOverviewTruncated || (!friendsWhoWatched.isEmpty && !movie.cast.isEmpty) {
                 moreButton
             }
         }
@@ -339,22 +340,27 @@ extension ReelCardView {
                             movie.cast.prefix(5)
                                 .enumerated()
                         ),
-                        id: \.offset
+                        id: \.element.stableId
                     ) { idx, member in
-                        VStack(spacing: 3) {
-                            castAvatar(member)
-                            Text(
-                                APIConfig.screenshotMode
-                                    ? ScreenshotDummy.castName(at: idx)
-                                    : member.name
-                            )
-                            .font(.system(size: 9))
-                            .foregroundStyle(
-                                AppTheme.textMuted
-                            )
-                            .lineLimit(1)
-                            .frame(width: 36)
+                        Button {
+                            selectedCastMember = member
+                        } label: {
+                            VStack(spacing: 3) {
+                                castAvatar(member)
+                                Text(
+                                    APIConfig.screenshotMode
+                                        ? ScreenshotDummy.castName(at: idx)
+                                        : member.name
+                                )
+                                .font(.system(size: 9))
+                                .foregroundStyle(
+                                    AppTheme.textMuted
+                                )
+                                .lineLimit(1)
+                                .frame(width: 36)
+                            }
                         }
+                        .buttonStyle(.plain)
                     }
                 }
             }
@@ -366,24 +372,23 @@ extension ReelCardView {
         _ member: CastMember
     ) -> some View {
         let base = "https://image.tmdb.org/t/p/w185"
-        if let path = member.profilePath, let url = URL(string: "\(base)\(path)") {
-            CachedAsyncImage(url: url) { image in
-                image
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: 36, height: 36)
-                    .posterBlur()
-                    .clipShape(Circle())
-            } placeholder: {
+        Group {
+            if let path = member.profilePath, let url = URL(string: "\(base)\(path)") {
+                CachedAsyncImage(url: url) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    Circle()
+                        .fill(AppTheme.card)
+                }
+            } else {
                 Circle()
                     .fill(AppTheme.card)
-                    .frame(width: 36, height: 36)
             }
-        } else {
-            Circle()
-                .fill(AppTheme.card)
-                .frame(width: 36, height: 36)
         }
+        .frame(width: 36, height: 36)
+        .clipShape(Circle())
     }
 
     // MARK: - Genre Pills

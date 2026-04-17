@@ -14,7 +14,7 @@ struct Genre: Codable, Identifiable {
     let name: String?
 }
 
-struct CastMember: Codable, Identifiable {
+struct CastMember: Codable, Identifiable, Hashable {
     let id: Int
     let name: String
     let character: String?
@@ -130,6 +130,41 @@ struct PersonSearchResult: Codable {
         case results
         case totalResults = "total_results"
     }
+}
+
+// MARK: - Liked Actors (/actors)
+
+struct LikeActorRequest: Encodable {
+    let name: String
+    let profilePath: String?
+
+    enum CodingKeys: String, CodingKey {
+        case name
+        case profilePath = "profile_path"
+    }
+}
+
+struct LikedActorResponse: Decodable, Identifiable {
+    let tmdbPersonId: Int
+    let name: String
+    let profilePath: String?
+    let likedAt: String
+
+    var id: Int {
+        tmdbPersonId
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case tmdbPersonId = "tmdb_person_id"
+        case name
+        case profilePath = "profile_path"
+        case likedAt = "liked_at"
+    }
+}
+
+struct LikedActorsListResponse: Decodable {
+    let results: [LikedActorResponse]
+    let total: Int
 }
 
 // MARK: - Recommendations (/recommendations/me)

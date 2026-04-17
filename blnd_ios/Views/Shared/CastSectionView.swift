@@ -13,25 +13,34 @@ struct CastSectionView: View {
                 ScrollView(
                     .horizontal, showsIndicators: false
                 ) {
-                    HStack(spacing: 10) {
+                    HStack(spacing: 12) {
                         ForEach(
                             Array(cast.enumerated()),
-                            id: \.offset
+                            id: \.element.stableId
                         ) { idx, member in
-                            VStack(spacing: 3) {
-                                castAvatar(member)
-                                Text(
-                                    APIConfig.screenshotMode
-                                        ? ScreenshotDummy.castName(at: idx)
-                                        : member.name
+                            NavigationLink {
+                                ActorProfileView(
+                                    personId: member.id,
+                                    name: member.name,
+                                    profilePath: member.profilePath
                                 )
-                                .font(.system(size: 9))
-                                .foregroundStyle(
-                                    AppTheme.textMuted
-                                )
-                                .lineLimit(1)
-                                .frame(width: 36)
+                            } label: {
+                                VStack(spacing: 3) {
+                                    castAvatar(member)
+                                    Text(
+                                        APIConfig.screenshotMode
+                                            ? ScreenshotDummy.castName(at: idx)
+                                            : member.name
+                                    )
+                                    .font(.system(size: 9))
+                                    .foregroundStyle(
+                                        AppTheme.textMuted
+                                    )
+                                    .lineLimit(1)
+                                    .frame(width: 36)
+                                }
                             }
+                            .buttonStyle(.plain)
                         }
                     }
                 }
@@ -45,23 +54,22 @@ struct CastSectionView: View {
         _ member: CastMember
     ) -> some View {
         let base = "https://image.tmdb.org/t/p/w185"
-        if let path = member.profilePath, let url = URL(string: "\(base)\(path)") {
-            CachedAsyncImage(url: url) { image in
-                image
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: 36, height: 36)
-                    .posterBlur()
-                    .clipShape(Circle())
-            } placeholder: {
+        Group {
+            if let path = member.profilePath, let url = URL(string: "\(base)\(path)") {
+                CachedAsyncImage(url: url) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    Circle()
+                        .fill(AppTheme.card)
+                }
+            } else {
                 Circle()
                     .fill(AppTheme.card)
-                    .frame(width: 36, height: 36)
             }
-        } else {
-            Circle()
-                .fill(AppTheme.card)
-                .frame(width: 36, height: 36)
         }
+        .frame(width: 36, height: 36)
+        .clipShape(Circle())
     }
 }

@@ -23,6 +23,7 @@ struct ReelCardView: View {
     @State var showStreamingSheet = false
     @State var friendsLoadTask: Task<Void, Never>?
     @State var mediaBottomY: CGFloat = 0
+    @State var selectedCastMember: CastMember?
 
     let swipeThreshold: CGFloat = 120
 
@@ -96,6 +97,17 @@ struct ReelCardView: View {
         )
         .simultaneousGesture(horizontalSwipe)
         .overlay { swipeIndicators }
+        .sheet(item: $selectedCastMember) { member in
+            NavigationStack {
+                ActorProfileView(
+                    personId: member.id,
+                    name: member.name,
+                    profilePath: member.profilePath
+                )
+            }
+            .presentationDragIndicator(.visible)
+            .presentationBackground(AppTheme.background)
+        }
         .sheet(isPresented: $showStreamingSheet) {
             StreamingSheet(tmdbId: movie.tmdbId, title: movie.title)
                 .presentationDetents([.medium, .large])

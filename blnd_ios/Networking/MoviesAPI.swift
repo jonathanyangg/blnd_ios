@@ -73,12 +73,65 @@ enum MoviesAPI {
         )
     }
 
+    /// GET /movies/person/{person_id}/credits — actor filmography with softmax sampling
+    static func getPersonCredits(
+        personId: Int,
+        exclude: Set<Int> = []
+    ) async throws -> MovieSearchResult {
+        var endpoint = "/movies/person/\(personId)/credits"
+        if !exclude.isEmpty {
+            endpoint += "?exclude=\(exclude.map(String.init).joined(separator: ","))"
+        }
+        return try await APIClient.shared.request(
+            endpoint: endpoint,
+            authenticated: true
+        )
+    }
+
     static func getStreaming(
         tmdbId: Int,
         country: String = "us"
     ) async throws -> StreamingAvailabilityResponse {
         try await APIClient.shared.request(
             endpoint: "/movies/\(tmdbId)/streaming?country=\(country)",
+            authenticated: true
+        )
+    }
+}
+
+/// Actor endpoints
+enum ActorsAPI {
+    /// POST /actors/{person_id}/like
+    static func likeActor(
+        personId: Int,
+        name: String,
+        profilePath: String?
+    ) async throws -> LikedActorResponse {
+        let body = LikeActorRequest(name: name, profilePath: profilePath)
+        return try await APIClient.shared.request(
+            endpoint: "/actors/\(personId)/like",
+            method: "POST",
+            body: body,
+            authenticated: true
+        )
+    }
+
+    /// DELETE /actors/{person_id}/like
+    static func unlikeActor(personId: Int) async throws {
+        try await APIClient.shared.requestVoid(
+            endpoint: "/actors/\(personId)/like",
+            method: "DELETE",
+            authenticated: true
+        )
+    }
+
+    /// GET /actors/liked
+    static func getLikedActors(
+        limit: Int = 50,
+        offset: Int = 0
+    ) async throws -> LikedActorsListResponse {
+        try await APIClient.shared.request(
+            endpoint: "/actors/liked?limit=\(limit)&offset=\(offset)",
             authenticated: true
         )
     }
