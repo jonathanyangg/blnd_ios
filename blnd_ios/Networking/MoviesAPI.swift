@@ -2,19 +2,36 @@ import Foundation
 
 /// Movie endpoints: search, trending, detail
 enum MoviesAPI {
-    /// GET /movies/discover — top movies by genre with softmax sampling
+    /// GET /movies/discover — top movies by genre or actor with softmax sampling
     static func discover(
-        genres: [String],
+        genres: [String] = [],
+        withCast: Int? = nil,
         exclude: Set<Int> = []
     ) async throws -> MovieSearchResult {
-        let joined = genres.joined(separator: ",")
-            .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-        var endpoint = "/movies/discover?genres=\(joined)"
-        if !exclude.isEmpty {
-            endpoint += "&exclude=\(exclude.map(String.init).joined(separator: ","))"
+        var params: [String] = []
+        if !genres.isEmpty {
+            let joined = genres.joined(separator: ",")
+                .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+            params.append("genres=\(joined)")
         }
+        if let castId = withCast {
+            params.append("with_cast=\(castId)")
+        }
+        if !exclude.isEmpty {
+            params.append("exclude=\(exclude.map(String.init).joined(separator: ","))")
+        }
+        let endpoint = "/movies/discover?\(params.joined(separator: "&"))"
         return try await APIClient.shared.request(
             endpoint: endpoint,
+            authenticated: true
+        )
+    }
+
+    /// GET /movies/search/person — search for actors by name
+    static func searchPerson(query: String) async throws -> PersonSearchResult {
+        let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query
+        return try await APIClient.shared.request(
+            endpoint: "/movies/search/person?query=\(encoded)",
             authenticated: true
         )
     }

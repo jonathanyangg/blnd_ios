@@ -107,6 +107,31 @@ struct MovieSearchResult: Decodable {
     }
 }
 
+// MARK: - Person Search (/movies/search/person)
+
+struct PersonResult: Codable, Identifiable {
+    let id: Int
+    let name: String
+    let profilePath: String?
+    let knownForDepartment: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, name
+        case profilePath = "profile_path"
+        case knownForDepartment = "known_for_department"
+    }
+}
+
+struct PersonSearchResult: Codable {
+    let results: [PersonResult]
+    let totalResults: Int
+
+    enum CodingKeys: String, CodingKey {
+        case results
+        case totalResults = "total_results"
+    }
+}
+
 // MARK: - Recommendations (/recommendations/me)
 
 struct RecommendedMovieResponse: Codable, Identifiable {

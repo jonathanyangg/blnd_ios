@@ -85,6 +85,14 @@ extension DiscoverSectionView {
     func fetchBatch(
         exclude: Set<Int>
     ) async throws -> MovieSearchResult {
+        // Actor filter overrides to discover endpoint
+        if let actor = selectedActor {
+            return try await MoviesAPI.discover(
+                genres: activeFilter == .genre ? Array(selectedGenres) : [],
+                withCast: actor.id,
+                exclude: exclude
+            )
+        }
         switch activeFilter {
         case .trending:
             return try await MoviesAPI.trending(exclude: exclude)
@@ -92,7 +100,8 @@ extension DiscoverSectionView {
             return try await MoviesAPI.topRated(exclude: exclude)
         case .genre:
             return try await MoviesAPI.discover(
-                genres: Array(selectedGenres), exclude: exclude
+                genres: Array(selectedGenres),
+                exclude: exclude
             )
         }
     }
@@ -100,5 +109,64 @@ extension DiscoverSectionView {
     func refresh() async {
         resetPagination()
         await loadMovies(forceRefresh: true)
+    }
+
+    // MARK: - Actor Menu
+
+    var actorMenuButton: some View {
+        HStack(spacing: 4) {
+            Button { showActorSheet = true } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "person.fill")
+                        .font(.system(size: 10))
+                    if let actor = selectedActor {
+                        Text(String(actor.name.prefix(15)))
+                            .font(.system(size: 12, weight: .medium))
+                    } else {
+                        Text("Actor")
+                            .font(.system(size: 12, weight: .medium))
+                    }
+                }
+                .padding(.vertical, 6)
+                .padding(.horizontal, 12)
+                .background(
+                    selectedActor != nil
+                        ? .white : AppTheme.card
+                )
+                .foregroundStyle(
+                    selectedActor != nil
+                        ? .black : AppTheme.textMuted
+                )
+                .clipShape(Capsule())
+            }
+
+            if selectedActor != nil {
+                Button {
+                    selectedActor = nil
+                    resetPagination()
+                    Task { await loadMovies(forceRefresh: true) }
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundStyle(.black)
+                        .padding(5)
+                        .background(.white)
+                        .clipShape(Circle())
+                }
+            }
+        }
+        .sheet(isPresented: $showActorSheet) {
+            ActorSearchSheet { person in
+                selectedActor = person
+                resetPagination()
+                if activeFilter == .genre, selectedGenres.isEmpty {
+                    activeFilter = .genre
+                }
+                Task { await loadMovies(forceRefresh: true) }
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+            .presentationBackground(AppTheme.card)
+        }
     }
 }

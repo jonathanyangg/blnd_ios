@@ -25,6 +25,8 @@ struct DiscoverSectionView: View {
     @State var errorMessage: String?
     @State var selectedGenres: Set<String> = []
     @State var showGenreSheet = false
+    @State var selectedActor: PersonResult?
+    @State var showActorSheet = false
     @State var seenIds: Set<Int> = []
     @State var hasMorePages = true
     @State var isLoadingMore = false
@@ -192,6 +194,9 @@ struct DiscoverSectionView: View {
                 ) { filter in
                     filterButton(filter)
                 }
+
+                // Actor is a combinable filter, not a tab
+                actorMenuButton
             }
         }
     }
