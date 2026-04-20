@@ -70,7 +70,7 @@ struct AvatarView: View {
     HStack(spacing: 0) {
         AvatarView()
         AvatarView(overlap: true)
-        AvatarView(isPremium: true, size: 80)
+        AvatarView(size: 80, isPremium: true)
     }
     .padding()
     .background(AppTheme.background)
