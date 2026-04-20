@@ -109,14 +109,15 @@ struct MovieSearchResult: Decodable {
 
 // MARK: - Person Search (/movies/search/person)
 
-struct PersonResult: Codable, Identifiable {
+struct PersonResult: Codable, Identifiable, Hashable {
     let id: Int
     let name: String
     let profilePath: String?
     let knownForDepartment: String?
+    let popularity: Double?
 
     enum CodingKeys: String, CodingKey {
-        case id, name
+        case id, name, popularity
         case profilePath = "profile_path"
         case knownForDepartment = "known_for_department"
     }
