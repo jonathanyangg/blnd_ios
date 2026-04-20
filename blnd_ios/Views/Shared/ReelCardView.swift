@@ -17,8 +17,6 @@ struct ReelCardView: View {
     @State var isDragging = false
     @State var trailerReady = false
     @State var overviewExpanded = false
-    @State var overviewFullHeight: CGFloat = 0
-    @State var overviewCappedHeight: CGFloat = 0
     @State var friendsWhoWatched: [FriendWatchedResponse] = []
     @State var showStreamingSheet = false
     @State var friendsLoadTask: Task<Void, Never>?

@@ -319,6 +319,31 @@ blnd_ios/blnd_ios/
 110. Profile edit UI (taste bio — backend already wired)
 111. Polish: empty states, error handling
 
+### BLND+ (Premium) — In Progress
+
+Backend is fully wired (RevenueCat webhook, admin grant, tier-based group cap, subscription fields on profile). iOS partially done:
+
+**Done:**
+- RevenueCat SDK added (5.68.0) + configured in blndApp.swift init()
+- Purchases.shared.logIn/logOut synced on all auth paths (AuthState)
+- UserResponse extended with subscriptionTier + subscriptionExpiresAt + isPremium computed
+- AuthState.isPremium computed from currentUser
+- BlndMoreBadge reusable view ("blnd" white + "+" silver-to-white gradient) — UPDATE: user changed from "more" to "+", update the badge text
+- PaywallView (custom): feature list, offering price, purchase button, restore purchases
+- Settings: premium section (upgrade/active), restore purchases, manage subscription rows
+- Profile: BlndMoreBadge shown under username when premium
+- AppTheme.premiumGradient added
+
+**TODO:**
+- Update BlndMoreBadge text from "more" to "+"
+- Create StoreKit Configuration file for local testing (Products.storekit with blnd_premium_monthly)
+- Test full purchase flow on device with sandbox account
+- Wire paywall trigger from Discover page ("Search with AI" button — gated, shows paywall for non-premium)
+- Build semantic discover backend endpoint (POST /recommendations/semantic-discover — premium-gated)
+- iOS: call semantic discover endpoint from AI search UI
+- Submit app build with subscription to TestFlight (required for prod purchases)
+- RevenueCat: entitlement `premium`, offering `default`, product `blnd_premium_monthly`, webhook active at /webhooks/revenuecat
+
 ## Linting
 
 - Pre-commit hooks: swiftlint + swiftformat + codespell
@@ -334,7 +359,7 @@ blnd_ios/blnd_ios/
 
 ## Last Updated
 
-2026-04-13
+2026-04-19
 
 ## graphify
 

@@ -17,6 +17,21 @@ enum AppTheme {
         startPoint: .leading,
         endPoint: .trailing
     )
+    static let premiumGradient = LinearGradient(
+        colors: [Color(hex: 0xB0B0B0), Color(hex: 0xE8E8E8)],
+        startPoint: .leading,
+        endPoint: .trailing
+    )
+    static let premiumRingGradient = AngularGradient(
+        colors: [
+            Color(hex: 0xD4A853),
+            Color(hex: 0xF5E6A3),
+            Color(hex: 0xC49B3D),
+            Color(hex: 0xF5E6A3),
+            Color(hex: 0xD4A853),
+        ],
+        center: .center
+    )
 
     // MARK: - Corner Radii
 

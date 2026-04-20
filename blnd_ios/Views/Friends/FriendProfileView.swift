@@ -175,7 +175,11 @@ struct FriendProfileView: View {
     private var profileHeader: some View {
         VStack(spacing: 0) {
             Button { showFullAvatar = true } label: {
-                AvatarView(url: avatarUrl, size: 80)
+                AvatarView(
+                    url: avatarUrl,
+                    size: 80,
+                    isPremium: publicProfile?.isPremium ?? false
+                )
             }
             .padding(.bottom, 12)
 
@@ -186,7 +190,18 @@ struct FriendProfileView: View {
             Text("@\(friend.username)")
                 .font(.system(size: 14))
                 .foregroundStyle(AppTheme.textMuted)
-                .padding(.bottom, 16)
+
+            if publicProfile?.isPremium ?? false {
+                BlndPlusBadge(size: 11)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(AppTheme.card)
+                    .clipShape(Capsule())
+                    .padding(.top, 6)
+                    .padding(.bottom, 10)
+            } else {
+                Spacer().frame(height: 16)
+            }
         }
         .padding(.top, 20)
         .padding(.bottom, 8)

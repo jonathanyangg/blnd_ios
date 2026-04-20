@@ -186,6 +186,16 @@ struct UserResponse: Decodable {
     let tasteBio: String?
     let favoriteGenres: [String]
     let phoneNumber: String?
+    let subscriptionTier: String
+    let subscriptionExpiresAt: String?
+
+    var isPremium: Bool {
+        guard subscriptionTier == "premium" else { return false }
+        guard let expiresStr = subscriptionExpiresAt,
+              let expiresDate = ISO8601DateFormatter().date(from: expiresStr)
+        else { return subscriptionTier == "premium" }
+        return expiresDate > Date()
+    }
 
     enum CodingKeys: String, CodingKey {
         case id, username
@@ -194,5 +204,7 @@ struct UserResponse: Decodable {
         case tasteBio = "taste_bio"
         case favoriteGenres = "favorite_genres"
         case phoneNumber = "phone_number"
+        case subscriptionTier = "subscription_tier"
+        case subscriptionExpiresAt = "subscription_expires_at"
     }
 }

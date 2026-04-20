@@ -4,6 +4,7 @@ struct AvatarView: View {
     var url: String?
     var size: CGFloat = 40
     var overlap: Bool = false
+    var isPremium: Bool = false
 
     var body: some View {
         Group {
@@ -23,7 +24,10 @@ struct AvatarView: View {
         .clipShape(Circle())
         .overlay(
             Circle()
-                .stroke(AppTheme.background, lineWidth: 2)
+                .stroke(
+                    isPremium ? AnyShapeStyle(AppTheme.premiumRingGradient) : AnyShapeStyle(AppTheme.background),
+                    lineWidth: isPremium ? 2.5 : 2
+                )
         )
         .padding(.leading, overlap ? -10 : 0)
     }

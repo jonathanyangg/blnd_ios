@@ -1,4 +1,5 @@
 import PostHog
+import RevenueCat
 import SwiftUI
 
 @main
@@ -13,6 +14,9 @@ struct BlndApp: App {
         config.captureScreenViews = true
         config.captureApplicationLifecycleEvents = true
         PostHogSDK.shared.setup(config)
+
+        Purchases.logLevel = .warn
+        Purchases.configure(withAPIKey: "appl_XsVFffVINQJHsPlnmgVzYyPAleP")
     }
 
     var body: some Scene {

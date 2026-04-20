@@ -1,3 +1,4 @@
+import RevenueCat
 import SwiftUI
 
 private enum SettingsDestination: Hashable {
@@ -7,11 +8,66 @@ private enum SettingsDestination: Hashable {
 struct SettingsView: View {
     @Environment(AuthState.self) var authState
     @State private var destination: SettingsDestination?
+    @State private var showPaywall = false
+    @State private var isRestoring = false
 
     var body: some View {
         VStack(spacing: 0) {
             ScrollView {
                 VStack(spacing: 16) {
+                    // Premium section
+                    VStack(spacing: 0) {
+                        if authState.isPremium {
+                            HStack(spacing: 12) {
+                                Image(systemName: "checkmark.seal.fill")
+                                    .font(.system(size: 15))
+                                    .foregroundStyle(AppTheme.premiumGradient)
+                                    .frame(width: 20)
+                                BlndPlusBadge(size: 14)
+                                Spacer()
+                                Text("Active")
+                                    .font(.system(size: 13))
+                                    .foregroundStyle(AppTheme.textMuted)
+                            }
+                            .padding(16)
+                        } else {
+                            Button { showPaywall = true } label: {
+                                HStack(spacing: 12) {
+                                    Image(systemName: "sparkles")
+                                        .font(.system(size: 15))
+                                        .foregroundStyle(AppTheme.premiumGradient)
+                                        .frame(width: 20)
+                                    BlndPlusBadge(size: 14)
+                                    Spacer()
+                                    Text("Upgrade")
+                                        .font(.system(size: 13, weight: .medium))
+                                        .foregroundStyle(AppTheme.premiumGradient)
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 13, weight: .medium))
+                                        .foregroundStyle(AppTheme.textDim)
+                                }
+                                .padding(16)
+                            }
+                        }
+                        Divider().background(AppTheme.cardSecondary)
+                        settingsRow("Restore Purchases", icon: "arrow.clockwise") {
+                            Task {
+                                isRestoring = true
+                                _ = try? await Purchases.shared.restorePurchases()
+                                await authState.fetchCurrentUser()
+                                isRestoring = false
+                            }
+                        }
+                        Divider().background(AppTheme.cardSecondary)
+                        settingsRow("Manage Subscription", icon: "creditcard") {
+                            if let url = URL(string: "https://apps.apple.com/account/subscriptions") {
+                                UIApplication.shared.open(url)
+                            }
+                        }
+                    }
+                    .background(AppTheme.card)
+                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.cornerRadiusLarge))
+
                     VStack(spacing: 0) {
                         settingsRow("Account", icon: "person") {
                             destination = .account
@@ -64,6 +120,10 @@ struct SettingsView: View {
                     .font(.system(size: 22, weight: .bold))
                     .foregroundStyle(.white)
             }
+        }
+        .sheet(isPresented: $showPaywall) {
+            PaywallView()
+                .environment(authState)
         }
         .navigationDestination(item: $destination) { dest in
             switch dest {

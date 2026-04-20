@@ -1,5 +1,6 @@
 import Foundation
 import PostHog
+import RevenueCat
 
 enum AuthPhase {
     case unauthenticated
@@ -14,6 +15,11 @@ class AuthState {
     var currentUser: UserResponse?
     var isLoading = false
     var error: String?
+    var showPaywall = false
+
+    var isPremium: Bool {
+        currentUser?.isPremium ?? false
+    }
 
     private var logoutObserver: NSObjectProtocol?
 
@@ -52,6 +58,7 @@ class AuthState {
                 await UserActionCache.shared.bootstrap()
                 if let uid = KeychainManager.readString(key: "userId") {
                     PostHogSDK.shared.identify(uid)
+                    try? await Purchases.shared.logIn(uid)
                 }
             }
         } catch {
@@ -115,6 +122,7 @@ class AuthState {
                 phase = .authenticated
                 await UserActionCache.shared.bootstrap()
                 PostHogSDK.shared.identify(response.userId)
+                try? await Purchases.shared.logIn(response.userId)
             }
             isLoading = false
             return response
@@ -143,6 +151,7 @@ class AuthState {
                     userProperties: ["username": user.username ?? "", "email": email]
                 )
             }
+            try? await Purchases.shared.logIn(response.userId)
         } catch {
             self.error = error.localizedDescription
         }
@@ -180,6 +189,7 @@ class AuthState {
         phase = .unauthenticated
         UserActionCache.shared.reset()
         PostHogSDK.shared.reset()
+        Purchases.shared.logOut { _, _ in }
     }
 
     func fetchCurrentUser() async {

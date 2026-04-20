@@ -145,7 +145,7 @@ struct ProfileView: View {
     private var userInfo: some View {
         VStack(spacing: 0) {
             Button { showFullAvatar = true } label: {
-                AvatarView(url: authState.currentUser?.avatarUrl, size: 80)
+                AvatarView(url: authState.currentUser?.avatarUrl, size: 80, isPremium: authState.isPremium)
             }
             .padding(.bottom, 12)
 
@@ -156,6 +156,15 @@ struct ProfileView: View {
             Text("@\(authState.currentUser?.username ?? "")")
                 .font(.system(size: 14))
                 .foregroundStyle(AppTheme.textMuted)
+
+            if authState.isPremium {
+                BlndPlusBadge(size: 11)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(AppTheme.card)
+                    .clipShape(Capsule())
+                    .padding(.top, 6)
+            }
         }
         .padding(.bottom, 24)
     }

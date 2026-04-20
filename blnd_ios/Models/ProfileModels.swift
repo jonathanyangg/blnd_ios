@@ -14,6 +14,11 @@ struct PublicProfileResponse: Decodable {
     let friendshipStatus: String?
     let friendshipId: Int?
     let isBlocked: Bool
+    let subscriptionTier: String
+
+    var isPremium: Bool {
+        subscriptionTier == "premium"
+    }
 
     enum CodingKeys: String, CodingKey {
         case id, username
@@ -25,6 +30,7 @@ struct PublicProfileResponse: Decodable {
         case friendshipStatus = "friendship_status"
         case friendshipId = "friendship_id"
         case isBlocked = "is_blocked"
+        case subscriptionTier = "subscription_tier"
     }
 
     init(
@@ -37,7 +43,8 @@ struct PublicProfileResponse: Decodable {
         blendsCount: Int,
         friendshipStatus: String?,
         friendshipId: Int?,
-        isBlocked: Bool = false
+        isBlocked: Bool = false,
+        subscriptionTier: String = "free"
     ) {
         self.id = id
         self.username = username
@@ -49,6 +56,7 @@ struct PublicProfileResponse: Decodable {
         self.friendshipStatus = friendshipStatus
         self.friendshipId = friendshipId
         self.isBlocked = isBlocked
+        self.subscriptionTier = subscriptionTier
     }
 
     init(from decoder: Decoder) throws {
@@ -63,6 +71,7 @@ struct PublicProfileResponse: Decodable {
         friendshipStatus = try container.decodeIfPresent(String.self, forKey: .friendshipStatus)
         friendshipId = try container.decodeIfPresent(Int.self, forKey: .friendshipId)
         isBlocked = try container.decodeIfPresent(Bool.self, forKey: .isBlocked) ?? false
+        subscriptionTier = try container.decodeIfPresent(String.self, forKey: .subscriptionTier) ?? "free"
     }
 }
 
