@@ -18,7 +18,8 @@ extension GroupDetailView {
                     movies: groupReelMovies,
                     groupContext: groupContext,
                     isTabVisible: tabState.selectedTab == 2,
-                    onLoadMore: { await loadMoreRecs() }
+                    onLoadMore: { await loadMoreRecs() },
+                    onRefresh: { await loadAll(forceRefresh: true) }
                 )
             }
         case .watchlist:
@@ -34,7 +35,8 @@ extension GroupDetailView {
                         ReelMovie(from: $0)
                     },
                     groupContext: groupContext,
-                    isTabVisible: tabState.selectedTab == 2
+                    isTabVisible: tabState.selectedTab == 2,
+                    onRefresh: { await loadAll(forceRefresh: true) }
                 )
             }
         }

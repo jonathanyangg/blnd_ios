@@ -148,7 +148,7 @@ struct GroupMembersSheet: View {
                 Text("Owner")
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(AppTheme.textDim)
-            } else if isOwner, member.id != currentUserId {
+            } else if member.id != currentUserId {
                 if removingId == member.id {
                     ProgressView()
                         .tint(.white)

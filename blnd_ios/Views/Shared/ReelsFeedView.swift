@@ -55,6 +55,9 @@ struct ReelsFeedView: View {
             )
             .scrollPosition(id: $currentId)
             .scrollIndicators(.hidden)
+            .refreshable {
+                await onRefresh?()
+            }
         }
         .onChange(of: currentId) { _, newId in
             guard let newId else { return }
