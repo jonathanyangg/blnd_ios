@@ -10,7 +10,7 @@ struct BlndPlusBadge: View {
                 .foregroundStyle(.white)
             Text("+")
                 .font(.system(size: size, weight: .bold))
-                .foregroundStyle(AppTheme.premiumGradient)
+                .foregroundStyle(AppTheme.premiumGoldGradient)
         }
     }
 }

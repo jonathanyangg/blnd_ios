@@ -28,7 +28,7 @@ enum TutorialPreset {
             demo: .swipeRight
         ),
         .init(
-            text: "Swipe left to dislike",
+            text: "Swipe left for not for me",
             demo: .swipeLeft
         ),
         .init(
@@ -253,41 +253,40 @@ private struct SwipeRightDemo: View {
     }
 }
 
-// MARK: - Rate Button Demo
+// MARK: - Rate Stars Demo
 
 private struct RateButtonDemo: View {
-    @State private var pulse = false
+    @State private var filled = 0
 
     var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 12)
-                .fill(.white.opacity(0.12))
-                .frame(width: 140, height: 80)
-
-            // Rate button in top-right corner
-            VStack {
-                HStack {
-                    Spacer()
-                    Image(systemName: "star")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .padding(8)
-                        .background(
-                            Circle()
-                                .fill(.white.opacity(pulse ? 0.3 : 0.1))
-                        )
-                        .scaleEffect(pulse ? 1.15 : 1)
-                }
-                Spacer()
+        HStack(spacing: 14) {
+            ForEach(1 ... 5, id: \.self) { index in
+                Image(systemName: index <= filled ? "star.fill" : "star")
+                    .font(.system(size: 28))
+                    .foregroundStyle(index <= filled ? .white : .white.opacity(0.25))
             }
-            .frame(width: 140, height: 80)
         }
         .onAppear {
-            withAnimation(
-                .easeInOut(duration: 1.0)
-                    .repeatForever(autoreverses: true)
-            ) {
-                pulse = true
+            animateStars()
+        }
+    }
+
+    private func animateStars() {
+        filled = 0
+        for idx in 1 ... 5 {
+            DispatchQueue.main.asyncAfter(deadline: .now() + Double(idx) * 0.25) {
+                withAnimation(.easeOut(duration: 0.15)) {
+                    filled = idx
+                }
+            }
+        }
+        // Reset and loop
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+            withAnimation(.easeOut(duration: 0.2)) {
+                filled = 0
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                animateStars()
             }
         }
     }

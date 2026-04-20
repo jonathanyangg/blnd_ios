@@ -22,6 +22,11 @@ enum AppTheme {
         startPoint: .leading,
         endPoint: .trailing
     )
+    static let premiumGoldGradient = LinearGradient(
+        colors: [Color(hex: 0xD4A853), Color(hex: 0xF5E6A3)],
+        startPoint: .leading,
+        endPoint: .trailing
+    )
     static let premiumRingGradient = AngularGradient(
         colors: [
             Color(hex: 0xD4A853),

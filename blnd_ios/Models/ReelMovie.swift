@@ -1,7 +1,7 @@
 import Foundation
 
 /// Normalized movie struct for the reels feed, unifying all movie response types
-struct ReelMovie: Identifiable, Equatable {
+struct ReelMovie: Identifiable, Hashable {
     let tmdbId: Int
     let title: String
     let yearString: String
@@ -33,6 +33,10 @@ struct ReelMovie: Identifiable, Equatable {
 
     static func == (lhs: ReelMovie, rhs: ReelMovie) -> Bool {
         lhs.tmdbId == rhs.tmdbId
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(tmdbId)
     }
 
     init(from movie: RecommendedMovieResponse) {

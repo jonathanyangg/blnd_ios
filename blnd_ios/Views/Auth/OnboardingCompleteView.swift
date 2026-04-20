@@ -1,3 +1,4 @@
+import PostHog
 import SwiftUI
 
 struct OnboardingCompleteView: View {
@@ -17,6 +18,12 @@ struct OnboardingCompleteView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(AppTheme.background)
         .navigationBarBackButtonHidden()
+        .task {
+            PostHogSDK.shared.capture(
+                "onboarding_step_viewed",
+                properties: ["step": "complete"]
+            )
+        }
     }
 
     private var readyContent: some View {
@@ -90,8 +97,7 @@ struct OnboardingCompleteView: View {
                 )
             }
 
-            for (tmdbId, liked) in onboardingState.movieRatings {
-                let rating: Double = liked ? 4.0 : 2.0
+            for (tmdbId, rating) in onboardingState.movieRatings {
                 _ = try? await TrackingAPI.trackMovie(
                     tmdbId: tmdbId,
                     rating: rating

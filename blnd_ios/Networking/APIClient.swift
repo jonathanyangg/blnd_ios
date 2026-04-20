@@ -231,13 +231,20 @@ final class APIClient: @unchecked Sendable {
     }
 
     /// Parses error detail from FastAPI response body.
-    /// Tries {"detail": "string"} first, then {"detail": [{"msg": ...}]}.
+    /// Tries {"detail": "string"} first, then {"detail": {"message": "..."}},
+    /// then {"detail": [{"msg": ...}]}.
     private func parseDetail(from data: Data) -> String {
         // Shape 1: {"detail": "Username already taken"}
         if let obj = try? decoder.decode([String: String].self, from: data), let detail = obj["detail"] {
             return detail
         }
-        // Shape 2: {"detail": [{"msg": "String should have at most 250 characters", ...}]}
+        // Shape 2: {"detail": {"message": "...", "code": "...", ...}}
+        if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            if let detail = json["detail"] as? [String: Any], let msg = detail["message"] as? String {
+                return msg
+            }
+        }
+        // Shape 3: {"detail": [{"msg": "String should have at most 250 characters", ...}]}
         if let obj = try? decoder.decode(ValidationErrorResponse.self, from: data) {
             let messages = obj.detail.map(\.msg)
             return messages.joined(separator: ". ")

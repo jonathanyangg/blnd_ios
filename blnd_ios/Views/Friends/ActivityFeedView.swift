@@ -65,7 +65,7 @@ struct ActivityFeedView: View {
             }
         }
         .task {
-            UNUserNotificationCenter.current().setBadgeCount(0)
+            try? await UNUserNotificationCenter.current().setBadgeCount(0)
             await loadInbox()
             // Mark all as read when viewing
             try? await NotificationAPI.markInboxRead()

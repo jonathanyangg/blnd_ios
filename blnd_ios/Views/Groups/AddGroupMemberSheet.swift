@@ -3,15 +3,20 @@ import SwiftUI
 struct AddGroupMemberSheet: View {
     let groupId: Int
     var existingMemberIds: Set<String> = []
+    var memberCount: Int = 0
     let onMemberAdded: (GroupDetailResponse) -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(AuthState.self) private var authState
     @State private var friends: [FriendResponse] = []
     @State private var isLoadingFriends = true
     @State private var query = ""
     @State private var addingId: String?
     @State private var addedIds: Set<String> = []
     @State private var errorMessage: String?
+    @State private var showPaywall = false
+
+    private let freeGroupCap = 8
 
     @FocusState private var isFieldFocused: Bool
 
@@ -63,6 +68,10 @@ struct AddGroupMemberSheet: View {
         .task {
             await loadFriends()
             isFieldFocused = true
+        }
+        .sheet(isPresented: $showPaywall) {
+            PaywallView()
+                .environment(authState)
         }
     }
 
@@ -175,6 +184,12 @@ struct AddGroupMemberSheet: View {
     }
 
     private func addFriend(_ friend: FriendResponse) async {
+        let currentCount = memberCount + addedIds.count
+        if currentCount >= freeGroupCap, !authState.isPremium {
+            showPaywall = true
+            return
+        }
+
         addingId = friend.id
         errorMessage = nil
         do {
@@ -185,7 +200,11 @@ struct AddGroupMemberSheet: View {
             addedIds.insert(friend.id)
             onMemberAdded(updated)
         } catch let APIError.badRequest(message) {
-            errorMessage = message
+            if message.contains("Upgrade") || message.contains("blnd+") {
+                showPaywall = true
+            } else {
+                errorMessage = message
+            }
         } catch {
             errorMessage = error.localizedDescription
         }

@@ -243,15 +243,16 @@ struct MovieDetailView: View {
                     .font(.system(size: 14))
                     .foregroundStyle(AppTheme.textMuted)
                     .lineSpacing(4)
-                    .lineLimit(overviewExpanded ? nil : 4)
+                    .lineLimit(overviewExpanded ? nil : 2)
 
-                if !overviewExpanded {
+                HStack {
+                    Spacer()
                     Button {
                         withAnimation(.easeInOut(duration: 0.2)) {
-                            overviewExpanded = true
+                            overviewExpanded.toggle()
                         }
                     } label: {
-                        Text("more")
+                        Text(overviewExpanded ? "less" : "more")
                             .font(.system(size: 14, weight: .medium))
                             .foregroundStyle(.white)
                     }

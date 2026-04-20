@@ -5,7 +5,7 @@ struct RatedMovie {
     let title: String
     let year: Int?
     let posterPath: String?
-    let liked: Bool
+    let rating: Double
 }
 
 /// Caches onboarding data so navigating back preserves state.
@@ -19,7 +19,7 @@ class OnboardingState {
     var phoneNumber = ""
 
     var selectedGenres: Set<String> = []
-    var movieRatings: [Int: Bool] = [:]
+    var movieRatings: [Int: Double] = [:]
     var ratedMovies: [RatedMovie] = []
 
     // Apple Sign In fields
@@ -34,7 +34,7 @@ class OnboardingState {
     }
 
     var likedMovies: [RatedMovie] {
-        ratedMovies.filter(\.liked)
+        ratedMovies.filter { $0.rating >= 3.0 }
     }
 
     func reset() {

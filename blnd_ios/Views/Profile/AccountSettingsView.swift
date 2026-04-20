@@ -8,6 +8,12 @@ struct AccountSettingsView: View {
     @State private var displayName = ""
     @State private var username = ""
     @State private var phoneNumber = ""
+    @State private var selectedGenres: Set<String> = []
+
+    private let allGenres = [
+        "Action", "Comedy", "Horror", "Sci-Fi", "Romance", "Thriller",
+        "Drama", "Animation", "Documentary", "Mystery", "Fantasy", "Crime",
+    ]
     @State private var isSaving = false
     @State private var errorMessage: String?
     @State private var showSuccess = false
@@ -24,6 +30,7 @@ struct AccountSettingsView: View {
             VStack(spacing: 24) {
                 avatarSection
                 fieldsSection
+                genreSection
 
                 NavigationLink {
                     ChangePasswordView()
@@ -121,6 +128,7 @@ struct AccountSettingsView: View {
                 displayName = user.displayName ?? ""
                 username = user.username ?? ""
                 phoneNumber = user.phoneNumber ?? ""
+                selectedGenres = Set(user.favoriteGenres)
             }
         }
         .onChange(of: selectedPhoto) { _, newItem in
@@ -220,6 +228,29 @@ struct AccountSettingsView: View {
         }
     }
 
+    private var genreSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Favorite Genres")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(AppTheme.textMuted)
+            FlowLayout(spacing: 4) {
+                ForEach(allGenres, id: \.self) { genre in
+                    GenrePill(
+                        label: genre,
+                        isActive: selectedGenres.contains(genre),
+                        isSmall: true
+                    ) {
+                        if selectedGenres.contains(genre) {
+                            selectedGenres.remove(genre)
+                        } else {
+                            selectedGenres.insert(genre)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     private var hasAvatar: Bool {
         avatarImage != nil || authState.currentUser?.avatarUrl != nil
     }
@@ -283,6 +314,7 @@ struct AccountSettingsView: View {
             let updated = try await AuthAPI.updateProfile(
                 username: trimmedUsername.isEmpty ? nil : trimmedUsername,
                 displayName: trimmedName.isEmpty ? nil : trimmedName,
+                favoriteGenres: Array(selectedGenres),
                 phoneNumber: trimmedPhone.isEmpty ? nil : trimmedPhone
             )
             authState.currentUser = updated

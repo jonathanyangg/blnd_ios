@@ -16,8 +16,10 @@ enum HomeTab: String, CaseIterable {
 struct HomeView: View {
     @Environment(TabState.self) var tabState
     @Environment(DeepLinkState.self) var deepLinkState
+    @Environment(AuthState.self) var authState
     @State var selectedTab: HomeTab = .forYou
     @State var showSearch = false
+    @State var showPaywall = false
     @State var viewMode: ViewMode = .reels
     @Namespace private var tabNamespace
 
@@ -57,6 +59,10 @@ struct HomeView: View {
                 if isShowing {
                     TrailerPlayer.shared.stop()
                 }
+            }
+            .sheet(isPresented: $showPaywall) {
+                PaywallView()
+                    .environment(authState)
             }
             .overlay {
                 if !hasSeenTutorial, viewMode == .reels, !isLoadingFYP, !fypReelMovies.isEmpty {
@@ -137,6 +143,13 @@ struct HomeView: View {
                         )
                         .font(.system(size: 18))
                         .foregroundStyle(.white)
+                    }
+                    if !authState.isPremium {
+                        Button { showPaywall = true } label: {
+                            Text("+")
+                                .font(.system(size: 20, weight: .bold))
+                                .foregroundStyle(AppTheme.premiumGoldGradient)
+                        }
                     }
                     Button { showSearch = true } label: {
                         Image(systemName: "magnifyingglass")

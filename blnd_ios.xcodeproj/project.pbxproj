@@ -10,6 +10,7 @@
 		8441DF102F835F4F00DF0425 /* PostHog in Frameworks */ = {isa = PBXBuildFile; productRef = 8441DF0F2F835F4F00DF0425 /* PostHog */; };
 		8441E5732F889C5800DF0425 /* PhoneNumberKit in Frameworks */ = {isa = PBXBuildFile; productRef = 8441E5722F889C5800DF0425 /* PhoneNumberKit */; };
 		8441F07E2F9574DD00DF0425 /* RevenueCat in Frameworks */ = {isa = PBXBuildFile; productRef = 8441F07D2F9574DD00DF0425 /* RevenueCat */; };
+		8441F2682F95D77400DF0425 /* blnd movies.storekit in Resources */ = {isa = PBXBuildFile; fileRef = 8441F2672F95D77400DF0425 /* blnd movies.storekit */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -30,6 +31,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		8441F2672F95D77400DF0425 /* blnd movies.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = "blnd movies.storekit"; sourceTree = "<group>"; };
 		84CAD8C72F56A2E7001B73F1 /* blnd_ios.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = blnd_ios.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		84CAD8D42F56A2E8001B73F1 /* blnd_iosTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = blnd_iosTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		84CAD8DE2F56A2E9001B73F1 /* blnd_iosUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = blnd_iosUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -91,6 +93,7 @@
 		84CAD8BE2F56A2E7001B73F1 = {
 			isa = PBXGroup;
 			children = (
+				8441F2672F95D77400DF0425 /* blnd movies.storekit */,
 				84CAD8C92F56A2E7001B73F1 /* blnd_ios */,
 				84CAD8D72F56A2E8001B73F1 /* blnd_iosTests */,
 				84CAD8E12F56A2E9001B73F1 /* blnd_iosUITests */,
@@ -237,6 +240,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8441F2682F95D77400DF0425 /* blnd movies.storekit in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

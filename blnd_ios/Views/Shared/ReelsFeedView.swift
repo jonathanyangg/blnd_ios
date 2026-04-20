@@ -14,6 +14,7 @@ struct ReelsFeedView: View {
     @State private var addedToWatchlist: Set<Int> = []
     @State private var lastWatchlistedTmdbId: Int?
     @State private var lastHiddenTmdbId: Int?
+    @State private var detailMovie: ReelMovie?
 
     var body: some View {
         GeometryReader { geo in
@@ -42,7 +43,10 @@ struct ReelsFeedView: View {
                                 showToast(msg)
                                 advanceToNext(from: movie.tmdbId)
                             },
-                            onRated: { _ in }
+                            onRated: { _ in },
+                            onShowDetail: {
+                                detailMovie = movie
+                            }
                         )
                         .frame(height: cardHeight)
                         .id(movie.tmdbId)
@@ -76,6 +80,9 @@ struct ReelsFeedView: View {
             if currentId == nil, let first = movies.first {
                 currentId = first.tmdbId
             }
+        }
+        .navigationDestination(item: $detailMovie) { movie in
+            MovieDetailView(tmdbId: movie.tmdbId, title: movie.title)
         }
         .overlay(alignment: .bottom) {
             if let toast = toastMessage {

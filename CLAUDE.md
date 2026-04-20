@@ -323,19 +323,24 @@ blnd_ios/blnd_ios/
 
 Backend is fully wired (RevenueCat webhook, admin grant, tier-based group cap, subscription fields on profile). iOS partially done:
 
+**Branding:** "blnd+" (lowercase, plus sign). Display name in RevenueCat entitlement = "blnd+". App Store Connect subscription localization can optionally be updated to match but isn't required — Apple uses its own display name on receipts/management screens.
+
 **Done:**
 - RevenueCat SDK added (5.68.0) + configured in blndApp.swift init()
 - Purchases.shared.logIn/logOut synced on all auth paths (AuthState)
 - UserResponse extended with subscriptionTier + subscriptionExpiresAt + isPremium computed
 - AuthState.isPremium computed from currentUser
-- BlndMoreBadge reusable view ("blnd" white + "+" silver-to-white gradient) — UPDATE: user changed from "more" to "+", update the badge text
+- BlndPlusBadge reusable view ("blnd" white + "+" silver-to-white gradient)
 - PaywallView (custom): feature list, offering price, purchase button, restore purchases
 - Settings: premium section (upgrade/active), restore purchases, manage subscription rows
-- Profile: BlndMoreBadge shown under username when premium
-- AppTheme.premiumGradient added
+- Profile: BlndPlusBadge shown under username when premium
+- Gold angular gradient ring on AvatarView for premium users (AppTheme.premiumRingGradient)
+- BlndPlusBadge + gold ring on FriendProfileView (public, visible without friendship)
+- PublicProfileResponse includes subscriptionTier from backend
+- AppTheme.premiumGradient (text) + premiumRingGradient (avatar ring) added
+- Any group member can kick non-owners (removed owner-only restriction on kick button)
 
 **TODO:**
-- Update BlndMoreBadge text from "more" to "+"
 - Create StoreKit Configuration file for local testing (Products.storekit with blnd_premium_monthly)
 - Test full purchase flow on device with sandbox account
 - Wire paywall trigger from Discover page ("Search with AI" button — gated, shows paywall for non-premium)

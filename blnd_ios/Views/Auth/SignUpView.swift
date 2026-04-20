@@ -1,4 +1,5 @@
 import AuthenticationServices
+import PostHog
 import SwiftUI
 
 struct SignUpView: View {
@@ -151,6 +152,12 @@ struct SignUpView: View {
             ToolbarItem(placement: .navigationBarLeading) {
                 BackButton()
             }
+        }
+        .task {
+            PostHogSDK.shared.capture(
+                "onboarding_step_viewed",
+                properties: ["step": "signup"]
+            )
         }
     }
 

@@ -14,6 +14,7 @@ struct ProfileView: View {
     @State private var showNotifications = false
     @State private var unreadCount = 0
     @State private var showFullAvatar = false
+    @State private var showPaywall = false
     @State private var selectedTab: ProfileTab = .watched
     @Namespace private var profileTabNamespace
 
@@ -48,6 +49,13 @@ struct ProfileView: View {
                             onTap: { tabState.switchTab(2) }
                         ),
                     ])
+
+                    if !authState.isPremium {
+                        premiumUpsellCard
+                            .padding(.horizontal, 24)
+                            .padding(.top, 8)
+                    }
+
                     tabPicker
                         .padding(.horizontal, 24)
                         .padding(.bottom, 16)
@@ -71,6 +79,10 @@ struct ProfileView: View {
             }
             .navigationDestination(isPresented: $showNotifications) {
                 ActivityFeedView()
+            }
+            .sheet(isPresented: $showPaywall) {
+                PaywallView()
+                    .environment(authState)
             }
             .fullScreenCover(isPresented: $showFullAvatar) {
                 FullAvatarView(url: authState.currentUser?.avatarUrl) {
@@ -169,6 +181,42 @@ struct ProfileView: View {
         .padding(.bottom, 24)
     }
 
+    // MARK: - Premium Upsell
+
+    private var premiumUpsellCard: some View {
+        Button { showPaywall = true } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 16))
+                    .foregroundStyle(AppTheme.premiumGoldGradient)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    BlndPlusBadge(size: 13)
+                    Text("AI search, larger groups & more")
+                        .font(.system(size: 12))
+                        .foregroundStyle(AppTheme.textMuted)
+                }
+
+                Spacer()
+
+                Text("Get")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.black)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 6)
+                    .background(AppTheme.premiumGoldGradient)
+                    .clipShape(Capsule())
+            }
+            .padding(14)
+            .background(AppTheme.card)
+            .clipShape(RoundedRectangle(cornerRadius: AppTheme.cornerRadiusLarge))
+            .overlay(
+                RoundedRectangle(cornerRadius: AppTheme.cornerRadiusLarge)
+                    .stroke(AppTheme.premiumGoldGradient.opacity(0.3), lineWidth: 1)
+            )
+        }
+    }
+
     // MARK: - Tab Picker
 
     private var tabPicker: some View {
@@ -258,10 +306,12 @@ struct ProfileView: View {
             }
         }
     }
+}
 
-    // MARK: - Taste Content
+// MARK: - Content Sections
 
-    private var tasteContent: some View {
+extension ProfileView {
+    var tasteContent: some View {
         Group {
             if isLoadingTaste {
                 ProgressView()
@@ -299,7 +349,7 @@ struct ProfileView: View {
         }
     }
 
-    private func emptyState(message: String) -> some View {
+    func emptyState(message: String) -> some View {
         Text(message)
             .font(.system(size: 14))
             .foregroundStyle(AppTheme.textMuted)

@@ -6,6 +6,7 @@ struct ReelCardView: View {
     var groupContext: GroupContext?
     var onWatchlistAdded: ((String) -> Void)?
     var onRated: ((Double) -> Void)?
+    var onShowDetail: (() -> Void)?
 
     struct GroupContext {
         let groupId: Int
@@ -16,7 +17,6 @@ struct ReelCardView: View {
     @State var swipeTriggeredHaptic = false
     @State var isDragging = false
     @State var trailerReady = false
-    @State var overviewExpanded = false
     @State var friendsWhoWatched: [FriendWatchedResponse] = []
     @State var showStreamingSheet = false
     @State var friendsLoadTask: Task<Void, Never>?
@@ -65,18 +65,16 @@ struct ReelCardView: View {
 
             Spacer(minLength: 8)
 
-            if !overviewExpanded {
-                Divider()
-                    .overlay(AppTheme.border)
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 10)
-                    .layoutPriority(10)
+            Divider()
+                .overlay(AppTheme.border)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 10)
+                .layoutPriority(10)
 
-                inlineRatingBar
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 26)
-                    .layoutPriority(10)
-            }
+            inlineRatingBar
+                .padding(.horizontal, 20)
+                .padding(.bottom, 26)
+                .layoutPriority(10)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(Color.black)
@@ -95,6 +93,10 @@ struct ReelCardView: View {
         )
         .simultaneousGesture(horizontalSwipe)
         .overlay { swipeIndicators }
+        .onTapGesture {
+            guard !isDragging else { return }
+            onShowDetail?()
+        }
         .sheet(item: $selectedCastMember) { member in
             NavigationStack {
                 ActorProfileView(
@@ -129,7 +131,6 @@ struct ReelCardView: View {
                 }
             } else {
                 trailerReady = false
-                overviewExpanded = false
                 // Don't call stop() here — loadVideo() on the next card
                 // implicitly replaces the current video. An explicit stop()
                 // races with the next card's play() and kills it.

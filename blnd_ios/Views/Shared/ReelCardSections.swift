@@ -166,11 +166,7 @@ extension ReelCardView {
             overviewGroup
                 .layoutPriority(1)
 
-            if friendsWhoWatched.isEmpty || overviewExpanded {
-                compactCastSection
-                    .layoutPriority(4)
-            }
-            if !friendsWhoWatched.isEmpty, !overviewExpanded {
+            if !friendsWhoWatched.isEmpty {
                 compactFriendsSection
                     .layoutPriority(5)
             }
@@ -184,12 +180,7 @@ extension ReelCardView {
     /// (tagline wins, since it has higher layoutPriority).
     @ViewBuilder
     var overviewGroup: some View {
-        if overviewExpanded {
-            VStack(alignment: .leading, spacing: 3) {
-                cardOverview
-                lessButton
-            }
-        } else if !overviewText.isEmpty {
+        if !overviewText.isEmpty {
             ViewThatFits(in: .vertical) {
                 collapsedOverviewBlock(lines: 5)
                 collapsedOverviewBlock(lines: 4)
@@ -202,14 +193,11 @@ extension ReelCardView {
     }
 
     /// One collapsed-state variant: overview capped at `lines` plus the
-    /// "more" button. Always shown when there's content worth expanding
-    /// (cast or overview text) so users can always reach the detail view.
+    /// "more" button that navigates to the full detail view.
     func collapsedOverviewBlock(lines: Int) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             collapsedOverviewText(lineCap: lines)
-            if !overviewText.isEmpty || !movie.cast.isEmpty {
-                moreButton
-            }
+            moreButton
         }
     }
 
@@ -217,26 +205,9 @@ extension ReelCardView {
         HStack {
             Spacer()
             Button {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    overviewExpanded = true
-                }
+                onShowDetail?()
             } label: {
                 Text("more")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.white)
-            }
-        }
-    }
-
-    var lessButton: some View {
-        HStack {
-            Spacer()
-            Button {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    overviewExpanded = false
-                }
-            } label: {
-                Text("less")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(.white)
             }

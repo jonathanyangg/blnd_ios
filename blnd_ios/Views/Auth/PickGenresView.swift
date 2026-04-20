@@ -1,3 +1,4 @@
+import PostHog
 import SwiftUI
 
 struct PickGenresView: View {
@@ -61,6 +62,12 @@ struct PickGenresView: View {
             ToolbarItem(placement: .navigationBarLeading) {
                 BackButton()
             }
+        }
+        .task {
+            PostHogSDK.shared.capture(
+                "onboarding_step_viewed",
+                properties: ["step": "genres"]
+            )
         }
     }
 }

@@ -6,6 +6,8 @@ struct AvatarView: View {
     var overlap: Bool = false
     var isPremium: Bool = false
 
+    @State private var ringRotation: Double = 0
+
     var body: some View {
         Group {
             if let url, let imageURL = URL(string: url) {
@@ -25,11 +27,37 @@ struct AvatarView: View {
         .overlay(
             Circle()
                 .stroke(
-                    isPremium ? AnyShapeStyle(AppTheme.premiumRingGradient) : AnyShapeStyle(AppTheme.background),
+                    isPremium
+                        ? AnyShapeStyle(
+                            AngularGradient(
+                                colors: [
+                                    Color(hex: 0xC49B3D),
+                                    Color(hex: 0xF5E6A3),
+                                    Color(hex: 0xD4A853),
+                                    Color(hex: 0xFFF8E7),
+                                    Color(hex: 0xC49B3D),
+                                    Color(hex: 0xF5E6A3),
+                                    Color(hex: 0xD4A853),
+                                    Color(hex: 0xC49B3D),
+                                ],
+                                center: .center,
+                                angle: .degrees(ringRotation)
+                            )
+                        )
+                        : AnyShapeStyle(AppTheme.background),
                     lineWidth: isPremium ? 2.5 : 2
                 )
         )
         .padding(.leading, overlap ? -10 : 0)
+        .onAppear {
+            guard isPremium else { return }
+            withAnimation(
+                .linear(duration: 3)
+                    .repeatForever(autoreverses: false)
+            ) {
+                ringRotation = 360
+            }
+        }
     }
 
     private var gradientCircle: some View {
@@ -42,7 +70,7 @@ struct AvatarView: View {
     HStack(spacing: 0) {
         AvatarView()
         AvatarView(overlap: true)
-        AvatarView(overlap: true)
+        AvatarView(isPremium: true, size: 80)
     }
     .padding()
     .background(AppTheme.background)

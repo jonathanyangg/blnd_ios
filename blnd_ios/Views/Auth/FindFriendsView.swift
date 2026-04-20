@@ -53,6 +53,12 @@ struct FindFriendsView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(AppTheme.background)
         .navigationBarBackButtonHidden()
+        .task {
+            PostHogSDK.shared.capture(
+                "onboarding_step_viewed",
+                properties: ["step": "find_friends"]
+            )
+        }
     }
 
     private func syncContacts() async {

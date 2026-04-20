@@ -1,3 +1,4 @@
+import PostHog
 import SwiftUI
 
 /// Routes used by the onboarding NavigationStack.
@@ -35,6 +36,7 @@ struct WelcomeView: View {
 
                 VStack(spacing: 8) {
                     AppButton(label: "Create Account") {
+                        PostHogSDK.shared.capture("onboarding_started")
                         path.append(AuthRoute.pickGenres)
                     }
 

@@ -1,3 +1,4 @@
+import PostHog
 import SwiftUI
 
 struct ChooseUsernameView: View {
@@ -59,6 +60,12 @@ struct ChooseUsernameView: View {
                 BackButton()
             }
         }
+        .task {
+            PostHogSDK.shared.capture(
+                "onboarding_step_viewed",
+                properties: ["step": "choose_username"]
+            )
+        }
     }
 
     private func submit() async {
@@ -83,8 +90,8 @@ struct ChooseUsernameView: View {
             KeychainManager.save(key: "userId", string: oauthResponse.userId)
 
             // Step 2: Create profile with username + onboarding data
-            let ratedMovies = onboardingState.movieRatings.map { tmdbId, liked in
-                RatedMovieRequest(tmdbId: tmdbId, rating: liked ? 4.0 : 2.0)
+            let ratedMovies = onboardingState.movieRatings.map { tmdbId, rating in
+                RatedMovieRequest(tmdbId: tmdbId, rating: rating)
             }
             let genres = Array(onboardingState.selectedGenres)
 

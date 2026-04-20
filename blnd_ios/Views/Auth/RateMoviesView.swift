@@ -1,3 +1,4 @@
+import PostHog
 import SwiftUI
 
 struct RateMoviesView: View {
@@ -5,8 +6,14 @@ struct RateMoviesView: View {
     @Binding var path: NavigationPath
     @State private var movies: [MovieResponse] = []
     @State private var currentIndex = 0
-    @State private var offset: CGSize = .zero
     @State private var isLoading = true
+    @State private var cardOffset: CGFloat = 0
+    @State private var cardOpacity: Double = 1
+    @State private var dragOffset: CGFloat = 0
+
+    /// Per-card state: rating (0 = unrated) and whether user tapped "Haven't seen"
+    @State private var ratings: [Int: Double] = [:]
+    @State private var skipped: Set<Int> = []
 
     private let movieCount = 7
 
@@ -15,128 +22,47 @@ struct RateMoviesView: View {
         return movies[currentIndex]
     }
 
+    private var currentRating: Double {
+        guard let movie = currentMovie else { return 0 }
+        return ratings[movie.tmdbId] ?? 0
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             OnboardingProgressBar(step: 2, total: 5)
                 .padding(.top, 12)
 
-            VStack(alignment: .leading, spacing: 0) {
+            VStack(spacing: 0) {
                 Text("Rate these")
                     .font(.system(size: 32, weight: .bold))
                     .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.top, 32)
 
-                Text("Swipe right to like, left to dislike")
+                Text("Tap stars to rate — half stars work too")
                     .font(.system(size: 14))
                     .foregroundStyle(AppTheme.textMuted)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.top, 4)
-                    .padding(.bottom, 24)
+                    .padding(.bottom, 32)
 
                 if isLoading {
                     Spacer()
-                    ProgressView()
-                        .tint(.white)
-                        .frame(maxWidth: .infinity)
+                    ProgressView().tint(.white)
                     Spacer()
                 } else if movies.isEmpty {
                     Spacer()
                     Text("No movies found")
                         .foregroundStyle(AppTheme.textMuted)
-                        .frame(maxWidth: .infinity)
                     Spacer()
                 } else {
-                    // Card stack
-                    ZStack {
-                        // Background card
-                        if currentIndex + 1 < movies.count {
-                            let next = movies[currentIndex + 1]
-                            SwipeCard(
-                                title: next.title,
-                                year: next.year.map { String($0) } ?? "",
-                                posterPath: next.posterPath
-                            )
-                            .scaleEffect(0.9)
-                            .rotationEffect(.degrees(-4))
-                            .opacity(0.4)
-                        }
-
-                        // Front card
-                        if let movie = currentMovie {
-                            SwipeCard(
-                                title: movie.title,
-                                year: movie.year.map { String($0) } ?? "",
-                                posterPath: movie.posterPath
-                            )
-                            .id(currentIndex)
-                            .offset(offset)
-                            .rotationEffect(.degrees(Double(offset.width) * 0.04))
-                            .gesture(
-                                DragGesture()
-                                    .onChanged { value in
-                                        offset = value.translation
-                                    }
-                                    .onEnded { value in
-                                        if abs(value.translation.width) > 100 {
-                                            swipe(liked: value.translation.width > 0)
-                                        } else {
-                                            withAnimation(.spring(response: 0.3)) {
-                                                offset = .zero
-                                            }
-                                        }
-                                    }
-                            )
-                        }
-                    }
-                    .frame(height: 280)
-                    .frame(maxWidth: .infinity)
-
-                    // Action buttons
-                    HStack {
-                        Button {
-                            swipe(liked: false)
-                        } label: {
-                            Image(systemName: "hand.thumbsdown.fill")
-                                .font(.system(size: 22))
-                                .frame(width: 52, height: 52)
-                                .background(AppTheme.card)
-                                .foregroundStyle(.white)
-                                .clipShape(Circle())
-                        }
-
-                        Spacer()
-
-                        GenrePill(label: "Haven't seen", isSmall: true) {
-                            skip()
-                        }
-
-                        Spacer()
-
-                        Button {
-                            swipe(liked: true)
-                        } label: {
-                            Image(systemName: "hand.thumbsup.fill")
-                                .font(.system(size: 22))
-                                .frame(width: 52, height: 52)
-                                .background(AppTheme.card)
-                                .foregroundStyle(.white)
-                                .clipShape(Circle())
-                        }
-                    }
-                    .padding(.top, 16)
-
-                    // Progress dots
-                    HStack(spacing: 8) {
-                        ForEach(0 ..< movies.count, id: \.self) { index in
-                            Circle()
-                                .fill(index <= currentIndex ? .white : AppTheme.border)
-                                .frame(width: 8, height: 8)
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, 20)
+                    cardStack
+                    Spacer(minLength: 24)
+                    ratingSection
+                    pageDots
+                        .padding(.top, 20)
+                    Spacer(minLength: 16)
                 }
-
-                Spacer()
             }
             .padding(.horizontal, 24)
         }
@@ -147,7 +73,184 @@ struct RateMoviesView: View {
                 BackButton()
             }
         }
-        .task { await fetchMovies() }
+        .task {
+            PostHogSDK.shared.capture(
+                "onboarding_step_viewed",
+                properties: ["step": "rate_movies"]
+            )
+            await fetchMovies()
+        }
+    }
+
+    // MARK: - Card Stack
+
+    private var cardStack: some View {
+        ZStack {
+            ForEach(
+                Array(visibleCards.enumerated().reversed()),
+                id: \.element.tmdbId
+            ) { stackIndex, movie in
+                let isTop = stackIndex == 0
+
+                MovieCard(
+                    tmdbId: movie.tmdbId,
+                    title: isTop ? movie.title : "",
+                    year: isTop ? (movie.year.map { String($0) } ?? "") : "",
+                    posterPath: movie.posterPath,
+                    width: 200,
+                    height: 300
+                )
+                .scaleEffect(scale(for: stackIndex))
+                .offset(y: yOffset(for: stackIndex))
+                .opacity(isTop ? cardOpacity : opacity(for: stackIndex))
+                .offset(x: isTop ? dragOffset : 0, y: isTop ? cardOffset : 0)
+                .zIndex(Double(visibleCards.count - stackIndex))
+            }
+        }
+        .frame(height: 340)
+        .gesture(swipeBackGesture)
+    }
+
+    private var visibleCards: [MovieResponse] {
+        let remaining = Array(movies.dropFirst(currentIndex))
+        return Array(remaining.prefix(3))
+    }
+
+    private func scale(for stackIndex: Int) -> CGFloat {
+        1.0 - CGFloat(stackIndex) * 0.06
+    }
+
+    private func yOffset(for stackIndex: Int) -> CGFloat {
+        CGFloat(stackIndex) * 12
+    }
+
+    private func opacity(for stackIndex: Int) -> Double {
+        1.0 - Double(stackIndex) * 0.2
+    }
+
+    // MARK: - Swipe Back Gesture
+
+    private var swipeBackGesture: some Gesture {
+        DragGesture(minimumDistance: 30)
+            .onChanged { value in
+                // Only allow right swipe (positive) when there's a previous card
+                if value.translation.width > 0, currentIndex > 0 {
+                    dragOffset = value.translation.width * 0.5
+                }
+            }
+            .onEnded { value in
+                if value.translation.width > 80, currentIndex > 0 {
+                    goBack()
+                } else {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        dragOffset = 0
+                    }
+                }
+            }
+    }
+
+    // MARK: - Rating Section
+
+    private var ratingSection: some View {
+        VStack(spacing: 16) {
+            StarRatingInput(
+                rating: Binding(
+                    get: { currentRating },
+                    set: { newValue in
+                        guard let movie = currentMovie else { return }
+                        skipped.remove(movie.tmdbId)
+                        ratings[movie.tmdbId] = newValue
+                        if newValue > 0 {
+                            submitAndAdvance(movie: movie)
+                        }
+                    }
+                ),
+                starSize: 36,
+                spacing: 12
+            )
+
+            Button { skipAndAdvance() } label: {
+                let isSkipped = currentMovie.map { skipped.contains($0.tmdbId) } ?? false
+                Text("Haven't seen")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(isSkipped ? .black : AppTheme.textMuted)
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 20)
+                    .background(isSkipped ? .white : AppTheme.card)
+                    .clipShape(Capsule())
+            }
+        }
+    }
+
+    private var pageDots: some View {
+        HStack(spacing: 8) {
+            ForEach(0 ..< movies.count, id: \.self) { index in
+                Circle()
+                    .fill(index <= currentIndex ? .white : AppTheme.border)
+                    .frame(width: 6, height: 6)
+            }
+        }
+    }
+
+    // MARK: - Actions
+
+    private func submitAndAdvance(movie: MovieResponse) {
+        let movieRating = ratings[movie.tmdbId] ?? 0
+        if movieRating > 0 {
+            onboardingState.movieRatings[movie.tmdbId] = movieRating
+            // Remove any previous entry for this movie before re-adding
+            onboardingState.ratedMovies.removeAll { $0.tmdbId == movie.tmdbId }
+            onboardingState.ratedMovies.append(RatedMovie(
+                tmdbId: movie.tmdbId,
+                title: movie.title,
+                year: movie.year,
+                posterPath: movie.posterPath,
+                rating: movieRating
+            ))
+        }
+        animateForward()
+    }
+
+    private func skipAndAdvance() {
+        guard let movie = currentMovie else { return }
+        skipped.insert(movie.tmdbId)
+        ratings.removeValue(forKey: movie.tmdbId)
+        onboardingState.movieRatings.removeValue(forKey: movie.tmdbId)
+        onboardingState.ratedMovies.removeAll { $0.tmdbId == movie.tmdbId }
+        animateForward()
+    }
+
+    private func goBack() {
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+            dragOffset = 0
+        }
+        guard currentIndex > 0 else { return }
+        withAnimation(.easeOut(duration: 0.2)) {
+            cardOpacity = 0
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) {
+            currentIndex -= 1
+            cardOffset = 0
+            cardOpacity = 1
+        }
+    }
+
+    private func animateForward() {
+        withAnimation(.easeOut(duration: 0.25)) {
+            cardOffset = -40
+            cardOpacity = 0
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.28) {
+            cardOffset = 0
+            cardOpacity = 1
+            dragOffset = 0
+
+            if currentIndex < movies.count - 1 {
+                currentIndex += 1
+            } else {
+                path.append(AuthRoute.createAccount)
+            }
+        }
     }
 
     private func fetchMovies() async {
@@ -159,99 +262,8 @@ struct RateMoviesView: View {
         do {
             let result = try await MoviesAPI.discover(genres: genres)
             movies = Array(result.results.prefix(movieCount))
-        } catch { /* Non-critical — "No movies found" empty state shown */ }
+        } catch { /* Non-critical — empty state shown */ }
         isLoading = false
-    }
-
-    private func swipe(liked: Bool) {
-        guard let movie = currentMovie else { return }
-        onboardingState.movieRatings[movie.tmdbId] = liked
-        onboardingState.ratedMovies.append(RatedMovie(
-            tmdbId: movie.tmdbId,
-            title: movie.title,
-            year: movie.year,
-            posterPath: movie.posterPath,
-            liked: liked
-        ))
-        withAnimation(.easeOut(duration: 0.3)) {
-            offset = CGSize(width: liked ? 300 : -300, height: 0)
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            advance()
-        }
-    }
-
-    private func skip() {
-        advance()
-    }
-
-    private func advance() {
-        offset = .zero
-        if currentIndex < movies.count - 1 {
-            currentIndex += 1
-        } else {
-            path.append(AuthRoute.createAccount)
-        }
-    }
-}
-
-// MARK: - Swipe Card
-
-private struct SwipeCard: View {
-    let title: String
-    let year: String
-    let posterPath: String?
-
-    private var posterURL: URL? {
-        guard let path = posterPath else { return nil }
-        return URL(string: "https://image.tmdb.org/t/p/w342\(path)")
-    }
-
-    var body: some View {
-        ZStack(alignment: .bottom) {
-            if let url = posterURL {
-                CachedAsyncImage(url: url) { image in
-                    image.resizable().scaledToFill()
-                        .posterBlur()
-                } placeholder: {
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(AppTheme.posterGradient)
-                }
-                .frame(width: 190, height: 280)
-                .clipShape(RoundedRectangle(cornerRadius: 16))
-                .shadow(color: .black.opacity(0.5), radius: 30, y: 20)
-            } else {
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(AppTheme.posterGradient)
-                    .frame(width: 190, height: 280)
-                    .shadow(color: .black.opacity(0.5), radius: 30, y: 20)
-            }
-
-            VStack(alignment: .leading) {
-                Text(title)
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundStyle(.white)
-                Text(year)
-                    .font(.system(size: 12))
-                    .foregroundStyle(AppTheme.textMuted)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(12)
-            .background(
-                LinearGradient(
-                    colors: [.clear, .black],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            )
-            .clipShape(
-                UnevenRoundedRectangle(
-                    bottomLeadingRadius: 16,
-                    bottomTrailingRadius: 16
-                )
-            )
-            .frame(width: 190)
-        }
     }
 }
 
