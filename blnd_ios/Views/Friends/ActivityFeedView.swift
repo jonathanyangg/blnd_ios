@@ -1,4 +1,5 @@
 import SwiftUI
+import UserNotifications
 
 struct ActivityFeedView: View {
     @State private var items: [InboxItem] = []
@@ -64,9 +65,11 @@ struct ActivityFeedView: View {
             }
         }
         .task {
+            UNUserNotificationCenter.current().setBadgeCount(0)
             await loadInbox()
             // Mark all as read when viewing
             try? await NotificationAPI.markInboxRead()
+            try? await NotificationAPI.resetBadge()
         }
         .refreshable { await loadInbox() }
     }
