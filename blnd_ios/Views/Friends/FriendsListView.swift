@@ -23,7 +23,7 @@ struct FriendsListView: View {
                         Button {
                             showAddFriend = true
                         } label: {
-                            Image(systemName: "plus")
+                            Image(systemName: "magnifyingglass")
                                 .font(.system(size: 22, weight: .medium))
                                 .foregroundStyle(.white)
                         }

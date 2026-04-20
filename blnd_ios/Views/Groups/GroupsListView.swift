@@ -8,6 +8,7 @@ struct GroupsListView: View {
     @State private var errorMessage: String?
     @State private var showCreateGroup = false
     @State private var deepLinkGroupId: Int?
+    @State private var searchQuery = ""
 
     var body: some View {
         NavigationStack {
@@ -29,7 +30,13 @@ struct GroupsListView: View {
                     }
                     .padding(.top, 20)
                     .padding(.horizontal, 24)
-                    .padding(.bottom, 20)
+                    .padding(.bottom, 16)
+
+                    if !groups.isEmpty {
+                        SearchBar(text: $searchQuery, placeholder: "Search blends...")
+                            .padding(.horizontal, 24)
+                            .padding(.bottom, 16)
+                    }
 
                     if isLoading {
                         ProgressView()
@@ -54,7 +61,10 @@ struct GroupsListView: View {
                         }
                         .padding(.top, 60)
                     } else {
-                        ForEach(groups) { group in
+                        let filtered = searchQuery.trimmingCharacters(in: .whitespaces).isEmpty
+                            ? groups
+                            : groups.filter { $0.name.localizedCaseInsensitiveContains(searchQuery) }
+                        ForEach(filtered) { group in
                             NavigationLink {
                                 GroupDetailView(groupId: group.id)
                             } label: {
