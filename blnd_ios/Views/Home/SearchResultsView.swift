@@ -314,9 +314,6 @@ struct SearchView: View {
 
     private var aiPromptState: some View {
         VStack(spacing: 8) {
-            Image(systemName: "sparkles")
-                .font(.system(size: 28))
-                .foregroundStyle(AppTheme.premiumGoldGradient)
             Text("Describe what you're in the mood for")
                 .font(.system(size: 14))
                 .foregroundStyle(AppTheme.textDim)
