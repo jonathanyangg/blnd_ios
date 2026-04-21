@@ -438,7 +438,7 @@ extension FriendProfileView {
         friend.friendshipId ?? publicProfile?.friendshipId
     }
 
-    private var isCurrentlyBlocked: Bool {
+    var isCurrentlyBlocked: Bool {
         switch blockOverride {
         case .blocked: true
         case .unblocked: false

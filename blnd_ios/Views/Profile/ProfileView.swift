@@ -59,7 +59,7 @@ struct ProfileView: View {
                     if !authState.isPremium {
                         premiumUpsellCard
                             .padding(.horizontal, 24)
-                            .padding(.top, 8)
+                            .padding(.bottom, 12)
                     }
 
                     tabPicker
