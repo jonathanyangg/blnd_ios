@@ -5,38 +5,45 @@ struct SearchBar: View {
     var placeholder: String = "Search movies..."
     var onClear: (() -> Void)?
 
+    @FocusState private var isFocused: Bool
+
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(AppTheme.textDim)
                 .font(.system(size: 15))
 
-            if text.isEmpty {
-                Text(placeholder)
-                    .font(.system(size: 15))
-                    .foregroundStyle(AppTheme.textMuted)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            } else {
-                TextField("", text: $text)
-                    .font(.system(size: 15))
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-            }
+            TextField(
+                "",
+                text: $text,
+                prompt: Text(placeholder).foregroundStyle(AppTheme.textMuted)
+            )
+            .font(.system(size: 15))
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity)
+            .focused($isFocused)
 
             if !text.isEmpty {
                 Button {
                     text = ""
+                    isFocused = false
                     onClear?()
                 } label: {
                     Image(systemName: "xmark")
-                        .foregroundStyle(AppTheme.textMuted)
-                        .font(.system(size: 13))
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(.black)
+                        .frame(width: 18, height: 18)
+                        .background(AppTheme.textMuted)
+                        .clipShape(Circle())
                 }
+                .buttonStyle(.plain)
+                .transition(.opacity)
             }
         }
         .padding(14)
         .background(AppTheme.card)
         .clipShape(RoundedRectangle(cornerRadius: AppTheme.cornerRadiusMedium))
+        .animation(.easeOut(duration: 0.15), value: text.isEmpty)
     }
 }
 

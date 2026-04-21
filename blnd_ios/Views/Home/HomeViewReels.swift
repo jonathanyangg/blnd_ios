@@ -22,7 +22,8 @@ extension HomeView {
                     movies: fypReelMovies,
                     isTabVisible: tabState.selectedTab == 0,
                     onLoadMore: { await loadMoreFYP() },
-                    onRefresh: { await refreshFYP() }
+                    onRefresh: { await refreshFYP() },
+                    externalCurrentId: $fypCurrentId
                 )
             }
         case .discover:
@@ -30,7 +31,8 @@ extension HomeView {
                 cardWidth: 0,
                 cardHeight: 0,
                 viewMode: .reels,
-                isTabVisible: tabState.selectedTab == 0
+                isTabVisible: tabState.selectedTab == 0,
+                externalCurrentId: $discoverCurrentId
             )
         }
     }

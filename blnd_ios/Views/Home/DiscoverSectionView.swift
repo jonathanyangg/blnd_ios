@@ -17,6 +17,7 @@ struct DiscoverSectionView: View {
     let cardHeight: CGFloat
     var viewMode: ViewMode = .grid
     var isTabVisible: Bool = true
+    var externalCurrentId: Binding<Int?>?
 
     @State var activeFilter: DiscoverFilter = .trending
     @State var movies: [MovieResponse] = []
@@ -78,7 +79,8 @@ struct DiscoverSectionView: View {
                 movies: discoverReelMovies,
                 isTabVisible: isTabVisible,
                 onLoadMore: { await loadNextPage() },
-                onRefresh: { await refresh() }
+                onRefresh: { await refresh() },
+                externalCurrentId: externalCurrentId
             )
         }
     }
@@ -139,6 +141,7 @@ struct DiscoverSectionView: View {
                     cardView(movie: movie, index: index)
                 }
                 .buttonStyle(.plain)
+                .id(movie.tmdbId)
                 .onAppear {
                     if index == movies.count - 4 {
                         Task { await loadNextPage() }
@@ -153,6 +156,7 @@ struct DiscoverSectionView: View {
                     .padding(.vertical, 16)
             }
         }
+        .scrollTargetLayout()
         .padding(.horizontal, 24)
     }
 

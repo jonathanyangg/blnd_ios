@@ -9,7 +9,9 @@ struct FriendsListSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        NavigationStack {
+        VStack(spacing: 0) {
+            SheetHeader(title: "Friends") { dismiss() }
+
             ScrollView {
                 if isLoading {
                     ProgressView()
@@ -56,17 +58,6 @@ struct FriendsListSheet: View {
                     }
                 }
             }
-            .background(AppTheme.background)
-            .navigationTitle("Friends")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") { dismiss() }
-                        .foregroundStyle(.white)
-                }
-            }
-            .toolbarBackground(AppTheme.background, for: .navigationBar)
-            .toolbarBackground(.visible, for: .navigationBar)
         }
     }
 }
@@ -79,7 +70,9 @@ struct MutualsListSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        NavigationStack {
+        VStack(spacing: 0) {
+            SheetHeader(title: "Mutual Friends") { dismiss() }
+
             ScrollView {
                 if mutuals.isEmpty {
                     Text("No mutual friends")
@@ -128,17 +121,34 @@ struct MutualsListSheet: View {
                     }
                 }
             }
-            .background(AppTheme.background)
-            .navigationTitle("Mutual Friends")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") { dismiss() }
-                        .foregroundStyle(.white)
-                }
-            }
-            .toolbarBackground(AppTheme.background, for: .navigationBar)
-            .toolbarBackground(.visible, for: .navigationBar)
         }
+    }
+}
+
+// MARK: - Shared Sheet Header
+
+private struct SheetHeader: View {
+    let title: String
+    let onDismiss: () -> Void
+
+    var body: some View {
+        HStack {
+            Button { onDismiss() } label: {
+                Text("Cancel")
+                    .font(.system(size: 15))
+                    .foregroundStyle(AppTheme.textMuted)
+            }
+            Spacer()
+            Text(title)
+                .font(.system(size: 17, weight: .bold))
+                .foregroundStyle(.white)
+            Spacer()
+            Text("Cancel")
+                .font(.system(size: 15))
+                .foregroundStyle(.clear)
+        }
+        .padding(.top, 20)
+        .padding(.horizontal, 24)
+        .padding(.bottom, 20)
     }
 }

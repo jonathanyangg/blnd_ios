@@ -239,10 +239,9 @@ struct FriendsListView: View {
 
     private func handleAccept(_ request: FriendRequestResponse) async {
         do {
-            _ = try await FriendsAPI.acceptRequest(
+            _ = try await FriendsService.acceptRequest(
                 friendshipId: request.id
             )
-            UserActionCache.shared.invalidateFriends()
             await loadData()
             await tabState.refreshPendingCount()
         } catch { /* Non-critical — list will refresh on next pull */ }
@@ -250,10 +249,9 @@ struct FriendsListView: View {
 
     private func handleReject(_ request: FriendRequestResponse) async {
         do {
-            _ = try await FriendsAPI.rejectRequest(
+            _ = try await FriendsService.rejectRequest(
                 friendshipId: request.id
             )
-            UserActionCache.shared.invalidateFriends()
             await loadData()
             await tabState.refreshPendingCount()
         } catch { /* Non-critical — list will refresh on next pull */ }
@@ -261,10 +259,9 @@ struct FriendsListView: View {
 
     private func handleWithdraw(_ request: FriendRequestResponse) async {
         do {
-            try await FriendsAPI.withdrawRequest(
+            try await FriendsService.withdrawRequest(
                 friendshipId: request.id
             )
-            UserActionCache.shared.invalidateFriends()
             await loadData()
         } catch { /* Non-critical — list will refresh on next pull */ }
     }

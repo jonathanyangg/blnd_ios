@@ -7,6 +7,81 @@ struct FeedRequest: Encodable {
     let limit: Int
 }
 
+struct SemanticSearchRequest: Encodable {
+    let query: String
+    let limit: Int
+    let exclude: [Int]
+}
+
+struct SemanticSearchResultItem: Decodable, Identifiable {
+    let tmdbId: Int
+    let title: String
+    let year: Int?
+    let posterPath: String?
+    let genres: [Genre]
+    let runtime: Int?
+    let voteAverage: Double?
+    let matchScore: Double
+
+    var id: Int {
+        tmdbId
+    }
+
+    var yearString: String {
+        year.map { String($0) } ?? ""
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case tmdbId = "tmdb_id"
+        case title, year, genres, runtime
+        case posterPath = "poster_path"
+        case voteAverage = "vote_average"
+        case matchScore = "match_score"
+    }
+}
+
+struct SemanticSearchResponse: Decodable {
+    let query: String
+    let results: [SemanticSearchResultItem]
+}
+
+// MARK: - Sort
+
+/// Server-side sort options for paginated movie lists (watched, watchlist, friend watched).
+/// Raw values match the backend `?sort=` query param.
+enum MovieSortOption: String, CaseIterable, Identifiable {
+    case dateDesc = "date_desc"
+    case dateAsc = "date_asc"
+    case ratingDesc = "rating_desc"
+    case ratingAsc = "rating_asc"
+    case titleAsc = "title_asc"
+    case titleDesc = "title_desc"
+    case yearDesc = "year_desc"
+    case yearAsc = "year_asc"
+
+    var id: String {
+        rawValue
+    }
+
+    var label: String {
+        switch self {
+        case .dateDesc: "Recently added"
+        case .dateAsc: "Oldest first"
+        case .ratingDesc: "Rating: high → low"
+        case .ratingAsc: "Rating: low → high"
+        case .titleAsc: "Title: A → Z"
+        case .titleDesc: "Title: Z → A"
+        case .yearDesc: "Year: newest"
+        case .yearAsc: "Year: oldest"
+        }
+    }
+
+    /// Rating sort doesn't apply to watchlist (no ratings on unwatched movies).
+    var appliesToWatchlist: Bool {
+        self != .ratingDesc && self != .ratingAsc
+    }
+}
+
 // MARK: - Shared
 
 struct Genre: Codable, Identifiable {

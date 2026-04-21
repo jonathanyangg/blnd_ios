@@ -4,6 +4,7 @@ struct RenameOverlay: View {
     let title: String
     let placeholder: String
     @Binding var text: String
+    var maxLength: Int?
     let onSave: () -> Void
     let onDismiss: () -> Void
 
@@ -40,9 +41,24 @@ struct RenameOverlay: View {
                     )
                     .focused($isFocused)
                     .submitLabel(.done)
+                    .onChange(of: text) { _, newValue in
+                        if let maxLength, newValue.count > maxLength {
+                            text = String(newValue.prefix(maxLength))
+                        }
+                    }
                     .onSubmit {
                         if !trimmed.isEmpty { save() }
                     }
+
+                if let maxLength {
+                    HStack {
+                        Spacer()
+                        Text("\(trimmed.count)/\(maxLength)")
+                            .font(.system(size: 11))
+                            .foregroundStyle(AppTheme.textDim)
+                    }
+                    .padding(.top, -8)
+                }
 
                 HStack(spacing: 10) {
                     Button {

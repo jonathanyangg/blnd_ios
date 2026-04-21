@@ -16,19 +16,28 @@ extension HomeView {
                             cardWidth: cardWidth,
                             cardHeight: cardHeight
                         )
+                        .padding(.top, 16)
                     case .discover:
                         DiscoverSectionView(
                             cardWidth: cardWidth,
                             cardHeight: cardHeight,
-                            viewMode: .grid
+                            viewMode: .grid,
+                            externalCurrentId: $discoverCurrentId
                         )
                     }
                 }
-                .padding(.top, 16)
                 .padding(.bottom, 16)
             }
+            .scrollPosition(id: gridScrollBinding, anchor: .top)
             .background(AppTheme.background)
             .refreshable { await refreshCurrentTab() }
+        }
+    }
+
+    private var gridScrollBinding: Binding<Int?> {
+        switch selectedTab {
+        case .forYou: $fypCurrentId
+        case .discover: $discoverCurrentId
         }
     }
 
@@ -70,6 +79,7 @@ extension HomeView {
                     cardWidth: cardWidth,
                     cardHeight: cardHeight
                 )
+                .id(movie.tmdbId)
             }
 
             if isLoadingMoreFYP {
@@ -79,6 +89,7 @@ extension HomeView {
                     .padding(.vertical, 16)
             }
         }
+        .scrollTargetLayout()
         .padding(.horizontal, 24)
     }
 

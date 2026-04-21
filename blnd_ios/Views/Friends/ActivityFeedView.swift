@@ -4,7 +4,11 @@ import UserNotifications
 struct ActivityFeedView: View {
     @State private var items: [InboxItem] = []
     @State private var isLoading = true
+    @State private var isLoadingMore = false
+    @State private var hasMore = true
     @State private var errorMessage: String?
+
+    private let pageSize = 30
 
     var body: some View {
         ScrollView {
@@ -18,7 +22,7 @@ struct ActivityFeedView: View {
                         .font(.system(size: 14))
                         .foregroundStyle(AppTheme.textMuted)
                     Button("Retry") {
-                        Task { await loadInbox() }
+                        Task { await loadInbox(reset: true) }
                     }
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(.white)
@@ -41,12 +45,24 @@ struct ActivityFeedView: View {
                 .padding(.top, 60)
             } else {
                 LazyVStack(spacing: 0) {
-                    ForEach(items) { item in
+                    ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                         inboxRow(item)
+                            .onAppear {
+                                if index >= items.count - 5 {
+                                    Task { await loadMore() }
+                                }
+                            }
 
                         Divider()
                             .background(AppTheme.cardSecondary)
                             .padding(.horizontal, 24)
+                    }
+
+                    if isLoadingMore {
+                        ProgressView()
+                            .tint(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 20)
                     }
                 }
             }
@@ -66,12 +82,12 @@ struct ActivityFeedView: View {
         }
         .task {
             try? await UNUserNotificationCenter.current().setBadgeCount(0)
-            await loadInbox()
+            await loadInbox(reset: true)
             // Mark all as read when viewing
             try? await NotificationAPI.markInboxRead()
             try? await NotificationAPI.resetBadge()
         }
-        .refreshable { await loadInbox() }
+        .refreshable { await loadInbox(reset: true) }
     }
 
     // MARK: - Inbox Row
@@ -115,15 +131,39 @@ struct ActivityFeedView: View {
 
     // MARK: - Data
 
-    private func loadInbox() async {
+    private func loadInbox(reset: Bool) async {
+        if reset {
+            errorMessage = nil
+            hasMore = true
+        }
         do {
-            let response = try await NotificationAPI.getInbox()
+            let response = try await NotificationAPI.getInbox(limit: pageSize, offset: 0)
             items = response.results
+            hasMore = response.results.count >= pageSize
         } catch {
             if items.isEmpty {
                 errorMessage = "Could not load notifications"
             }
         }
         isLoading = false
+    }
+
+    private func loadMore() async {
+        guard hasMore, !isLoadingMore, !isLoading else { return }
+        isLoadingMore = true
+        defer { isLoadingMore = false }
+        do {
+            let response = try await NotificationAPI.getInbox(
+                limit: pageSize,
+                offset: items.count
+            )
+            let existingIds = Set(items.map(\.id))
+            let new = response.results.filter { !existingIds.contains($0.id) }
+            items.append(contentsOf: new)
+            hasMore = response.results.count >= pageSize
+        } catch {
+            // Non-critical — stop paging on error
+            hasMore = false
+        }
     }
 }

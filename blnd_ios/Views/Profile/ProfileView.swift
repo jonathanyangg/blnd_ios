@@ -29,6 +29,12 @@ struct ProfileView: View {
     @State private var genreTaste: GenreTasteResponse?
     @State private var isLoadingTaste = false
 
+    @State private var watchedQuery: String = ""
+    @State private var watchedSort: MovieSortOption = .dateDesc
+    @State private var watchlistQuery: String = ""
+    @State private var watchlistSort: MovieSortOption = .dateDesc
+    @State private var searchDebounceTask: Task<Void, Never>?
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -60,6 +66,16 @@ struct ProfileView: View {
                         .padding(.horizontal, 24)
                         .padding(.bottom, 16)
 
+                    if selectedTab != .taste {
+                        PosterGridFilterBar(
+                            query: currentQueryBinding,
+                            sort: currentSortBinding,
+                            allowsRating: selectedTab == .watched
+                        )
+                        .padding(.horizontal, 24)
+                        .padding(.bottom, 12)
+                    }
+
                     switch selectedTab {
                     case .watched:
                         watchedGrid
@@ -71,6 +87,7 @@ struct ProfileView: View {
                 }
             }
             .background(AppTheme.background)
+            .refreshable { await refreshAll() }
             .navigationDestination(isPresented: $showSettings) {
                 SettingsView()
             }
@@ -103,6 +120,31 @@ struct ProfileView: View {
                     Task { await loadUnreadCount() }
                 }
             }
+            .onChange(of: watchedQuery) { debounceReload { await loadWatched() } }
+            .onChange(of: watchedSort) { Task { await loadWatched() } }
+            .onChange(of: watchlistQuery) { debounceReload { await loadWatchlist() } }
+            .onChange(of: watchlistSort) { Task { await loadWatchlist() } }
+        }
+    }
+
+    private var currentQueryBinding: Binding<String> {
+        selectedTab == .watched
+            ? $watchedQuery
+            : $watchlistQuery
+    }
+
+    private var currentSortBinding: Binding<MovieSortOption> {
+        selectedTab == .watched
+            ? $watchedSort
+            : $watchlistSort
+    }
+
+    private func debounceReload(_ action: @Sendable @escaping () async -> Void) {
+        searchDebounceTask?.cancel()
+        searchDebounceTask = Task {
+            try? await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled else { return }
+            await action()
         }
     }
 
@@ -170,12 +212,14 @@ struct ProfileView: View {
                 .foregroundStyle(AppTheme.textMuted)
 
             if authState.isPremium {
-                BlndPlusBadge(size: 11)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(AppTheme.card)
-                    .clipShape(Capsule())
-                    .padding(.top, 6)
+                BlndPlusBadge(size: 12)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 5)
+                    .overlay(
+                        Capsule().stroke(AppTheme.border, lineWidth: 1)
+                    )
+                    .padding(.top, 12)
+                    .padding(.bottom, 4)
             }
         }
         .padding(.bottom, 24)
@@ -256,17 +300,23 @@ struct ProfileView: View {
         }
         .frame(maxWidth: .infinity)
     }
+}
 
-    // MARK: - Watched Grid
+// MARK: - Poster Grids
 
-    private var watchedGrid: some View {
+extension ProfileView {
+    var watchedGrid: some View {
         Group {
             if isLoadingWatched {
                 ProgressView()
                     .tint(.white)
                     .padding(.top, 40)
             } else if watchedMovies.isEmpty {
-                emptyState(message: "No watched movies yet")
+                emptyState(
+                    message: watchedQuery.isEmpty
+                        ? "No watched movies yet"
+                        : "No watched movies match \"\(watchedQuery)\""
+                )
             } else {
                 PosterGrid {
                     ForEach(watchedMovies) { movie in
@@ -276,22 +326,25 @@ struct ProfileView: View {
                             PosterTile(posterPath: movie.posterPath, rating: movie.rating)
                         }
                         .buttonStyle(.plain)
+                        .id(movie.tmdbId)
                     }
                 }
             }
         }
     }
 
-    // MARK: - Watchlist Grid
-
-    private var watchlistGrid: some View {
+    var watchlistGrid: some View {
         Group {
             if isLoadingWatchlist {
                 ProgressView()
                     .tint(.white)
                     .padding(.top, 40)
             } else if watchlistMovies.isEmpty {
-                emptyState(message: "Your watchlist is empty")
+                emptyState(
+                    message: watchlistQuery.isEmpty
+                        ? "Your watchlist is empty"
+                        : "No watchlist items match \"\(watchlistQuery)\""
+                )
             } else {
                 PosterGrid {
                     ForEach(watchlistMovies) { movie in
@@ -301,6 +354,7 @@ struct ProfileView: View {
                             PosterTile(posterPath: movie.posterPath, rating: nil)
                         }
                         .buttonStyle(.plain)
+                        .id(movie.tmdbId)
                     }
                 }
             }
@@ -318,20 +372,20 @@ extension ProfileView {
                     .tint(.white)
                     .padding(.top, 40)
             } else if let taste = genreTaste, taste.totalRated >= 5 {
-                VStack(spacing: 16) {
+                VStack(spacing: 4) {
                     RadarChartView(
                         scores: taste.genres.map(\.score),
                         labels: taste.genres.map(\.name)
                     )
                     .frame(width: 280, height: 280)
-                    .padding(.top, 8)
 
                     Text("Based on \(taste.totalRated) rated movies")
                         .font(.system(size: 13))
                         .foregroundStyle(AppTheme.textDim)
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.top, 16)
+                .padding(.top, 8)
+                .padding(.bottom, 32)
             } else {
                 VStack(spacing: 12) {
                     Image(systemName: "chart.pie")
@@ -364,7 +418,11 @@ extension ProfileView {
     func loadWatched() async {
         isLoadingWatched = true
         do {
-            let response = try await TrackingAPI.getWatchHistory(limit: 50)
+            let response = try await TrackingAPI.getWatchHistory(
+                limit: 50,
+                query: watchedQuery,
+                sort: watchedSort
+            )
             watchedMovies = response.results
             watchedTotal = response.total
         } catch is CancellationError {
@@ -384,7 +442,11 @@ extension ProfileView {
     func loadWatchlist() async {
         isLoadingWatchlist = true
         do {
-            let response = try await TrackingAPI.getWatchlist(limit: 50)
+            let response = try await TrackingAPI.getWatchlist(
+                limit: 50,
+                query: watchlistQuery,
+                sort: watchlistSort
+            )
             watchlistMovies = response.results
             watchlistTotal = response.total
         } catch is CancellationError {
@@ -410,6 +472,18 @@ extension ProfileView {
             return
         } catch { /* Non-critical — "rate more movies" fallback shown */ }
         isLoadingTaste = false
+    }
+
+    func refreshAll() async {
+        UserActionCache.shared.invalidateGroups()
+        UserActionCache.shared.invalidateFriends()
+        async let watched: () = loadWatched()
+        async let watchlist: () = loadWatchlist()
+        async let counts: () = loadCounts()
+        async let taste: () = loadTaste()
+        async let unread: () = loadUnreadCount()
+        _ = await (watched, watchlist, counts, taste, unread)
+        await authState.fetchCurrentUser()
     }
 }
 

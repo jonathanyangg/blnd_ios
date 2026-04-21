@@ -10,6 +10,7 @@ struct WatchlistPickerSheet: View {
     @State private var groups: [GroupResponse] = []
     @State private var isLoading = true
     @State private var isSaving = false
+    @State private var searchQuery = ""
 
     // Tracks current checked state for personal + each group
     @State private var personalChecked = false
@@ -18,6 +19,19 @@ struct WatchlistPickerSheet: View {
     // Tracks initial state to compute diffs on save
     @State private var initialPersonal = false
     @State private var initialGroupState: [Int: Bool] = [:]
+
+    private var trimmedQuery: String {
+        searchQuery.trimmingCharacters(in: .whitespaces).lowercased()
+    }
+
+    private var filteredGroups: [GroupResponse] {
+        guard !trimmedQuery.isEmpty else { return groups }
+        return groups.filter { $0.name.lowercased().contains(trimmedQuery) }
+    }
+
+    private var showPersonalSection: Bool {
+        trimmedQuery.isEmpty || "my watchlist".contains(trimmedQuery)
+    }
 
     private var hasChanges: Bool {
         if personalChecked != initialPersonal { return true }
@@ -36,10 +50,44 @@ struct WatchlistPickerSheet: View {
                     .padding(.top, 40)
                 Spacer()
             } else {
+                if groups.count >= 3 {
+                    searchField
+                }
                 listContent
             }
         }
         .task { await loadState() }
+    }
+
+    // MARK: - Search Field
+
+    private var searchField: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(AppTheme.textDim)
+                .font(.system(size: 14))
+
+            TextField("Search watchlists", text: $searchQuery)
+                .font(.system(size: 14))
+                .foregroundStyle(.white)
+                .autocorrectionDisabled()
+                .textInputAutocapitalization(.never)
+
+            if !searchQuery.isEmpty {
+                Button {
+                    searchQuery = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(AppTheme.textDim)
+                        .font(.system(size: 14))
+                }
+            }
+        }
+        .padding(10)
+        .background(AppTheme.card)
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cornerRadiusMedium))
+        .padding(.horizontal, 24)
+        .padding(.bottom, 12)
     }
 
     // MARK: - Header
@@ -82,30 +130,33 @@ struct WatchlistPickerSheet: View {
         ScrollView {
             VStack(spacing: 0) {
                 // Personal section
-                VStack(alignment: .leading, spacing: 0) {
-                    Text("PERSONAL")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(AppTheme.textDim)
-                        .padding(.horizontal, 24)
-                        .padding(.bottom, 8)
+                if showPersonalSection {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("PERSONAL")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(AppTheme.textDim)
+                            .padding(.horizontal, 24)
+                            .padding(.bottom, 8)
 
-                    checkRow(
-                        icon: "person.fill",
-                        label: "My Watchlist",
-                        subtitle: isWatched ? "Already watched" : nil,
-                        checked: personalChecked
-                    ) {
-                        if !isWatched {
-                            personalChecked.toggle()
+                        checkRow(
+                            icon: "person.fill",
+                            label: "My Watchlist",
+                            subtitle: isWatched ? "Already watched" : nil,
+                            checked: personalChecked
+                        ) {
+                            if !isWatched {
+                                personalChecked.toggle()
+                            }
                         }
+                        .disabled(isWatched)
+                        .opacity(isWatched ? 0.5 : 1)
                     }
-                    .disabled(isWatched)
-                    .opacity(isWatched ? 0.5 : 1)
+                    .padding(.bottom, 16)
                 }
-                .padding(.bottom, 16)
 
                 // Blends section
-                if !groups.isEmpty {
+                let visibleGroups = filteredGroups
+                if !visibleGroups.isEmpty {
                     VStack(alignment: .leading, spacing: 0) {
                         Text("BLENDS")
                             .font(.system(size: 11, weight: .semibold))
@@ -113,7 +164,7 @@ struct WatchlistPickerSheet: View {
                             .padding(.horizontal, 24)
                             .padding(.bottom, 8)
 
-                        ForEach(groups) { group in
+                        ForEach(visibleGroups) { group in
                             checkRow(
                                 icon: "person.3.fill",
                                 label: group.name,
@@ -124,6 +175,14 @@ struct WatchlistPickerSheet: View {
                             }
                         }
                     }
+                }
+
+                if !showPersonalSection, visibleGroups.isEmpty {
+                    Text("No watchlists match \"\(searchQuery)\"")
+                        .font(.system(size: 14))
+                        .foregroundStyle(AppTheme.textMuted)
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 40)
                 }
             }
             .padding(.bottom, 20)

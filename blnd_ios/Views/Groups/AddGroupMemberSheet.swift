@@ -193,7 +193,7 @@ struct AddGroupMemberSheet: View {
         addingId = friend.id
         errorMessage = nil
         do {
-            let updated = try await GroupsAPI.addMember(
+            let updated = try await GroupsService.addMember(
                 groupId: groupId,
                 username: friend.username
             )

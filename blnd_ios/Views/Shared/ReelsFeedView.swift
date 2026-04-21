@@ -6,8 +6,9 @@ struct ReelsFeedView: View {
     var isTabVisible: Bool = true
     var onLoadMore: (() async -> Void)?
     var onRefresh: (() async -> Void)?
+    var externalCurrentId: Binding<Int?>?
 
-    @State private var currentId: Int?
+    @State private var internalCurrentId: Int?
     @State private var toastMessage: String?
     @State private var toastTask: Task<Void, Never>?
     @State private var watchlistTmdbId: Int?
@@ -15,6 +16,14 @@ struct ReelsFeedView: View {
     @State private var lastWatchlistedTmdbId: Int?
     @State private var lastHiddenTmdbId: Int?
     @State private var detailMovie: ReelMovie?
+
+    private var currentIdBinding: Binding<Int?> {
+        externalCurrentId ?? $internalCurrentId
+    }
+
+    private var currentId: Int? {
+        currentIdBinding.wrappedValue
+    }
 
     var body: some View {
         GeometryReader { geo in
@@ -57,7 +66,7 @@ struct ReelsFeedView: View {
             .scrollTargetBehavior(
                 .viewAligned(limitBehavior: .alwaysByOne)
             )
-            .scrollPosition(id: $currentId)
+            .scrollPosition(id: currentIdBinding)
             .scrollIndicators(.hidden)
             .refreshable {
                 await onRefresh?()
@@ -73,12 +82,12 @@ struct ReelsFeedView: View {
         }
         .onChange(of: movies) { _, newMovies in
             if currentId.flatMap({ cid in newMovies.contains { $0.tmdbId == cid } }) != true {
-                currentId = newMovies.first?.tmdbId
+                currentIdBinding.wrappedValue = newMovies.first?.tmdbId
             }
         }
         .onAppear {
             if currentId == nil, let first = movies.first {
-                currentId = first.tmdbId
+                currentIdBinding.wrappedValue = first.tmdbId
             }
         }
         .navigationDestination(item: $detailMovie) { movie in
@@ -129,7 +138,7 @@ struct ReelsFeedView: View {
         let nextId = movies[idx + 1].tmdbId
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
             withAnimation(.easeInOut(duration: 0.35)) {
-                currentId = nextId
+                currentIdBinding.wrappedValue = nextId
             }
         }
     }

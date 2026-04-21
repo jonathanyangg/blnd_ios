@@ -17,13 +17,22 @@ enum TrackingAPI {
         )
     }
 
-    /// GET /tracking/ — get user's watch history
+    /// GET /tracking/ — get user's watch history, with optional title filter + sort
     static func getWatchHistory(
         limit: Int = 20,
-        offset: Int = 0
+        offset: Int = 0,
+        query: String? = nil,
+        sort: MovieSortOption? = nil
     ) async throws -> WatchHistoryResponse {
-        try await APIClient.shared.request(
-            endpoint: "/tracking/?limit=\(limit)&offset=\(offset)",
+        var endpoint = "/tracking/?limit=\(limit)&offset=\(offset)"
+        if let query, !query.isEmpty {
+            endpoint += "&q=\(query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")"
+        }
+        if let sort {
+            endpoint += "&sort=\(sort.rawValue)"
+        }
+        return try await APIClient.shared.request(
+            endpoint: endpoint,
             authenticated: true
         )
     }
@@ -112,13 +121,22 @@ enum TrackingAPI {
         )
     }
 
-    /// GET /watchlist/ — get user's watchlist
+    /// GET /watchlist/ — get user's watchlist, with optional title filter + sort
     static func getWatchlist(
         limit: Int = 20,
-        offset: Int = 0
+        offset: Int = 0,
+        query: String? = nil,
+        sort: MovieSortOption? = nil
     ) async throws -> WatchlistResponse {
-        try await APIClient.shared.request(
-            endpoint: "/watchlist/?limit=\(limit)&offset=\(offset)",
+        var endpoint = "/watchlist/?limit=\(limit)&offset=\(offset)"
+        if let query, !query.isEmpty {
+            endpoint += "&q=\(query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")"
+        }
+        if let sort {
+            endpoint += "&sort=\(sort.rawValue)"
+        }
+        return try await APIClient.shared.request(
+            endpoint: endpoint,
             authenticated: true
         )
     }

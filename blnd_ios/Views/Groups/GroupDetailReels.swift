@@ -19,7 +19,8 @@ extension GroupDetailView {
                     groupContext: groupContext,
                     isTabVisible: tabState.selectedTab == 2,
                     onLoadMore: { await loadMoreRecs() },
-                    onRefresh: { await loadAll(forceRefresh: true) }
+                    onRefresh: { await loadAll(forceRefresh: true) },
+                    externalCurrentId: $blendCurrentId
                 )
             }
         case .watchlist:
@@ -36,7 +37,8 @@ extension GroupDetailView {
                     },
                     groupContext: groupContext,
                     isTabVisible: tabState.selectedTab == 2,
-                    onRefresh: { await loadAll(forceRefresh: true) }
+                    onRefresh: { await loadAll(forceRefresh: true) },
+                    externalCurrentId: $watchlistCurrentId
                 )
             }
         }

@@ -26,6 +26,14 @@ extension GroupDetailView {
                 .padding(.top, 16)
                 .padding(.bottom, 32)
             }
+            .scrollPosition(id: gridScrollBinding, anchor: .top)
+        }
+    }
+
+    private var gridScrollBinding: Binding<Int?> {
+        switch selectedTab {
+        case .blendPicks: $blendCurrentId
+        case .watchlist: $watchlistCurrentId
         }
     }
 
@@ -66,6 +74,7 @@ extension GroupDetailView {
                             )
                         }
                         .buttonStyle(.plain)
+                        .id(movie.tmdbId)
                         .onAppear {
                             if index >= recommendations.count - 4 {
                                 Task { await loadMoreRecs() }
@@ -114,6 +123,7 @@ extension GroupDetailView {
                             )
                         }
                         .buttonStyle(.plain)
+                        .id(item.tmdbId)
                     }
                 }
             }
@@ -132,6 +142,7 @@ extension GroupDetailView {
         return LazyVGrid(columns: columns, spacing: 16) {
             content()
         }
+        .scrollTargetLayout()
         .padding(.horizontal, 24)
     }
 

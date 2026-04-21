@@ -10,79 +10,10 @@ enum GroupsAPI {
         )
     }
 
-    /// POST /groups/ — create a new group
-    static func createGroup(name: String) async throws -> GroupDetailResponse {
-        let body = CreateGroupRequest(name: name)
-        return try await APIClient.shared.request(
-            endpoint: "/groups/",
-            method: "POST",
-            body: body,
-            authenticated: true
-        )
-    }
-
     /// GET /groups/{id} — get group detail with members
     static func getGroup(groupId: Int) async throws -> GroupDetailResponse {
         try await APIClient.shared.request(
             endpoint: "/groups/\(groupId)",
-            authenticated: true
-        )
-    }
-
-    /// PATCH /groups/{id} — update group (owner only)
-    static func updateGroup(
-        groupId: Int,
-        name: String
-    ) async throws -> GroupDetailResponse {
-        let body = UpdateGroupRequest(name: name)
-        return try await APIClient.shared.request(
-            endpoint: "/groups/\(groupId)",
-            method: "PATCH",
-            body: body,
-            authenticated: true
-        )
-    }
-
-    /// DELETE /groups/{id} — delete a group (owner only)
-    static func deleteGroup(groupId: Int) async throws {
-        try await APIClient.shared.requestVoid(
-            endpoint: "/groups/\(groupId)",
-            method: "DELETE",
-            authenticated: true
-        )
-    }
-
-    /// POST /groups/{id}/members — add a member by username
-    static func addMember(
-        groupId: Int,
-        username: String
-    ) async throws -> GroupDetailResponse {
-        let body = AddMemberRequest(username: username)
-        return try await APIClient.shared.request(
-            endpoint: "/groups/\(groupId)/members",
-            method: "POST",
-            body: body,
-            authenticated: true
-        )
-    }
-
-    /// POST /groups/{id}/members/{uid}/kick — kick a member
-    static func kickMember(
-        groupId: Int,
-        userId: String
-    ) async throws {
-        try await APIClient.shared.requestVoid(
-            endpoint: "/groups/\(groupId)/members/\(userId)/kick",
-            method: "POST",
-            authenticated: true
-        )
-    }
-
-    /// POST /groups/{id}/leave — leave a group
-    static func leaveGroup(groupId: Int) async throws {
-        try await APIClient.shared.requestVoid(
-            endpoint: "/groups/\(groupId)/leave",
-            method: "POST",
             authenticated: true
         )
     }

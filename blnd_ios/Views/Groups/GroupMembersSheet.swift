@@ -218,7 +218,7 @@ struct GroupMembersSheet: View {
     private func removeMember(_ userId: String) async {
         removingId = userId
         do {
-            try await GroupsAPI.kickMember(
+            try await GroupsService.kickMember(
                 groupId: groupId,
                 userId: userId
             )
@@ -233,8 +233,7 @@ struct GroupMembersSheet: View {
     private func leaveGroup() async {
         isLeaving = true
         do {
-            try await GroupsAPI.leaveGroup(groupId: groupId)
-            UserActionCache.shared.invalidateGroups()
+            try await GroupsService.leaveGroup(groupId: groupId)
             dismiss()
             onGroupDeleted?()
         } catch { /* Non-critical — user can retry */ }
@@ -244,8 +243,7 @@ struct GroupMembersSheet: View {
     private func deleteGroup() async {
         isDeleting = true
         do {
-            try await GroupsAPI.deleteGroup(groupId: groupId)
-            UserActionCache.shared.invalidateGroups()
+            try await GroupsService.deleteGroup(groupId: groupId)
             dismiss()
             onGroupDeleted?()
         } catch { /* Non-critical — user can retry */ }

@@ -22,11 +22,13 @@ final class UserActionCache {
     private(set) var pendingRequests: PendingRequestsResponse?
     private(set) var didLoadFriends = false
 
-    /// Cached friends-who-watched per movie (persists across card recycling)
-    private(set) var friendsWhoWatched: [Int: [FriendWatchedResponse]] = [:]
-
-    /// Cached full movie details (persists across reel card recycling)
-    private(set) var movieDetails: [Int: MovieResponse] = [:]
+    /// Cache of friends-who-watched per movie. NSCache caps size and purges
+    /// automatically on memory warnings — no manual observer required.
+    private let friendsWhoWatchedCache: NSCache<NSNumber, ArrayBox<FriendWatchedResponse>> = {
+        let cache = NSCache<NSNumber, ArrayBox<FriendWatchedResponse>>()
+        cache.countLimit = 150
+        return cache
+    }()
 
     /// Whether initial data has been loaded
     private(set) var didLoadInitial = false
@@ -105,15 +107,16 @@ final class UserActionCache {
     }
 
     func cacheFriendsWhoWatched(_ tmdbId: Int, friends: [FriendWatchedResponse]) {
-        friendsWhoWatched[tmdbId] = friends
+        friendsWhoWatchedCache.setObject(
+            ArrayBox(friends),
+            forKey: NSNumber(value: tmdbId)
+        )
     }
 
     func getFriendsWhoWatched(_ tmdbId: Int) -> [FriendWatchedResponse]? {
-        friendsWhoWatched[tmdbId]
-    }
-
-    func cacheMovieDetail(_ detail: MovieResponse) {
-        movieDetails[detail.tmdbId] = detail
+        friendsWhoWatchedCache
+            .object(forKey: NSNumber(value: tmdbId))?
+            .values
     }
 
     // MARK: - Queries
@@ -162,8 +165,17 @@ final class UserActionCache {
         friends.removeAll()
         pendingRequests = nil
         didLoadFriends = false
-        friendsWhoWatched.removeAll()
-        movieDetails.removeAll()
+        friendsWhoWatchedCache.removeAllObjects()
         didLoadInitial = false
+    }
+}
+
+// MARK: - ArrayBox
+
+/// NSCache only accepts AnyObject values, so Swift arrays need a reference-type wrapper.
+private final class ArrayBox<Element> {
+    let values: [Element]
+    init(_ values: [Element]) {
+        self.values = values
     }
 }

@@ -51,11 +51,23 @@ struct CreateGroupView: View {
             .padding(.horizontal, 24)
             .padding(.bottom, 24)
 
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 8) {
                 AppTextField(
                     placeholder: "Blend name...",
                     text: $groupName
                 )
+                .onChange(of: groupName) { _, newValue in
+                    if newValue.count > 30 {
+                        groupName = String(newValue.prefix(30))
+                    }
+                }
+
+                HStack {
+                    Spacer()
+                    Text("\(trimmedName.count)/30")
+                        .font(.system(size: 12))
+                        .foregroundStyle(AppTheme.textDim)
+                }
 
                 if isCreating {
                     HStack {
@@ -66,12 +78,14 @@ struct CreateGroupView: View {
                             .font(.system(size: 14))
                             .foregroundStyle(AppTheme.textMuted)
                     }
+                    .padding(.top, 8)
                 }
 
                 if let errorMessage {
                     Text(errorMessage)
                         .font(.system(size: 13))
                         .foregroundStyle(.red)
+                        .padding(.top, 8)
                 }
             }
             .padding(.horizontal, 24)
@@ -95,10 +109,9 @@ struct CreateGroupView: View {
         errorMessage = nil
 
         do {
-            let group = try await GroupsAPI.createGroup(
+            let group = try await GroupsService.createGroup(
                 name: trimmedName
             )
-            UserActionCache.shared.invalidateGroups()
             PostHogSDK.shared.capture("group_created")
             await onCreated?()
             withAnimation { createdGroup = group }

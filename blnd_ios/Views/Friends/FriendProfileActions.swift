@@ -22,7 +22,11 @@ extension FriendProfileView {
         // Watched movies require friendship — 403 means not friends yet
         do {
             let watchedResult = try await ProfileAPI.getPublicWatched(
-                userId: friend.id, limit: 20, offset: 0
+                userId: friend.id,
+                limit: 20,
+                offset: 0,
+                query: watchedQuery,
+                sort: watchedSort
             )
             watchedMovies = watchedResult.results
             watchedTotal = watchedResult.total
@@ -43,13 +47,52 @@ extension FriendProfileView {
             let next = try await ProfileAPI.getPublicWatched(
                 userId: friend.id,
                 limit: 20,
-                offset: watchedMovies.count
+                offset: watchedMovies.count,
+                query: watchedQuery,
+                sort: watchedSort
             )
             watchedMovies.append(contentsOf: next.results)
         } catch is CancellationError {
             return
         } catch { /* Non-critical — pagination stops */ }
         isLoadingMore = false
+    }
+
+    /// Re-fetch watched with current query/sort. Resets pagination.
+    func reloadWatched() async {
+        guard !watchedGated else { return }
+        do {
+            let result = try await ProfileAPI.getPublicWatched(
+                userId: friend.id,
+                limit: 20,
+                offset: 0,
+                query: watchedQuery,
+                sort: watchedSort
+            )
+            watchedMovies = result.results
+            watchedTotal = result.total
+        } catch is CancellationError {
+            return
+        } catch { /* Non-critical — keep current results */ }
+    }
+
+    func debounceReloadWatched() {
+        searchDebounceTask?.cancel()
+        searchDebounceTask = Task {
+            try? await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled else { return }
+            await reloadWatched()
+        }
+    }
+
+    func loadTaste() async {
+        isLoadingTaste = true
+        do {
+            genreTaste = try await ProfileAPI.getPublicTaste(userId: friend.id)
+        } catch is CancellationError {
+            return
+        } catch { /* Non-critical — "not enough ratings" fallback shown */ }
+        isLoadingTaste = false
     }
 
     func loadFriends() async {
@@ -68,7 +111,7 @@ extension FriendProfileView {
         guard let fid = currentFriendshipId else { return }
         isRemoving = true
         do {
-            try await FriendsAPI.removeFriend(friendshipId: fid)
+            try await FriendsService.removeFriend(friendshipId: fid)
             if currentStatus == "accepted" {
                 dismiss()
             } else {
@@ -83,10 +126,9 @@ extension FriendProfileView {
     func blockUser() async {
         isBlocking = true
         do {
-            try await FriendsAPI.blockUser(userId: friend.id)
+            try await FriendsService.blockUser(userId: friend.id)
             blockOverride = .blocked
             friendshipAction = nil
-            UserActionCache.shared.invalidateFriends()
         } catch { /* Non-critical — user can retry */ }
         isBlocking = false
     }
@@ -103,10 +145,86 @@ extension FriendProfileView {
     func sendFriendRequest() async {
         isSendingRequest = true
         do {
-            _ = try await FriendsAPI.sendRequest(username: friend.username)
+            _ = try await FriendsService.sendRequest(username: friend.username)
             friendshipAction = "pending"
             PostHogSDK.shared.capture("friend_request_sent")
         } catch { /* Non-critical */ }
         isSendingRequest = false
+    }
+
+    func submitReport(_ reason: String) {
+        guard !isReporting else { return }
+        isReporting = true
+        Task {
+            defer { isReporting = false }
+            do {
+                try await FriendsAPI.reportUser(userId: friend.id, reason: reason)
+            } catch {
+                // Non-fatal — still show confirmation so user knows we heard them
+            }
+            showReportConfirmation = true
+        }
+    }
+}
+
+// MARK: - Profile Menu
+
+extension FriendProfileView {
+    @ViewBuilder
+    var profileMenu: some View {
+        let isSelf = friend.id == (KeychainManager.readString(key: "userId") ?? "")
+        if isSelf {
+            EmptyView()
+        } else if publicProfile == nil {
+            EmptyView()
+        } else if isBlocking {
+            ProgressView().tint(.white).controlSize(.small)
+        } else if isCurrentlyBlocked {
+            Menu {
+                Button("Unblock", role: .destructive) {
+                    showUnblockAlert = true
+                }
+            } label: {
+                menuLabel
+            }
+        } else {
+            Menu {
+                profileMenuActions
+            } label: {
+                menuLabel
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var profileMenuActions: some View {
+        if currentStatus == "accepted" {
+            Button("Remove", role: .destructive) {
+                showRemoveAlert = true
+            }
+        } else if currentStatus == "pending" {
+            Button("Withdraw", role: .destructive) {
+                showRemoveAlert = true
+            }
+        } else {
+            Button("Add Friend") {
+                Task { await sendFriendRequest() }
+            }
+        }
+
+        Button("Report", role: .destructive) {
+            showReportDialog = true
+        }
+
+        Button("Block", role: .destructive) {
+            showBlockAlert = true
+        }
+    }
+
+    private var menuLabel: some View {
+        Image(systemName: "ellipsis")
+            .font(.system(size: 16, weight: .semibold))
+            .foregroundStyle(.white)
+            .frame(width: 32, height: 32)
     }
 }

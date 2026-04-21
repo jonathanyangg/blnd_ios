@@ -30,6 +30,8 @@ struct HomeView: View {
     @State var isLoadingFYP = false
     @State var isLoadingMoreFYP = false
     @State var fypError: String?
+    @State var fypCurrentId: Int?
+    @State var discoverCurrentId: Int?
     @State var toastMessage: String?
     @State var toastTask: Task<Void, Never>?
     @State var showStickySearch = false
@@ -130,6 +132,13 @@ struct HomeView: View {
                 }
                 Spacer()
                 HStack(spacing: 16) {
+                    if !authState.isPremium {
+                        Button { showPaywall = true } label: {
+                            Text("+")
+                                .font(.system(size: 20, weight: .bold))
+                                .foregroundStyle(AppTheme.premiumGoldGradient)
+                        }
+                    }
                     Button {
                         withAnimation(.easeInOut(duration: 0.2)) {
                             viewMode = viewMode == .reels
@@ -143,13 +152,6 @@ struct HomeView: View {
                         )
                         .font(.system(size: 18))
                         .foregroundStyle(.white)
-                    }
-                    if !authState.isPremium {
-                        Button { showPaywall = true } label: {
-                            Text("+")
-                                .font(.system(size: 20, weight: .bold))
-                                .foregroundStyle(AppTheme.premiumGoldGradient)
-                        }
                     }
                     Button { showSearch = true } label: {
                         Image(systemName: "magnifyingglass")

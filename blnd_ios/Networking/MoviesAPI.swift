@@ -153,6 +153,20 @@ enum RecommendationsAPI {
         )
     }
 
+    static func semanticSearch(
+        query: String,
+        limit: Int = 30,
+        exclude: [Int] = []
+    ) async throws -> SemanticSearchResponse {
+        let body = SemanticSearchRequest(query: query, limit: limit, exclude: exclude)
+        return try await APIClient.shared.request(
+            endpoint: "/recommendations/semantic-discover",
+            method: "POST",
+            body: body,
+            authenticated: true
+        )
+    }
+
     static func getRecommendations(
         limit: Int = 60,
         offset: Int = 0

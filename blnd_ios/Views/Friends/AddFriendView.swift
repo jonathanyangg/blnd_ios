@@ -34,10 +34,7 @@ struct AddFriendView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            header
-            searchField
-                .padding(.horizontal, 24)
-                .padding(.bottom, 12)
+            searchHeader
 
             if let errorMessage {
                 Text(errorMessage)
@@ -73,61 +70,52 @@ struct AddFriendView: View {
         Binding(get: { unrequestTarget != nil }, set: { if !$0 { unrequestTarget = nil } })
     }
 
-    // MARK: - Header
+    // MARK: - Search Header
 
-    private var header: some View {
+    private var searchHeader: some View {
         HStack(spacing: 12) {
-            Button { dismiss() } label: {
-                Image(systemName: "chevron.left")
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(AppTheme.textDim)
+                    .font(.system(size: 15))
+
+                TextField("Search friends...", text: $query)
+                    .font(.system(size: 15))
                     .foregroundStyle(.white)
-                    .font(.system(size: 16, weight: .medium))
+                    .focused($isFieldFocused)
+                    .autocorrectionDisabled()
+                    .textInputAutocapitalization(.never)
+                    .onChange(of: query) { _, newValue in
+                        debounceSearch(newValue)
+                    }
+
+                if isSearching {
+                    ProgressView()
+                        .tint(AppTheme.textMuted)
+                        .controlSize(.small)
+                } else if !query.isEmpty {
+                    Button {
+                        query = ""
+                        results = []
+                        matchingFriends = []
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(AppTheme.textDim)
+                            .font(.system(size: 16))
+                    }
+                }
             }
+            .padding(12)
+            .background(AppTheme.card)
+            .clipShape(RoundedRectangle(cornerRadius: AppTheme.cornerRadiusMedium))
 
-            Text("Find Friends")
-                .font(.system(size: 22, weight: .bold))
-                .foregroundStyle(.white)
-
-            Spacer()
+            Button("Cancel") { dismiss() }
+                .font(.system(size: 15))
+                .foregroundStyle(AppTheme.textMuted)
         }
-        .padding(.top, 20)
         .padding(.horizontal, 24)
-        .padding(.bottom, 24)
-    }
-
-    // MARK: - Search Field
-
-    private var searchField: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 14))
-                .foregroundStyle(AppTheme.textDim)
-            TextField("Search by username...", text: $query)
-                .font(.system(size: 16))
-                .foregroundStyle(.white)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .focused($isFieldFocused)
-                .onChange(of: query) { _, newValue in
-                    debounceSearch(newValue)
-                }
-            if isSearching {
-                ProgressView()
-                    .tint(AppTheme.textMuted)
-                    .controlSize(.small)
-            } else if !query.isEmpty {
-                Button {
-                    query = ""
-                    results = []
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 14))
-                        .foregroundStyle(AppTheme.textDim)
-                }
-            }
-        }
-        .padding(14)
-        .background(AppTheme.card)
-        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cornerRadiusMedium))
+        .padding(.top, 12)
+        .padding(.bottom, 16)
     }
 
     // MARK: - Suggestions
@@ -450,7 +438,7 @@ extension AddFriendView {
         sendingTo = id
         errorMessage = nil
         do {
-            _ = try await FriendsAPI.sendRequest(
+            _ = try await FriendsService.sendRequest(
                 username: username
             )
             sentTo.insert(id)
@@ -467,7 +455,7 @@ extension AddFriendView {
 
     private func withdrawRequest(id: String, friendshipId: Int) async {
         do {
-            try await FriendsAPI.removeFriend(friendshipId: friendshipId)
+            try await FriendsService.removeFriend(friendshipId: friendshipId)
             sentTo.remove(id)
             cancelledIds.insert(id)
         } catch {

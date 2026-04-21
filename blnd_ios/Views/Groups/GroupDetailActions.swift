@@ -74,8 +74,8 @@ extension GroupDetailView {
             showToast("Name can't be empty")
             return
         }
-        guard trimmed.count <= 50 else {
-            showToast("Name must be 50 characters or less")
+        guard trimmed.count <= 30 else {
+            showToast("Name must be 30 characters or less")
             return
         }
         guard trimmed != group?.name else { return }
@@ -83,7 +83,7 @@ extension GroupDetailView {
         group?.name = trimmed
         Task {
             do {
-                _ = try await GroupsAPI.updateGroup(
+                _ = try await GroupsService.updateGroup(
                     groupId: groupId, name: trimmed
                 )
             } catch {

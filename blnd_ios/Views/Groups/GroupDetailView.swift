@@ -14,6 +14,8 @@ struct GroupDetailView: View {
     @State var seenRecIds: Set<Int> = []
     @State var isLoadingMoreRecs = false
     @State var watchlist: [WatchlistMovieResponse] = []
+    @State var blendCurrentId: Int?
+    @State var watchlistCurrentId: Int?
     @State var isLoading = true
     @State var loadError: String?
     @State var showMembers = false
@@ -62,12 +64,8 @@ struct GroupDetailView: View {
         }
         .background(AppTheme.background)
         .navigationBarBackButtonHidden()
+        .toolbar(.hidden, for: .navigationBar)
         .swipeBackGesture()
-        .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                BackButton()
-            }
-        }
         .task { await loadAll() }
         .refreshable { await loadAll(forceRefresh: true) }
         .sheet(isPresented: $showMembers) {
@@ -79,6 +77,7 @@ struct GroupDetailView: View {
                     title: "Rename Blend",
                     placeholder: "Blend name",
                     text: $editedName,
+                    maxLength: 30,
                     onSave: { saveGroupName() },
                     onDismiss: { isEditingName = false }
                 )
@@ -116,42 +115,27 @@ struct GroupDetailView: View {
     var groupHeader: some View {
         VStack(spacing: 0) {
             if let group {
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        groupNameRow(group)
-
-                        Button {
-                            showMembers = true
-                        } label: {
-                            HStack(spacing: 4) {
-                                Text(
-                                    "\(group.members.count) members"
-                                )
-                                .font(.system(size: 12))
-                                .foregroundStyle(
-                                    AppTheme.textMuted
-                                )
-                                Image(
-                                    systemName: "chevron.right"
-                                )
-                                .font(.system(
-                                    size: 9, weight: .medium
-                                ))
-                                .foregroundStyle(
-                                    AppTheme.textDim
-                                )
-                            }
-                        }
+                HStack(spacing: 12) {
+                    Button { dismiss() } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: 28, height: 28)
                     }
 
-                    Spacer()
+                    Spacer(minLength: 8)
+
+                    VStack(spacing: 6) {
+                        groupNameRow(group)
+                        memberAvatarStack(group)
+                    }
+                    .frame(maxWidth: 220)
+
+                    Spacer(minLength: 8)
 
                     Button {
-                        withAnimation(
-                            .easeInOut(duration: 0.2)
-                        ) {
-                            viewMode = viewMode == .reels
-                                ? .grid : .reels
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            viewMode = viewMode == .reels ? .grid : .reels
                         }
                     } label: {
                         Image(
@@ -161,10 +145,12 @@ struct GroupDetailView: View {
                         )
                         .font(.system(size: 16))
                         .foregroundStyle(.white)
+                        .frame(width: 28, height: 28)
                     }
                 }
-                .padding(.horizontal, 24)
-                .padding(.bottom, 8)
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+                .padding(.bottom, 12)
             }
 
             groupTabPicker
@@ -174,6 +160,33 @@ struct GroupDetailView: View {
             Divider().overlay(AppTheme.border)
         }
         .background(AppTheme.background)
+    }
+
+    func memberAvatarStack(_ group: GroupDetailResponse) -> some View {
+        Button {
+            showMembers = true
+        } label: {
+            HStack(spacing: 0) {
+                let visible = group.members.prefix(3)
+                ForEach(Array(visible.enumerated()), id: \.offset) { index, member in
+                    AvatarView(url: member.avatarUrl, size: 22, overlap: index > 0)
+                }
+                if group.members.count > 3 {
+                    ZStack {
+                        Circle()
+                            .fill(AppTheme.card)
+                            .frame(width: 22, height: 22)
+                            .overlay(
+                                Circle().stroke(AppTheme.background, lineWidth: 2)
+                            )
+                        Text("+\(group.members.count - 3)")
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(.white)
+                    }
+                    .padding(.leading, -8)
+                }
+            }
+        }
     }
 
     var groupTabPicker: some View {
@@ -220,12 +233,12 @@ struct GroupDetailView: View {
         } label: {
             HStack(spacing: 6) {
                 Text(group.name)
-                    .font(.system(
-                        size: 18, weight: .bold
-                    ))
+                    .font(.system(size: 17, weight: .bold))
                     .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
                 Image(systemName: "pencil")
-                    .font(.system(size: 12))
+                    .font(.system(size: 10))
                     .foregroundStyle(AppTheme.textDim)
             }
         }

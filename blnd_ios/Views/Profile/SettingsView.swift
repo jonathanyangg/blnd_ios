@@ -2,7 +2,7 @@ import RevenueCat
 import SwiftUI
 
 private enum SettingsDestination: Hashable {
-    case account, notifications, blocked, about
+    case account, notifications, blocked, about, howItWorks
 }
 
 struct SettingsView: View {
@@ -63,6 +63,14 @@ struct SettingsView: View {
                             if let url = URL(string: "https://apps.apple.com/account/subscriptions") {
                                 UIApplication.shared.open(url)
                             }
+                        }
+                    }
+                    .background(AppTheme.card)
+                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.cornerRadiusLarge))
+
+                    VStack(spacing: 0) {
+                        settingsRow("How It Works", icon: "lightbulb") {
+                            destination = .howItWorks
                         }
                     }
                     .background(AppTheme.card)
@@ -135,6 +143,8 @@ struct SettingsView: View {
                 BlockedUsersView()
             case .about:
                 AboutSettingsView()
+            case .howItWorks:
+                HowItWorksView()
             }
         }
     }

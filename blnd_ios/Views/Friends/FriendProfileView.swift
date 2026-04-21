@@ -1,5 +1,10 @@
 import SwiftUI
 
+enum FriendProfileTab: String, CaseIterable {
+    case watched = "Watched"
+    case taste = "Taste"
+}
+
 struct FriendProfileView: View {
     let friend: FriendResponse
 
@@ -28,6 +33,15 @@ struct FriendProfileView: View {
     @State var isLoadingMore = false
     @State var watchedGated = false
 
+    @State var selectedTab: FriendProfileTab = .watched
+    @State var watchedQuery: String = ""
+    @State var watchedSort: MovieSortOption = .dateDesc
+    @State var searchDebounceTask: Task<Void, Never>?
+    @Namespace var friendTabNamespace
+
+    @State var genreTaste: GenreTasteResponse?
+    @State var isLoadingTaste = false
+
     @State var showFriendsList = false
     @State var friendsList: [PublicFriendResponse] = []
     @State var isLoadingFriends = false
@@ -41,18 +55,10 @@ struct FriendProfileView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 0) {
-                profileHeader
-
-                if let profile = publicProfile {
-                    statsRowView(profile: profile)
-                }
-
-                watchedSection
-            }
-            .padding(.bottom, 32)
-            .opacity(publicProfile == nil ? 0 : 1)
-            .animation(.easeOut(duration: 0.2), value: publicProfile == nil)
+            scrollContent
+                .padding(.bottom, 32)
+                .opacity(publicProfile == nil ? 0 : 1)
+                .animation(.easeOut(duration: 0.2), value: publicProfile == nil)
         }
         .background(AppTheme.background.ignoresSafeArea())
         .animation(.easeInOut(duration: 0.25), value: publicProfile == nil)
@@ -132,17 +138,17 @@ struct FriendProfileView: View {
             FriendsListSheet(friends: friendsList, isLoading: isLoadingFriends) { selected in
                 selectedFriendOfFriend = selected
             }
-            .presentationDetents([.medium, .large])
+            .presentationDetents([.large])
             .presentationDragIndicator(.visible)
-            .presentationBackground(AppTheme.background)
+            .presentationBackground(AppTheme.card)
         }
         .sheet(isPresented: $showMutualsList) {
             MutualsListSheet(mutuals: mutualFriends) { selected in
                 selectedFriendOfFriend = selected
             }
-            .presentationDetents([.medium, .large])
+            .presentationDetents([.large])
             .presentationDragIndicator(.visible)
-            .presentationBackground(AppTheme.background)
+            .presentationBackground(AppTheme.card)
         }
         .navigationDestination(item: $selectedFriendOfFriend) { friendOfFriend in
             FriendProfileView(friend: FriendResponse(
@@ -153,16 +159,141 @@ struct FriendProfileView: View {
                 avatarUrl: friendOfFriend.avatarUrl
             ))
         }
+        .fullScreenCover(isPresented: $showFullAvatar) {
+            FullAvatarView(url: avatarUrl) {
+                showFullAvatar = false
+            }
+        }
+    }
+}
+
+// MARK: - Profile sections
+
+extension FriendProfileView {
+    var scrollContent: some View {
+        VStack(spacing: 0) {
+            profileHeader
+
+            if let profile = publicProfile {
+                statsRowView(profile: profile)
+            }
+
+            if !watchedGated, publicProfile != nil {
+                tabPicker
+                    .padding(.horizontal, 24)
+                    .padding(.top, 16)
+                    .padding(.bottom, 16)
+
+                if selectedTab == .watched {
+                    PosterGridFilterBar(
+                        query: $watchedQuery,
+                        sort: $watchedSort,
+                        allowsRating: true
+                    )
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 12)
+                }
+            }
+
+            switch selectedTab {
+            case .watched:
+                watchedSection
+            case .taste:
+                tasteSection
+            }
+        }
+        .task { await loadData() }
         .onChange(of: showFriendsList) {
             if showFriendsList {
                 Task { await loadFriends() }
             }
         }
-        .task { await loadData() }
-        .fullScreenCover(isPresented: $showFullAvatar) {
-            FullAvatarView(url: avatarUrl) {
-                showFullAvatar = false
+        .onChange(of: watchedQuery) { debounceReloadWatched() }
+        .onChange(of: watchedSort) { Task { await reloadWatched() } }
+        .onChange(of: selectedTab) {
+            if selectedTab == .taste, genreTaste == nil, !isLoadingTaste {
+                Task { await loadTaste() }
             }
+        }
+    }
+
+    // MARK: - Tab Picker
+
+    private var tabPicker: some View {
+        HStack(spacing: 24) {
+            ForEach(FriendProfileTab.allCases, id: \.self) { tab in
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        selectedTab = tab
+                    }
+                } label: {
+                    VStack(spacing: 6) {
+                        Text(tab.rawValue)
+                            .font(.system(
+                                size: 15,
+                                weight: selectedTab == tab ? .bold : .medium
+                            ))
+                            .foregroundStyle(
+                                selectedTab == tab ? .white : AppTheme.textMuted
+                            )
+
+                        if selectedTab == tab {
+                            Rectangle()
+                                .fill(.white)
+                                .frame(height: 2)
+                                .matchedGeometryEffect(
+                                    id: "friendTabUnderline",
+                                    in: friendTabNamespace
+                                )
+                        } else {
+                            Rectangle()
+                                .fill(.clear)
+                                .frame(height: 2)
+                        }
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    // MARK: - Taste Section
+
+    @ViewBuilder
+    private var tasteSection: some View {
+        if isLoadingTaste {
+            ProgressView()
+                .tint(.white)
+                .padding(.top, 40)
+        } else if let taste = genreTaste, taste.totalRated >= 5 {
+            VStack(spacing: 16) {
+                RadarChartView(
+                    scores: taste.genres.map(\.score),
+                    labels: taste.genres.map(\.name)
+                )
+                .frame(width: 280, height: 280)
+                .padding(.top, 8)
+
+                Text("Based on \(taste.totalRated) rated movies")
+                    .font(.system(size: 13))
+                    .foregroundStyle(AppTheme.textDim)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.top, 16)
+        } else {
+            VStack(spacing: 12) {
+                Image(systemName: "chart.pie")
+                    .font(.system(size: 36))
+                    .foregroundStyle(AppTheme.textDim)
+
+                Text("Not enough ratings yet to show a taste profile")
+                    .font(.system(size: 14))
+                    .foregroundStyle(AppTheme.textMuted)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 40)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.top, 60)
         }
     }
 
@@ -257,9 +388,15 @@ struct FriendProfileView: View {
             Image(systemName: "film")
                 .font(.system(size: 36))
                 .foregroundStyle(AppTheme.textMuted)
-            Text("No watched movies yet")
-                .font(.system(size: 14))
-                .foregroundStyle(AppTheme.textMuted)
+            Text(
+                watchedQuery.isEmpty
+                    ? "No watched movies yet"
+                    : "No watched movies match \"\(watchedQuery)\""
+            )
+            .font(.system(size: 14))
+            .foregroundStyle(AppTheme.textMuted)
+            .multilineTextAlignment(.center)
+            .padding(.horizontal, 40)
         }
         .padding(.top, 40)
     }
@@ -274,6 +411,7 @@ struct FriendProfileView: View {
                         PosterTile(posterPath: movie.posterPath, rating: movie.rating)
                     }
                     .buttonStyle(.plain)
+                    .id(movie.tmdbId)
                     .onAppear {
                         if movie.id == watchedMovies.last?.id {
                             Task { await loadMoreWatched() }
@@ -305,76 +443,6 @@ struct FriendProfileView: View {
         case .blocked: true
         case .unblocked: false
         case .none: publicProfile?.isBlocked ?? false
-        }
-    }
-}
-
-// MARK: - Profile Menu
-
-extension FriendProfileView {
-    @ViewBuilder
-    var profileMenu: some View {
-        let isSelf = friend.id == (KeychainManager.readString(key: "userId") ?? "")
-        if isSelf {
-            EmptyView()
-        } else if publicProfile == nil {
-            EmptyView()
-        } else if isBlocking {
-            ProgressView().tint(.white).controlSize(.small)
-        } else if isCurrentlyBlocked {
-            Menu {
-                Button("Unblock", role: .destructive) {
-                    showUnblockAlert = true
-                }
-            } label: {
-                Image(systemName: "ellipsis")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 32, height: 32)
-            }
-        } else {
-            Menu {
-                if currentStatus == "accepted" {
-                    Button("Remove", role: .destructive) {
-                        showRemoveAlert = true
-                    }
-                } else if currentStatus == "pending" {
-                    Button("Withdraw", role: .destructive) {
-                        showRemoveAlert = true
-                    }
-                } else {
-                    Button("Add Friend") {
-                        Task { await sendFriendRequest() }
-                    }
-                }
-
-                Button("Report", role: .destructive) {
-                    showReportDialog = true
-                }
-
-                Button("Block", role: .destructive) {
-                    showBlockAlert = true
-                }
-            } label: {
-                Image(systemName: "ellipsis")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 32, height: 32)
-            }
-        }
-    }
-
-    func submitReport(_ reason: String) {
-        guard !isReporting else { return }
-        isReporting = true
-        Task {
-            defer { isReporting = false }
-            do {
-                try await FriendsAPI.reportUser(userId: friend.id, reason: reason)
-            } catch {
-                // Non-fatal — still show confirmation so user knows we heard them
-            }
-            showReportConfirmation = true
         }
     }
 }

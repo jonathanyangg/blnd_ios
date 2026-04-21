@@ -14,10 +14,27 @@ enum ProfileAPI {
     static func getPublicWatched(
         userId: String,
         limit: Int = 20,
-        offset: Int = 0
+        offset: Int = 0,
+        query: String? = nil,
+        sort: MovieSortOption? = nil
     ) async throws -> PublicWatchedListResponse {
+        var endpoint = "/auth/users/\(userId)/watched?limit=\(limit)&offset=\(offset)"
+        if let query, !query.isEmpty {
+            endpoint += "&q=\(query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")"
+        }
+        if let sort {
+            endpoint += "&sort=\(sort.rawValue)"
+        }
+        return try await APIClient.shared.request(
+            endpoint: endpoint,
+            authenticated: true
+        )
+    }
+
+    /// GET /auth/users/{id}/taste — fetch a friend's genre taste breakdown (requires friendship)
+    static func getPublicTaste(userId: String) async throws -> GenreTasteResponse {
         try await APIClient.shared.request(
-            endpoint: "/auth/users/\(userId)/watched?limit=\(limit)&offset=\(offset)",
+            endpoint: "/auth/users/\(userId)/taste",
             authenticated: true
         )
     }
