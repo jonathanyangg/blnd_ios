@@ -34,9 +34,7 @@ struct FriendProfileView: View {
     @State var watchedGated = false
 
     @State var selectedTab: FriendProfileTab = .watched
-    @State var watchedQuery: String = ""
     @State var watchedSort: MovieSortOption = .dateDesc
-    @State var searchDebounceTask: Task<Void, Never>?
     @Namespace var friendTabNamespace
 
     @State var genreTaste: GenreTasteResponse?
@@ -181,18 +179,7 @@ extension FriendProfileView {
             if !watchedGated, publicProfile != nil {
                 tabPicker
                     .padding(.horizontal, 24)
-                    .padding(.top, 16)
                     .padding(.bottom, 16)
-
-                if selectedTab == .watched {
-                    PosterGridFilterBar(
-                        query: $watchedQuery,
-                        sort: $watchedSort,
-                        allowsRating: true
-                    )
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 12)
-                }
             }
 
             switch selectedTab {
@@ -208,7 +195,6 @@ extension FriendProfileView {
                 Task { await loadFriends() }
             }
         }
-        .onChange(of: watchedQuery) { debounceReloadWatched() }
         .onChange(of: watchedSort) { Task { await reloadWatched() } }
         .onChange(of: selectedTab) {
             if selectedTab == .taste, genreTaste == nil, !isLoadingTaste {
@@ -220,41 +206,75 @@ extension FriendProfileView {
     // MARK: - Tab Picker
 
     private var tabPicker: some View {
-        HStack(spacing: 24) {
-            ForEach(FriendProfileTab.allCases, id: \.self) { tab in
-                Button {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        selectedTab = tab
-                    }
-                } label: {
-                    VStack(spacing: 6) {
-                        Text(tab.rawValue)
-                            .font(.system(
-                                size: 15,
-                                weight: selectedTab == tab ? .bold : .medium
-                            ))
-                            .foregroundStyle(
-                                selectedTab == tab ? .white : AppTheme.textMuted
-                            )
+        HStack(spacing: 0) {
+            sortMenu
+                .disabled(selectedTab == .taste)
+                .padding(.trailing, 16)
+                .transaction { $0.animation = nil }
 
-                        if selectedTab == tab {
-                            Rectangle()
-                                .fill(.white)
-                                .frame(height: 2)
-                                .matchedGeometryEffect(
-                                    id: "friendTabUnderline",
-                                    in: friendTabNamespace
+            HStack(spacing: 24) {
+                ForEach(FriendProfileTab.allCases, id: \.self) { tab in
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            selectedTab = tab
+                        }
+                    } label: {
+                        VStack(spacing: 6) {
+                            Text(tab.rawValue)
+                                .font(.system(
+                                    size: 15,
+                                    weight: selectedTab == tab ? .bold : .medium
+                                ))
+                                .foregroundStyle(
+                                    selectedTab == tab ? .white : AppTheme.textMuted
                                 )
-                        } else {
-                            Rectangle()
-                                .fill(.clear)
-                                .frame(height: 2)
+
+                            if selectedTab == tab {
+                                Rectangle()
+                                    .fill(.white)
+                                    .frame(height: 2)
+                                    .matchedGeometryEffect(
+                                        id: "friendTabUnderline",
+                                        in: friendTabNamespace
+                                    )
+                            } else {
+                                Rectangle()
+                                    .fill(.clear)
+                                    .frame(height: 2)
+                            }
                         }
                     }
                 }
             }
+
+            Spacer()
         }
         .frame(maxWidth: .infinity)
+    }
+
+    private var sortMenu: some View {
+        let options = MovieSortOption.allCases.filter {
+            $0 != .titleAsc && $0 != .titleDesc
+        }
+        return Menu {
+            ForEach(options) { option in
+                Button {
+                    watchedSort = option
+                } label: {
+                    if watchedSort == option {
+                        Label(option.label, systemImage: "checkmark")
+                    } else {
+                        Text(option.label)
+                    }
+                }
+            }
+        } label: {
+            Image(systemName: "line.3.horizontal.decrease")
+                .font(.system(size: 16, weight: .medium))
+                .foregroundStyle(AppTheme.textMuted)
+                .frame(width: 32, height: 32)
+                .contentShape(Rectangle())
+        }
     }
 
     // MARK: - Taste Section
@@ -388,15 +408,11 @@ extension FriendProfileView {
             Image(systemName: "film")
                 .font(.system(size: 36))
                 .foregroundStyle(AppTheme.textMuted)
-            Text(
-                watchedQuery.isEmpty
-                    ? "No watched movies yet"
-                    : "No watched movies match \"\(watchedQuery)\""
-            )
-            .font(.system(size: 14))
-            .foregroundStyle(AppTheme.textMuted)
-            .multilineTextAlignment(.center)
-            .padding(.horizontal, 40)
+            Text("No watched movies yet")
+                .font(.system(size: 14))
+                .foregroundStyle(AppTheme.textMuted)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
         }
         .padding(.top, 40)
     }

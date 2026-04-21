@@ -3,6 +3,8 @@ import SwiftUI
 struct SearchBar: View {
     @Binding var text: String
     var placeholder: String = "Search movies..."
+    var compact: Bool = false
+    var backgroundColor: Color = AppTheme.card
     var onClear: (() -> Void)?
 
     @FocusState private var isFocused: Bool
@@ -11,14 +13,14 @@ struct SearchBar: View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(AppTheme.textDim)
-                .font(.system(size: 15))
+                .font(.system(size: compact ? 13 : 15))
 
             TextField(
                 "",
                 text: $text,
                 prompt: Text(placeholder).foregroundStyle(AppTheme.textMuted)
             )
-            .font(.system(size: 15))
+            .font(.system(size: compact ? 13 : 15))
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity)
             .focused($isFocused)
@@ -40,8 +42,8 @@ struct SearchBar: View {
                 .transition(.opacity)
             }
         }
-        .padding(14)
-        .background(AppTheme.card)
+        .padding(compact ? 9 : 14)
+        .background(backgroundColor)
         .clipShape(RoundedRectangle(cornerRadius: AppTheme.cornerRadiusMedium))
         .animation(.easeOut(duration: 0.15), value: text.isEmpty)
     }

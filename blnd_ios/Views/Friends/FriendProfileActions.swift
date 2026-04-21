@@ -25,7 +25,6 @@ extension FriendProfileView {
                 userId: friend.id,
                 limit: 20,
                 offset: 0,
-                query: watchedQuery,
                 sort: watchedSort
             )
             watchedMovies = watchedResult.results
@@ -48,7 +47,6 @@ extension FriendProfileView {
                 userId: friend.id,
                 limit: 20,
                 offset: watchedMovies.count,
-                query: watchedQuery,
                 sort: watchedSort
             )
             watchedMovies.append(contentsOf: next.results)
@@ -58,7 +56,6 @@ extension FriendProfileView {
         isLoadingMore = false
     }
 
-    /// Re-fetch watched with current query/sort. Resets pagination.
     func reloadWatched() async {
         guard !watchedGated else { return }
         do {
@@ -66,7 +63,6 @@ extension FriendProfileView {
                 userId: friend.id,
                 limit: 20,
                 offset: 0,
-                query: watchedQuery,
                 sort: watchedSort
             )
             watchedMovies = result.results
@@ -74,15 +70,6 @@ extension FriendProfileView {
         } catch is CancellationError {
             return
         } catch { /* Non-critical — keep current results */ }
-    }
-
-    func debounceReloadWatched() {
-        searchDebounceTask?.cancel()
-        searchDebounceTask = Task {
-            try? await Task.sleep(for: .milliseconds(300))
-            guard !Task.isCancelled else { return }
-            await reloadWatched()
-        }
     }
 
     func loadTaste() async {

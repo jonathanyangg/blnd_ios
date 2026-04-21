@@ -29,11 +29,8 @@ struct ProfileView: View {
     @State private var genreTaste: GenreTasteResponse?
     @State private var isLoadingTaste = false
 
-    @State private var watchedQuery: String = ""
     @State private var watchedSort: MovieSortOption = .dateDesc
-    @State private var watchlistQuery: String = ""
     @State private var watchlistSort: MovieSortOption = .dateDesc
-    @State private var searchDebounceTask: Task<Void, Never>?
 
     var body: some View {
         NavigationStack {
@@ -65,16 +62,6 @@ struct ProfileView: View {
                     tabPicker
                         .padding(.horizontal, 24)
                         .padding(.bottom, 16)
-
-                    if selectedTab != .taste {
-                        PosterGridFilterBar(
-                            query: currentQueryBinding,
-                            sort: currentSortBinding,
-                            allowsRating: selectedTab == .watched
-                        )
-                        .padding(.horizontal, 24)
-                        .padding(.bottom, 12)
-                    }
 
                     switch selectedTab {
                     case .watched:
@@ -120,32 +107,15 @@ struct ProfileView: View {
                     Task { await loadUnreadCount() }
                 }
             }
-            .onChange(of: watchedQuery) { debounceReload { await loadWatched() } }
             .onChange(of: watchedSort) { Task { await loadWatched() } }
-            .onChange(of: watchlistQuery) { debounceReload { await loadWatchlist() } }
             .onChange(of: watchlistSort) { Task { await loadWatchlist() } }
         }
-    }
-
-    private var currentQueryBinding: Binding<String> {
-        selectedTab == .watched
-            ? $watchedQuery
-            : $watchlistQuery
     }
 
     private var currentSortBinding: Binding<MovieSortOption> {
         selectedTab == .watched
             ? $watchedSort
             : $watchlistSort
-    }
-
-    private func debounceReload(_ action: @Sendable @escaping () async -> Void) {
-        searchDebounceTask?.cancel()
-        searchDebounceTask = Task {
-            try? await Task.sleep(for: .milliseconds(300))
-            guard !Task.isCancelled else { return }
-            await action()
-        }
     }
 
     // MARK: - Settings
@@ -264,41 +234,80 @@ struct ProfileView: View {
     // MARK: - Tab Picker
 
     private var tabPicker: some View {
-        HStack(spacing: 24) {
-            ForEach(ProfileTab.allCases, id: \.self) { tab in
-                Button {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        selectedTab = tab
-                    }
-                } label: {
-                    VStack(spacing: 6) {
-                        Text(tab.rawValue)
-                            .font(.system(
-                                size: 15,
-                                weight: selectedTab == tab ? .bold : .medium
-                            ))
-                            .foregroundStyle(
-                                selectedTab == tab ? .white : AppTheme.textMuted
-                            )
+        HStack(spacing: 0) {
+            sortMenu(
+                sort: currentSortBinding,
+                allowsRating: selectedTab == .watched
+            )
+            .disabled(selectedTab == .taste)
+            .padding(.trailing, 16)
+            .transaction { $0.animation = nil }
 
-                        if selectedTab == tab {
-                            Rectangle()
-                                .fill(.white)
-                                .frame(height: 2)
-                                .matchedGeometryEffect(
-                                    id: "profileUnderline",
-                                    in: profileTabNamespace
+            HStack(spacing: 24) {
+                ForEach(ProfileTab.allCases, id: \.self) { tab in
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            selectedTab = tab
+                        }
+                    } label: {
+                        VStack(spacing: 6) {
+                            Text(tab.rawValue)
+                                .font(.system(
+                                    size: 15,
+                                    weight: selectedTab == tab ? .bold : .medium
+                                ))
+                                .foregroundStyle(
+                                    selectedTab == tab ? .white : AppTheme.textMuted
                                 )
-                        } else {
-                            Rectangle()
-                                .fill(.clear)
-                                .frame(height: 2)
+
+                            if selectedTab == tab {
+                                Rectangle()
+                                    .fill(.white)
+                                    .frame(height: 2)
+                                    .matchedGeometryEffect(
+                                        id: "profileUnderline",
+                                        in: profileTabNamespace
+                                    )
+                            } else {
+                                Rectangle()
+                                    .fill(.clear)
+                                    .frame(height: 2)
+                            }
                         }
                     }
                 }
             }
+
+            Spacer()
         }
         .frame(maxWidth: .infinity)
+    }
+
+    private func sortMenu(sort: Binding<MovieSortOption>, allowsRating: Bool) -> some View {
+        let options = MovieSortOption.allCases.filter { option in
+            if option == .titleAsc || option == .titleDesc { return false }
+            if !allowsRating, !option.appliesToWatchlist { return false }
+            return true
+        }
+        return Menu {
+            ForEach(options) { option in
+                Button {
+                    sort.wrappedValue = option
+                } label: {
+                    if sort.wrappedValue == option {
+                        Label(option.label, systemImage: "checkmark")
+                    } else {
+                        Text(option.label)
+                    }
+                }
+            }
+        } label: {
+            Image(systemName: "line.3.horizontal.decrease")
+                .font(.system(size: 16, weight: .medium))
+                .foregroundStyle(AppTheme.textMuted)
+                .frame(width: 32, height: 32)
+                .contentShape(Rectangle())
+        }
     }
 }
 
@@ -312,11 +321,7 @@ extension ProfileView {
                     .tint(.white)
                     .padding(.top, 40)
             } else if watchedMovies.isEmpty {
-                emptyState(
-                    message: watchedQuery.isEmpty
-                        ? "No watched movies yet"
-                        : "No watched movies match \"\(watchedQuery)\""
-                )
+                emptyState(message: "No watched movies yet")
             } else {
                 PosterGrid {
                     ForEach(watchedMovies) { movie in
@@ -340,11 +345,7 @@ extension ProfileView {
                     .tint(.white)
                     .padding(.top, 40)
             } else if watchlistMovies.isEmpty {
-                emptyState(
-                    message: watchlistQuery.isEmpty
-                        ? "Your watchlist is empty"
-                        : "No watchlist items match \"\(watchlistQuery)\""
-                )
+                emptyState(message: "Your watchlist is empty")
             } else {
                 PosterGrid {
                     ForEach(watchlistMovies) { movie in
@@ -420,7 +421,6 @@ extension ProfileView {
         do {
             let response = try await TrackingAPI.getWatchHistory(
                 limit: 50,
-                query: watchedQuery,
                 sort: watchedSort
             )
             watchedMovies = response.results
@@ -444,7 +444,6 @@ extension ProfileView {
         do {
             let response = try await TrackingAPI.getWatchlist(
                 limit: 50,
-                query: watchlistQuery,
                 sort: watchlistSort
             )
             watchlistMovies = response.results
