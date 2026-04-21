@@ -6,6 +6,7 @@ struct AddFriendView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var query = ""
     @State private var results: [UserSearchResult] = []
+    @State private var matchingFriends: [FriendResponse] = []
     @State private var isSearching = false
     @State private var searchTask: Task<Void, Never>?
 
@@ -82,7 +83,7 @@ struct AddFriendView: View {
                     .font(.system(size: 16, weight: .medium))
             }
 
-            Text("Add Friend")
+            Text("Find Friends")
                 .font(.system(size: 22, weight: .bold))
                 .foregroundStyle(.white)
 
@@ -241,11 +242,48 @@ struct AddFriendView: View {
     private var searchResults: some View {
         ScrollView {
             LazyVStack(spacing: 0) {
-                ForEach(results) { user in
-                    userRow(user)
+                if !matchingFriends.isEmpty {
+                    sectionHeader("YOUR FRIENDS")
+                    ForEach(matchingFriends) { friend in
+                        friendRow(friend)
+                    }
+                }
+
+                let friendIds = Set(matchingFriends.map(\.id))
+                let filtered = results.filter { !friendIds.contains($0.id) }
+                if !filtered.isEmpty {
+                    sectionHeader("ADD FRIENDS")
+                        .padding(.top, matchingFriends.isEmpty ? 0 : 12)
+                    ForEach(filtered) { user in
+                        userRow(user)
+                    }
                 }
             }
         }
+    }
+
+    private func friendRow(_ friend: FriendResponse) -> some View {
+        NavigationLink {
+            FriendProfileView(friend: friend)
+        } label: {
+            HStack(spacing: 12) {
+                AvatarView(url: friend.avatarUrl, size: 44)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(friend.displayName ?? friend.username)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(.white)
+                    Text("@\(friend.username)")
+                        .font(.system(size: 13))
+                        .foregroundStyle(AppTheme.textMuted)
+                }
+
+                Spacer()
+            }
+            .padding(.horizontal, 24)
+            .padding(.vertical, 10)
+        }
+        .buttonStyle(.plain)
     }
 
     private func userRow(_ user: UserSearchResult) -> some View {
@@ -377,8 +415,14 @@ extension AddFriendView {
         )
         guard !trimmed.isEmpty else {
             results = []
+            matchingFriends = []
             isSearching = false
             return
+        }
+        let lowered = trimmed.lowercased()
+        matchingFriends = UserActionCache.shared.friends.filter { friend in
+            friend.username.lowercased().contains(lowered) ||
+                (friend.displayName?.lowercased().contains(lowered) ?? false)
         }
         isSearching = true
         searchTask = Task {
