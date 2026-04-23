@@ -1,4 +1,5 @@
 import PostHog
+import RevenueCat
 import SwiftUI
 
 struct OnboardingCompleteView: View {
@@ -110,6 +111,9 @@ struct OnboardingCompleteView: View {
 
         await authState.fetchCurrentUser()
         await UserActionCache.shared.bootstrap()
+        if let uid = KeychainManager.readString(key: "userId") {
+            try? await Purchases.shared.logIn(uid)
+        }
         path.append(AuthRoute.findFriends)
     }
 }

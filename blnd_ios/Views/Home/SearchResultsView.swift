@@ -106,10 +106,6 @@ struct SearchView: View {
         icon: String
     ) -> some View {
         Button {
-            if mode == .aiSearch, !authState.isPremium {
-                showPaywall = true
-                return
-            }
             searchMode = mode
         } label: {
             HStack(spacing: 5) {
@@ -117,17 +113,11 @@ struct SearchView: View {
                     .font(.system(size: 11))
                 Text(label)
                     .font(.system(size: 13, weight: .medium))
-                if mode == .aiSearch, !authState.isPremium {
-                    Image(systemName: "lock.fill")
-                        .font(.system(size: 9))
-                }
             }
             .foregroundStyle(
                 searchMode == mode
                     ? AnyShapeStyle(Color.black)
-                    : (mode == .aiSearch
-                        ? AnyShapeStyle(AppTheme.premiumGoldGradient)
-                        : AnyShapeStyle(Color.white))
+                    : AnyShapeStyle(Color.white)
             )
             .padding(.vertical, 7)
             .padding(.horizontal, 12)
@@ -317,7 +307,7 @@ struct SearchView: View {
             Text("Describe what you're in the mood for")
                 .font(.system(size: 14))
                 .foregroundStyle(AppTheme.textDim)
-            Text("\"slow burn thriller\" · \"like Parasite but funnier\"")
+            Text("\"something like inception\" · \"intense mystery film\"")
                 .font(.system(size: 12))
                 .foregroundStyle(AppTheme.textDim.opacity(0.6))
         }
@@ -468,6 +458,8 @@ private extension SearchView {
             let response = try await RecommendationsAPI.semanticSearch(query: trimmed)
             aiResults = response.results
             hasSearched = true
+        } catch APIError.rateLimited(_) {
+            showPaywall = true
         } catch {
             hasSearched = true
         }

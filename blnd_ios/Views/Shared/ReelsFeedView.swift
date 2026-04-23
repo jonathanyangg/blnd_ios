@@ -80,8 +80,11 @@ struct ReelsFeedView: View {
                 Task { await onLoadMore?() }
             }
         }
-        .onChange(of: movies) { _, newMovies in
-            if currentId.flatMap({ cid in newMovies.contains { $0.tmdbId == cid } }) != true {
+        .onChange(of: movies) { oldMovies, newMovies in
+            let isAppend = !oldMovies.isEmpty
+                && newMovies.count > oldMovies.count
+                && newMovies.prefix(oldMovies.count).map(\.tmdbId) == oldMovies.map(\.tmdbId)
+            if !isAppend {
                 currentIdBinding.wrappedValue = newMovies.first?.tmdbId
             }
         }

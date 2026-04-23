@@ -9,12 +9,16 @@ private struct ValidationErrorResponse: Decodable {
     let detail: [ValidationErrorDetail]
 }
 
+private struct APIErrorDetail: Decodable {
+    let detail: String?
+}
+
 enum APIError: LocalizedError {
     case invalidURL
     case unauthorized
     case badRequest(String)
     case notFound
-    case rateLimited
+    case rateLimited(detail: String?)
     case serverError(Int)
     case decodingError
     case networkError(Error)
@@ -25,7 +29,7 @@ enum APIError: LocalizedError {
         case .unauthorized: return "Invalid credentials"
         case let .badRequest(message): return message
         case .notFound: return "Not found"
-        case .rateLimited: return "Too many requests, try again later"
+        case let .rateLimited(detail): return detail ?? "Too many requests, try again later"
         case let .serverError(code): return "Server error (\(code))"
         case .decodingError: return "Unexpected response format"
         case let .networkError(error): return error.localizedDescription
@@ -222,7 +226,8 @@ final class APIClient: @unchecked Sendable {
         case 404:
             return .notFound
         case 429:
-            return .rateLimited
+            let detail = try? JSONDecoder().decode(APIErrorDetail.self, from: data).detail
+            return .rateLimited(detail: detail)
         case 400 ..< 500:
             return .badRequest(parseDetail(from: data))
         default:

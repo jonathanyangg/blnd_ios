@@ -24,7 +24,7 @@ struct PaywallView: View {
         PremiumFeature(
             icon: "person.3.fill",
             title: "Larger Groups",
-            subtitle: "Create blends with up to 25 friends"
+            subtitle: "Create blends with up to 12 friends"
         ),
         PremiumFeature(
             icon: "star.fill",
