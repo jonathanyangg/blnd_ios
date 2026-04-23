@@ -94,6 +94,13 @@ final class APIClient: @unchecked Sendable {
     private let decoder = JSONDecoder()
     private let tokenRefresher = TokenRefresher()
 
+    /// Proactively refresh the access + refresh token pair.
+    /// No-op if no refresh token exists (user not logged in).
+    func refreshTokens() async throws {
+        guard KeychainManager.readString(key: "refreshToken") != nil else { return }
+        try await tokenRefresher.refresh()
+    }
+
     func request<T: Decodable>(
         endpoint: String,
         method: String = "GET",
