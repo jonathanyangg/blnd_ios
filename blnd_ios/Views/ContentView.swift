@@ -35,7 +35,10 @@ struct ContentView: View {
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active, authState.phase == .authenticated {
                 UIApplication.shared.applicationIconBadgeNumber = 0
-                Task { try? await NotificationAPI.resetBadge() }
+                Task {
+                    try? await APIClient.shared.refreshTokens()
+                    try? await NotificationAPI.resetBadge()
+                }
             }
         }
     }

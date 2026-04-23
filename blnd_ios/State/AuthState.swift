@@ -44,6 +44,10 @@ class AuthState {
             return
         }
 
+        // Proactively refresh tokens before checking session.
+        // Non-fatal — if this fails, AuthAPI.me() will trigger reactive retry.
+        try? await APIClient.shared.refreshTokens()
+
         do {
             let user = try await AuthAPI.me()
             currentUser = user
