@@ -59,7 +59,8 @@ extension GroupDetailView {
                         NavigationLink {
                             MovieDetailView(
                                 tmdbId: movie.tmdbId,
-                                title: movie.title
+                                title: movie.title,
+                                source: .grid
                             )
                         } label: {
                             MovieCard(
@@ -109,7 +110,8 @@ extension GroupDetailView {
                     ForEach(watchlist) { item in
                         NavigationLink {
                             MovieDetailView(
-                                tmdbId: item.tmdbId
+                                tmdbId: item.tmdbId,
+                                source: .watchlist
                             )
                         } label: {
                             MovieCard(

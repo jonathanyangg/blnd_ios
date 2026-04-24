@@ -1,4 +1,3 @@
-import PostHog
 import SwiftUI
 
 // MARK: - Data Loading + Actions
@@ -134,7 +133,7 @@ extension FriendProfileView {
         do {
             _ = try await FriendsService.sendRequest(username: friend.username)
             friendshipAction = "pending"
-            PostHogSDK.shared.capture("friend_request_sent")
+            Analytics.friendRequestSent()
         } catch { /* Non-critical */ }
         isSendingRequest = false
     }

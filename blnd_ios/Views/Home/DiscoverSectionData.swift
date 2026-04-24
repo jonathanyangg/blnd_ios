@@ -58,6 +58,8 @@ extension DiscoverSectionView {
         guard hasMorePages, !isLoading, !isLoadingMore
         else { return }
         isLoadingMore = true
+        let batchNum = (seenIds.count / 20) + 1
+        Analytics.feedLoadMore(source: .discover, batchNum: batchNum)
         do {
             let response = try await fetchBatch(exclude: seenIds)
             let newMovies = response.results.filter {
@@ -107,6 +109,7 @@ extension DiscoverSectionView {
     }
 
     func refresh() async {
+        Analytics.feedRefreshed(source: .discover)
         resetPagination()
         await loadMovies(forceRefresh: true)
     }

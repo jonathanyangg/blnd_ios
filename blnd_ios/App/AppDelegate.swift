@@ -51,7 +51,11 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
         let userInfo = response.notification.request.content.userInfo
-        if let type = userInfo["type"] as? String {
+        let typeString = userInfo["type"] as? String
+        Analytics.pushNotificationTapped(
+            type: Analytics.PushType(rawValue: typeString ?? "") ?? .unknown
+        )
+        if let type = typeString {
             switch type {
             case "friend_request":
                 deepLinkState?.pending = .friendRequests

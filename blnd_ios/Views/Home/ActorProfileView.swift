@@ -144,7 +144,8 @@ struct ActorProfileView: View {
                     NavigationLink {
                         MovieDetailView(
                             tmdbId: movie.tmdbId,
-                            title: movie.title
+                            title: movie.title,
+                            source: .search
                         )
                     } label: {
                         MovieCard(

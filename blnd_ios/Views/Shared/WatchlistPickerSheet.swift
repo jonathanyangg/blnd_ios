@@ -266,9 +266,11 @@ struct WatchlistPickerSheet: View {
                 if personalChecked {
                     _ = try await TrackingAPI.addToWatchlist(tmdbId: tmdbId)
                     cache.didWatchlist(tmdbId)
+                    Analytics.watchlistAdded(tmdbId: tmdbId, source: .picker)
                 } else {
                     try await TrackingAPI.removeFromWatchlist(tmdbId: tmdbId)
                     cache.didRemoveFromWatchlist(tmdbId)
+                    Analytics.watchlistRemoved(tmdbId: tmdbId, source: .picker)
                 }
             } catch { /* Non-critical — watchlist state may be stale */ }
         }
@@ -282,10 +284,12 @@ struct WatchlistPickerSheet: View {
                     _ = try await GroupsAPI.addToWatchlist(
                         groupId: groupId, tmdbId: tmdbId
                     )
+                    Analytics.watchlistAdded(tmdbId: tmdbId, source: .picker)
                 } else {
                     try await GroupsAPI.removeFromWatchlist(
                         groupId: groupId, tmdbId: tmdbId
                     )
+                    Analytics.watchlistRemoved(tmdbId: tmdbId, source: .picker)
                 }
             } catch { /* Non-critical — group watchlist state may be stale */ }
         }

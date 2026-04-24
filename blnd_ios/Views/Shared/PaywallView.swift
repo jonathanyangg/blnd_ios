@@ -8,12 +8,15 @@ private struct PremiumFeature {
 }
 
 struct PaywallView: View {
+    var source: Analytics.PaywallSource = .manual
+
     @Environment(\.dismiss) private var dismiss
     @Environment(AuthState.self) private var authState
     @State private var offering: Offering?
     @State private var isPurchasing = false
     @State private var errorMessage: String?
     @State private var isRestoring = false
+    @State private var didConvert = false
 
     private let features: [PremiumFeature] = [
         PremiumFeature(
@@ -51,7 +54,15 @@ struct PaywallView: View {
                 .padding(.bottom, 40)
             }
         }
-        .task { await loadOffering() }
+        .task {
+            Analytics.paywallShown(source: source)
+            await loadOffering()
+        }
+        .onDisappear {
+            if !didConvert {
+                Analytics.paywallDismissed(source: source)
+            }
+        }
         .alert("Error", isPresented: .constant(errorMessage != nil)) {
             Button("OK") { errorMessage = nil }
         } message: {
@@ -178,6 +189,10 @@ struct PaywallView: View {
         do {
             let result = try await Purchases.shared.purchase(package: package)
             if !result.userCancelled {
+                Analytics.subscriptionStarted(
+                    productId: package.storeProduct.productIdentifier
+                )
+                didConvert = true
                 await authState.fetchCurrentUser()
                 dismiss()
             }
@@ -192,7 +207,11 @@ struct PaywallView: View {
         do {
             _ = try await Purchases.shared.restorePurchases()
             await authState.fetchCurrentUser()
-            if authState.isPremium { dismiss() }
+            if authState.isPremium {
+                Analytics.subscriptionRestored()
+                didConvert = true
+                dismiss()
+            }
         } catch {
             errorMessage = "Could not restore purchases."
         }

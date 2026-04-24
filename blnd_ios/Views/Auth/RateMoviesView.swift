@@ -1,4 +1,3 @@
-import PostHog
 import SwiftUI
 
 struct RateMoviesView: View {
@@ -74,10 +73,7 @@ struct RateMoviesView: View {
             }
         }
         .task {
-            PostHogSDK.shared.capture(
-                "onboarding_step_viewed",
-                properties: ["step": "rate_movies"]
-            )
+            Analytics.onboardingStepViewed(step: .rateMovies)
             await fetchMovies()
         }
     }

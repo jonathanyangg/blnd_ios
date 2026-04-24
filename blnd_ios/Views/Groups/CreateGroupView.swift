@@ -1,4 +1,3 @@
-import PostHog
 import SwiftUI
 
 struct CreateGroupView: View {
@@ -112,7 +111,7 @@ struct CreateGroupView: View {
             let group = try await GroupsService.createGroup(
                 name: trimmedName
             )
-            PostHogSDK.shared.capture("group_created")
+            Analytics.groupCreated()
             await onCreated?()
             withAnimation { createdGroup = group }
         } catch let APIError.badRequest(message) {

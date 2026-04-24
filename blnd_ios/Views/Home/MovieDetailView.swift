@@ -3,6 +3,7 @@ import SwiftUI
 struct MovieDetailView: View {
     let tmdbId: Int
     var title: String = ""
+    var source: Analytics.DetailSource = .grid
     var onHide: (() -> Void)?
 
     @State var movie: MovieResponse?
@@ -92,6 +93,7 @@ struct MovieDetailView: View {
                 .presentationBackground(AppTheme.card)
         }
         .task {
+            Analytics.movieDetailViewed(tmdbId: tmdbId, source: source)
             await fetchMovie()
             async let watched: () = checkWatchedStatus()
             async let hidden: () = checkHiddenStatus()

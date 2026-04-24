@@ -1,4 +1,3 @@
-import PostHog
 import SwiftUI
 
 struct ChooseUsernameView: View {
@@ -61,10 +60,7 @@ struct ChooseUsernameView: View {
             }
         }
         .task {
-            PostHogSDK.shared.capture(
-                "onboarding_step_viewed",
-                properties: ["step": "choose_username"]
-            )
+            Analytics.onboardingStepViewed(step: .chooseUsername)
         }
     }
 

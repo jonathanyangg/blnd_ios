@@ -1,4 +1,3 @@
-import PostHog
 import SwiftUI
 
 struct RateMovieSheet: View {
@@ -84,6 +83,7 @@ struct RateMovieSheet: View {
     private func save() async {
         isSaving = true
         saveError = nil
+        let fromWatchlist = UserActionCache.shared.isWatchlisted(tmdbId)
         do {
             if isRerating {
                 _ = try await TrackingAPI.updateRating(tmdbId: tmdbId, rating: rating)
@@ -93,9 +93,12 @@ struct RateMovieSheet: View {
             UserActionCache.shared.didRate(
                 tmdbId, rating: rating
             )
-            PostHogSDK.shared.capture(
-                "movie_rated",
-                properties: ["tmdb_id": tmdbId, "rating": rating, "source": "detail"]
+            Analytics.movieRated(
+                tmdbId: tmdbId,
+                rating: rating,
+                source: .sheet,
+                fromWatchlist: fromWatchlist,
+                isUpdate: isRerating
             )
             onSaved?(rating)
             dismiss()

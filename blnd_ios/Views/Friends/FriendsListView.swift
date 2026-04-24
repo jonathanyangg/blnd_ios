@@ -242,6 +242,7 @@ struct FriendsListView: View {
             _ = try await FriendsService.acceptRequest(
                 friendshipId: request.id
             )
+            Analytics.friendRequestAccepted()
             await loadData()
             await tabState.refreshPendingCount()
         } catch { /* Non-critical — list will refresh on next pull */ }
@@ -252,6 +253,7 @@ struct FriendsListView: View {
             _ = try await FriendsService.rejectRequest(
                 friendshipId: request.id
             )
+            Analytics.friendRequestRejected()
             await loadData()
             await tabState.refreshPendingCount()
         } catch { /* Non-critical — list will refresh on next pull */ }

@@ -234,6 +234,7 @@ struct GroupMembersSheet: View {
         isLeaving = true
         do {
             try await GroupsService.leaveGroup(groupId: groupId)
+            Analytics.groupLeft()
             dismiss()
             onGroupDeleted?()
         } catch { /* Non-critical — user can retry */ }

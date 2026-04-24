@@ -6,6 +6,9 @@ extension GroupDetailView {
     func loadAll(forceRefresh: Bool = false) async {
         guard forceRefresh || group == nil else { return }
         loadError = nil
+        if forceRefresh {
+            Analytics.feedRefreshed(source: .blend)
+        }
         do {
             async let groupResult = GroupsAPI.getGroup(
                 groupId: groupId
@@ -42,6 +45,8 @@ extension GroupDetailView {
     func loadMoreRecs() async {
         guard !isLoadingMoreRecs, !isLoading else { return }
         isLoadingMoreRecs = true
+        let batchNum = (seenRecIds.count / 20) + 1
+        Analytics.feedLoadMore(source: .blend, batchNum: batchNum)
         do {
             let response = try await GroupsAPI.getFeed(
                 groupId: groupId,

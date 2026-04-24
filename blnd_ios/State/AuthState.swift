@@ -1,5 +1,4 @@
 import Foundation
-import PostHog
 import RevenueCat
 
 enum AuthPhase {
@@ -61,7 +60,7 @@ class AuthState {
             if phase == .authenticated {
                 await UserActionCache.shared.bootstrap()
                 if let uid = KeychainManager.readString(key: "userId") {
-                    PostHogSDK.shared.identify(uid)
+                    Analytics.identify(userId: uid)
                     try? await Purchases.shared.logIn(uid)
                 }
             }
@@ -125,7 +124,7 @@ class AuthState {
                 await fetchCurrentUser()
                 phase = .authenticated
                 await UserActionCache.shared.bootstrap()
-                PostHogSDK.shared.identify(response.userId)
+                Analytics.identify(userId: response.userId)
                 try? await Purchases.shared.logIn(response.userId)
             }
             isLoading = false
@@ -150,8 +149,8 @@ class AuthState {
             phase = .authenticated
             await UserActionCache.shared.bootstrap()
             if let user = currentUser {
-                PostHogSDK.shared.identify(
-                    response.userId,
+                Analytics.identify(
+                    userId: response.userId,
                     userProperties: ["username": user.username ?? "", "email": email]
                 )
             }
@@ -190,7 +189,7 @@ class AuthState {
         isLoading = false
         phase = .unauthenticated
         UserActionCache.shared.reset()
-        PostHogSDK.shared.reset()
+        Analytics.reset()
         Purchases.shared.logOut { _, _ in }
     }
 

@@ -83,7 +83,7 @@ struct SearchView: View {
             .presentationBackground(AppTheme.background)
         }
         .sheet(isPresented: $showPaywall) {
-            PaywallView()
+            PaywallView(source: .aiSearch)
                 .environment(authState)
         }
     }
@@ -285,7 +285,7 @@ struct SearchView: View {
         LazyVGrid(columns: columns, spacing: 16) {
             ForEach(aiResults) { movie in
                 NavigationLink {
-                    MovieDetailView(tmdbId: movie.tmdbId, title: movie.title)
+                    MovieDetailView(tmdbId: movie.tmdbId, title: movie.title, source: .search)
                 } label: {
                     MovieCard(
                         tmdbId: movie.tmdbId,
@@ -393,7 +393,7 @@ private extension SearchView {
             LazyVGrid(columns: columns, spacing: 16) {
                 ForEach(results) { movie in
                     NavigationLink {
-                        MovieDetailView(tmdbId: movie.tmdbId, title: movie.title)
+                        MovieDetailView(tmdbId: movie.tmdbId, title: movie.title, source: .search)
                     } label: {
                         MovieCard(
                             tmdbId: movie.tmdbId,
@@ -440,10 +440,15 @@ private extension SearchView {
                 results = movies.results
                 actorResults = actors.results
                 hasSearched = true
+                Analytics.searchPerformed(
+                    queryLength: query.count,
+                    resultCount: movies.results.count + actors.results.count
+                )
             }
         } catch {
             if !Task.isCancelled {
                 hasSearched = true
+                Analytics.searchPerformed(queryLength: query.count, resultCount: 0)
             }
         }
         isLoading = false
@@ -454,14 +459,33 @@ private extension SearchView {
         guard trimmed.count >= 3 else { return }
         isLoading = true
         hasSearched = false
+        let isPremium = authState.isPremium
         do {
             let response = try await RecommendationsAPI.semanticSearch(query: trimmed)
             aiResults = response.results
             hasSearched = true
-        } catch APIError.rateLimited(_) {
+            Analytics.aiSearchPerformed(
+                queryLength: trimmed.count,
+                resultCount: response.results.count,
+                isPremium: isPremium,
+                hitRateLimit: false
+            )
+        } catch APIError.rateLimited {
             showPaywall = true
+            Analytics.aiSearchPerformed(
+                queryLength: trimmed.count,
+                resultCount: 0,
+                isPremium: isPremium,
+                hitRateLimit: true
+            )
         } catch {
             hasSearched = true
+            Analytics.aiSearchPerformed(
+                queryLength: trimmed.count,
+                resultCount: 0,
+                isPremium: isPremium,
+                hitRateLimit: false
+            )
         }
         isLoading = false
     }

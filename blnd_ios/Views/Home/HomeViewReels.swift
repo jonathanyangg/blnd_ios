@@ -20,6 +20,7 @@ extension HomeView {
             } else {
                 ReelsFeedView(
                     movies: fypReelMovies,
+                    feed: .fyp,
                     isTabVisible: tabState.selectedTab == 0,
                     onLoadMore: { await loadMoreFYP() },
                     onRefresh: { await refreshFYP() },

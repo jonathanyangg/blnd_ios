@@ -103,6 +103,7 @@ extension HomeView {
             MovieDetailView(
                 tmdbId: movie.tmdbId,
                 title: movie.title,
+                source: .grid,
                 onHide: {
                     withAnimation {
                         recommendations.removeAll {

@@ -1,4 +1,3 @@
-import PostHog
 import SwiftUI
 
 // MARK: - Inline Rating Bar
@@ -72,6 +71,7 @@ extension ReelCardView {
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
         let cache = UserActionCache.shared
         let wasWatched = cache.isWatched(movie.tmdbId)
+        let fromWatchlist = cache.isWatchlisted(movie.tmdbId)
         cache.didRate(movie.tmdbId, rating: value)
 
         Task {
@@ -81,9 +81,12 @@ extension ReelCardView {
                 } else {
                     _ = try await TrackingAPI.trackMovie(tmdbId: movie.tmdbId, rating: value)
                 }
-                PostHogSDK.shared.capture(
-                    "movie_rated",
-                    properties: ["tmdb_id": movie.tmdbId, "rating": value, "source": "reels"]
+                Analytics.movieRated(
+                    tmdbId: movie.tmdbId,
+                    rating: value,
+                    source: .reels,
+                    fromWatchlist: fromWatchlist,
+                    isUpdate: wasWatched
                 )
             } catch {
                 // Non-critical — cache stays updated; user can retry
@@ -98,6 +101,7 @@ extension ReelCardView {
         let cache = UserActionCache.shared
         guard cache.isWatched(movie.tmdbId) else { return }
         cache.didUnwatch(movie.tmdbId)
+        Analytics.movieUnwatched(tmdbId: movie.tmdbId, source: .reels)
         Task {
             try? await TrackingAPI.deleteWatchedMovie(tmdbId: movie.tmdbId)
         }

@@ -1,4 +1,3 @@
-import PostHog
 import SwiftUI
 
 struct ScrollOffsetKey: PreferenceKey {
@@ -48,6 +47,7 @@ struct HomeView: View {
                 if viewMode == .reels {
                     reelsFeed
                         .task { await loadForYou() }
+                        .allowsHitTesting(hasSeenTutorial || isLoadingFYP || fypReelMovies.isEmpty)
                 } else {
                     gridFeed
                         .task { await loadForYou() }
@@ -63,7 +63,7 @@ struct HomeView: View {
                 }
             }
             .sheet(isPresented: $showPaywall) {
-                PaywallView()
+                PaywallView(source: .aiSearch)
                     .environment(authState)
             }
             .overlay {
@@ -77,7 +77,7 @@ struct HomeView: View {
                 Task { await refreshFYP() }
             }
             .navigationDestination(item: $deepLinkTmdbId) { tmdbId in
-                MovieDetailView(tmdbId: tmdbId)
+                MovieDetailView(tmdbId: tmdbId, source: .notification)
             }
             .onChange(of: deepLinkState.pending) { _, newValue in
                 if case let .movieDetail(tmdbId) = newValue {
@@ -180,7 +180,7 @@ struct HomeView: View {
                 Button {
                     withAnimation(.easeInOut(duration: 0.2)) {
                         selectedTab = tab
-                        PostHogSDK.shared.capture("tab_switched", properties: ["tab": tab.rawValue])
+                        Analytics.tabSwitched(tab: tab.rawValue)
                     }
                 } label: {
                     VStack(spacing: 8) {

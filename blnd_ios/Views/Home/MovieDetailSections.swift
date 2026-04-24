@@ -1,4 +1,3 @@
-import PostHog
 import SwiftUI
 
 // MARK: - UI Sections
@@ -170,6 +169,7 @@ extension MovieDetailView {
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
         let cache = UserActionCache.shared
         let wasWatched = isWatched
+        let fromWatchlist = cache.isWatchlisted(tmdbId)
         userRating = value
         isWatched = true
         cache.didRate(tmdbId, rating: value)
@@ -182,9 +182,12 @@ extension MovieDetailView {
                     _ = try await TrackingAPI.trackMovie(tmdbId: tmdbId, rating: value)
                     onHide?()
                 }
-                PostHogSDK.shared.capture(
-                    "movie_rated",
-                    properties: ["tmdb_id": tmdbId, "rating": value, "source": "detail"]
+                Analytics.movieRated(
+                    tmdbId: tmdbId,
+                    rating: value,
+                    source: .detail,
+                    fromWatchlist: fromWatchlist,
+                    isUpdate: wasWatched
                 )
             } catch {
                 // Non-critical — cache stays updated
@@ -198,6 +201,7 @@ extension MovieDetailView {
         userRating = nil
         isWatched = false
         UserActionCache.shared.didUnwatch(tmdbId)
+        Analytics.movieUnwatched(tmdbId: tmdbId, source: .detail)
         Task {
             try? await TrackingAPI.deleteWatchedMovie(tmdbId: tmdbId)
         }

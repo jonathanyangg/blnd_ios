@@ -1,4 +1,3 @@
-import PostHog
 import SwiftUI
 
 struct FindFriendsView: View {
@@ -54,10 +53,7 @@ struct FindFriendsView: View {
         .background(AppTheme.background)
         .navigationBarBackButtonHidden()
         .task {
-            PostHogSDK.shared.capture(
-                "onboarding_step_viewed",
-                properties: ["step": "find_friends"]
-            )
+            Analytics.onboardingStepViewed(step: .findFriends)
         }
     }
 
@@ -83,7 +79,7 @@ struct FindFriendsView: View {
             onboardingState.reset()
             await authState.fetchCurrentUser()
             authState.phase = .authenticated
-            PostHogSDK.shared.capture("onboarding_completed")
+            Analytics.onboardingCompleted()
         }
     }
 }

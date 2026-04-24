@@ -4,6 +4,8 @@ struct ReelCardView: View {
     let movie: ReelMovie
     let isActive: Bool
     var groupContext: GroupContext?
+    var position: Int = 0
+    var feed: Analytics.FeedSource = .fyp
     var onWatchlistAdded: ((String) -> Void)?
     var onRated: ((Double) -> Void)?
     var onShowDetail: (() -> Void)?
@@ -22,6 +24,7 @@ struct ReelCardView: View {
     @State var friendsLoadTask: Task<Void, Never>?
     @State var mediaBottomY: CGFloat = 0
     @State var selectedCastMember: CastMember?
+    @State private var activeStartTime: Date?
 
     let swipeThreshold: CGFloat = 120
 
@@ -117,6 +120,7 @@ struct ReelCardView: View {
         .onAppear {
             if isActive {
                 trailerReady = true
+                activeStartTime = Date()
                 if let vid = trailerVideoId {
                     TrailerPlayer.shared.play(videoId: vid)
                 }
@@ -125,12 +129,22 @@ struct ReelCardView: View {
         .onChange(of: isActive) { _, active in
             if active {
                 trailerReady = true
+                activeStartTime = Date()
                 loadFriends()
                 if let vid = trailerVideoId {
                     TrailerPlayer.shared.play(videoId: vid)
                 }
             } else {
                 trailerReady = false
+                if let start = activeStartTime {
+                    Analytics.reelViewed(
+                        tmdbId: movie.tmdbId,
+                        position: position,
+                        feed: feed,
+                        timeOnCardMs: Int(Date().timeIntervalSince(start) * 1000)
+                    )
+                    activeStartTime = nil
+                }
                 // Don't call stop() here — loadVideo() on the next card
                 // implicitly replaces the current video. An explicit stop()
                 // races with the next card's play() and kills it.

@@ -42,6 +42,7 @@ enum TutorialPreset {
 
 struct ScrollHintOverlay: View {
     var steps: [TutorialStep] = TutorialPreset.reels
+    var tutorial: Analytics.TutorialName = .reels
     let onDismiss: () -> Void
 
     @State private var step = 0
@@ -92,6 +93,7 @@ struct ScrollHintOverlay: View {
 
                     Button {
                         if isLastStep {
+                            Analytics.tutorialCompleted(tutorial: tutorial)
                             dismiss()
                         } else {
                             withAnimation(
@@ -112,7 +114,10 @@ struct ScrollHintOverlay: View {
                     }
 
                     if !isLastStep {
-                        Button { dismiss() } label: {
+                        Button {
+                            Analytics.tutorialSkipped(tutorial: tutorial, step: step)
+                            dismiss()
+                        } label: {
                             Text("Skip")
                                 .font(.system(size: 14))
                                 .foregroundStyle(

@@ -422,7 +422,7 @@ extension FriendProfileView {
             PosterGrid {
                 ForEach(watchedMovies) { movie in
                     NavigationLink {
-                        MovieDetailView(tmdbId: movie.tmdbId, title: movie.title)
+                        MovieDetailView(tmdbId: movie.tmdbId, title: movie.title, source: .friendProfile)
                     } label: {
                         PosterTile(posterPath: movie.posterPath, rating: movie.rating)
                     }

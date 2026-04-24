@@ -130,7 +130,7 @@ struct SettingsView: View {
             }
         }
         .sheet(isPresented: $showPaywall) {
-            PaywallView()
+            PaywallView(source: .settings)
                 .environment(authState)
         }
         .navigationDestination(item: $destination) { dest in

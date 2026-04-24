@@ -77,6 +77,7 @@ struct DiscoverSectionView: View {
         } else {
             ReelsFeedView(
                 movies: discoverReelMovies,
+                feed: .discover,
                 isTabVisible: isTabVisible,
                 onLoadMore: { await loadNextPage() },
                 onRefresh: { await refresh() },
@@ -135,7 +136,8 @@ struct DiscoverSectionView: View {
                 NavigationLink {
                     MovieDetailView(
                         tmdbId: movie.tmdbId,
-                        title: movie.title
+                        title: movie.title,
+                        source: .grid
                     )
                 } label: {
                     cardView(movie: movie, index: index)

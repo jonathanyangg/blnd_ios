@@ -70,7 +70,7 @@ struct AddGroupMemberSheet: View {
             isFieldFocused = true
         }
         .sheet(isPresented: $showPaywall) {
-            PaywallView()
+            PaywallView(source: .groupLimit)
                 .environment(authState)
         }
     }

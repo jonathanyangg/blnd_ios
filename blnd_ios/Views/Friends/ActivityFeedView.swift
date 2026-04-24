@@ -2,6 +2,8 @@ import SwiftUI
 import UserNotifications
 
 struct ActivityFeedView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(DeepLinkState.self) private var deepLinkState
     @State private var items: [InboxItem] = []
     @State private var isLoading = true
     @State private var isLoadingMore = false
@@ -46,12 +48,15 @@ struct ActivityFeedView: View {
             } else {
                 LazyVStack(spacing: 0) {
                     ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
-                        inboxRow(item)
-                            .onAppear {
-                                if index >= items.count - 5 {
-                                    Task { await loadMore() }
-                                }
+                        Button { handleTap(item) } label: {
+                            inboxRow(item)
+                        }
+                        .buttonStyle(.plain)
+                        .onAppear {
+                            if index >= items.count - 5 {
+                                Task { await loadMore() }
                             }
+                        }
 
                         Divider()
                             .background(AppTheme.cardSecondary)
@@ -146,6 +151,22 @@ struct ActivityFeedView: View {
             }
         }
         isLoading = false
+    }
+
+    private func handleTap(_ item: InboxItem) {
+        let route: DeepLink? = switch item.type {
+        case "friend_request":
+            .friendRequests
+        case "group_invite", "group_watchlist":
+            (item.data?["group_id"]).flatMap(Int.init).map(DeepLink.groupDetail(groupId:))
+        case "friend_activity", "friend_accepted":
+            (item.data?["tmdb_id"]).flatMap(Int.init).map(DeepLink.movieDetail(tmdbId:))
+        default:
+            nil
+        }
+        guard let route else { return }
+        deepLinkState.pending = route
+        dismiss()
     }
 
     private func loadMore() async {

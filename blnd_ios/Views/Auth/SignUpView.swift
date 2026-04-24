@@ -1,5 +1,4 @@
 import AuthenticationServices
-import PostHog
 import SwiftUI
 
 struct SignUpView: View {
@@ -14,6 +13,7 @@ struct SignUpView: View {
                 .padding(.top, 12)
 
             ScrollView {
+                // content must scroll when keyboard is up
                 VStack(alignment: .leading, spacing: 0) {
                     Text("Create account")
                         .font(.system(size: 32, weight: .bold))
@@ -154,10 +154,7 @@ struct SignUpView: View {
             }
         }
         .task {
-            PostHogSDK.shared.capture(
-                "onboarding_step_viewed",
-                properties: ["step": "signup"]
-            )
+            Analytics.onboardingStepViewed(step: .signup)
         }
     }
 

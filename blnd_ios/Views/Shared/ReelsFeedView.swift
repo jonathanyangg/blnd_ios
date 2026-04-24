@@ -3,6 +3,7 @@ import SwiftUI
 struct ReelsFeedView: View {
     let movies: [ReelMovie]
     var groupContext: ReelCardView.GroupContext?
+    var feed: Analytics.FeedSource = .fyp
     var isTabVisible: Bool = true
     var onLoadMore: (() async -> Void)?
     var onRefresh: (() async -> Void)?
@@ -34,12 +35,14 @@ struct ReelsFeedView: View {
                     ForEach(
                         Array(movies.enumerated()),
                         id: \.element.id
-                    ) { _, movie in
+                    ) { index, movie in
                         ReelCardView(
                             movie: movie,
                             isActive: movie.tmdbId == currentId
                                 && isTabVisible,
                             groupContext: groupContext,
+                            position: index,
+                            feed: feed,
                             onWatchlistAdded: { msg in
                                 if msg.contains("Won't show") {
                                     lastHiddenTmdbId = movie.tmdbId
@@ -94,7 +97,7 @@ struct ReelsFeedView: View {
             }
         }
         .navigationDestination(item: $detailMovie) { movie in
-            MovieDetailView(tmdbId: movie.tmdbId, title: movie.title)
+            MovieDetailView(tmdbId: movie.tmdbId, title: movie.title, source: .reels)
         }
         .overlay(alignment: .bottom) {
             if let toast = toastMessage {

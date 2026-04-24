@@ -1,4 +1,3 @@
-import PostHog
 import RevenueCat
 import SwiftUI
 
@@ -20,10 +19,7 @@ struct OnboardingCompleteView: View {
         .background(AppTheme.background)
         .navigationBarBackButtonHidden()
         .task {
-            PostHogSDK.shared.capture(
-                "onboarding_step_viewed",
-                properties: ["step": "complete"]
-            )
+            Analytics.onboardingStepViewed(step: .complete)
         }
     }
 

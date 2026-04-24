@@ -39,6 +39,8 @@ extension HomeView {
     func loadMoreFYP() async {
         guard !isLoadingMoreFYP, !isLoadingFYP else { return }
         isLoadingMoreFYP = true
+        let batchNum = (seenFYPIds.count / 20) + 1
+        Analytics.feedLoadMore(source: .fyp, batchNum: batchNum)
         do {
             let response = try await RecommendationsAPI.getFeed(
                 exclude: Array(seenFYPIds)
@@ -65,6 +67,7 @@ extension HomeView {
 
     func refreshFYP() async {
         fypError = nil
+        Analytics.feedRefreshed(source: .fyp)
         do {
             let resp = try await RecommendationsAPI.refresh()
             recommendations = resp.results

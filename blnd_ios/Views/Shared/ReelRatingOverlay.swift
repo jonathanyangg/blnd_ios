@@ -1,4 +1,3 @@
-import PostHog
 import SwiftUI
 
 struct ReelRatingOverlay: View {
@@ -109,6 +108,7 @@ struct ReelRatingOverlay: View {
 
     private func save() async {
         isSaving = true
+        let fromWatchlist = UserActionCache.shared.isWatchlisted(tmdbId)
         do {
             if isUpdate {
                 _ = try await TrackingAPI.updateRating(
@@ -122,9 +122,12 @@ struct ReelRatingOverlay: View {
             UserActionCache.shared.didRate(
                 tmdbId, rating: rating
             )
-            PostHogSDK.shared.capture(
-                "movie_rated",
-                properties: ["tmdb_id": tmdbId, "rating": rating, "source": "reels"]
+            Analytics.movieRated(
+                tmdbId: tmdbId,
+                rating: rating,
+                source: .reels,
+                fromWatchlist: fromWatchlist,
+                isUpdate: isUpdate
             )
             onSaved(rating)
         } catch { /* Non-critical — overlay dismisses, user can retry */ }

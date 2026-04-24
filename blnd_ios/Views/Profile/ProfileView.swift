@@ -85,7 +85,7 @@ struct ProfileView: View {
                 ActivityFeedView()
             }
             .sheet(isPresented: $showPaywall) {
-                PaywallView()
+                PaywallView(source: .manual)
                     .environment(authState)
             }
             .fullScreenCover(isPresented: $showFullAvatar) {
@@ -326,7 +326,7 @@ extension ProfileView {
                 PosterGrid {
                     ForEach(watchedMovies) { movie in
                         NavigationLink {
-                            MovieDetailView(tmdbId: movie.tmdbId, title: movie.title)
+                            MovieDetailView(tmdbId: movie.tmdbId, title: movie.title, source: .profile)
                         } label: {
                             PosterTile(posterPath: movie.posterPath, rating: movie.rating)
                         }
@@ -350,7 +350,7 @@ extension ProfileView {
                 PosterGrid {
                     ForEach(watchlistMovies) { movie in
                         NavigationLink {
-                            MovieDetailView(tmdbId: movie.tmdbId, title: movie.title)
+                            MovieDetailView(tmdbId: movie.tmdbId, title: movie.title, source: .watchlist)
                         } label: {
                             PosterTile(posterPath: movie.posterPath, rating: nil)
                         }
