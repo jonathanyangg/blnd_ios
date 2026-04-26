@@ -19,6 +19,7 @@ struct ReelCardView: View {
     @State var trailerReady = false
     @State var friendsWhoWatched: [FriendWatchedResponse] = []
     @State var showStreamingSheet = false
+    @State var showCommentsSheet = false
     @State var friendsLoadTask: Task<Void, Never>?
     @State var mediaBottomY: CGFloat = 0
     @State var selectedCastMember: CastMember?
@@ -64,6 +65,10 @@ struct ReelCardView: View {
                 .layoutPriority(5)
 
             Spacer(minLength: 8)
+
+            commentsButton
+                .padding(.horizontal, 20)
+                .layoutPriority(10)
 
             Divider()
                 .overlay(AppTheme.border)
@@ -113,6 +118,15 @@ struct ReelCardView: View {
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
                 .presentationBackground(AppTheme.card)
+        }
+        .sheet(isPresented: $showCommentsSheet) {
+            MovieCommentsView(
+                tmdbId: movie.tmdbId,
+                movieTitle: movie.title
+            )
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+            .presentationBackground(AppTheme.card)
         }
         .onAppear {
             if isActive {

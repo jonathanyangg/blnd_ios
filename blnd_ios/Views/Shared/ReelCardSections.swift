@@ -384,6 +384,27 @@ extension ReelCardView {
         }
     }
 
+    // MARK: - Comments Button
+
+    var commentsButton: some View {
+        Button {
+            showCommentsSheet = true
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "bubble.left")
+                    .font(.system(size: 13))
+                Text("Comments")
+                    .font(.system(size: 14, weight: .medium))
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .medium))
+            }
+            .foregroundStyle(AppTheme.textMuted)
+            .padding(.vertical, 8)
+        }
+        .buttonStyle(.plain)
+    }
+
     // MARK: - Swipe Indicators
 
     @ViewBuilder
