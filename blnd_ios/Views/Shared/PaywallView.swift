@@ -44,6 +44,7 @@ struct PaywallView: View {
                     if let pkg = offering?.monthly {
                         purchaseSection(package: pkg)
                     }
+                    legalSection
                     restoreButton
                 }
                 .padding(.horizontal, 24)
@@ -119,7 +120,12 @@ struct PaywallView: View {
     // MARK: - Purchase
 
     private func purchaseSection(package: Package) -> some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 10) {
+            Text("blnd+ Monthly Subscription · \(package.localizedPriceString) per month")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(AppTheme.textMuted)
+                .multilineTextAlignment(.center)
+
             Button {
                 Task { await purchase(package: package) }
             } label: {
@@ -128,7 +134,7 @@ struct PaywallView: View {
                         ProgressView()
                             .tint(.black)
                     } else {
-                        Text("\(package.localizedPriceString)/month")
+                        Text("Subscribe for \(package.localizedPriceString)/month")
                             .font(.system(size: 17, weight: .bold))
                     }
                 }
@@ -139,10 +145,42 @@ struct PaywallView: View {
                 .foregroundStyle(.black)
             }
             .disabled(isPurchasing)
+        }
+    }
 
-            Text("Cancel anytime · Managed by Apple")
-                .font(.system(size: 12))
-                .foregroundStyle(AppTheme.textDim)
+    // MARK: - Legal disclosures (App Store Review Guideline 3.1.2(c))
+
+    private var legalSection: some View {
+        VStack(spacing: 14) {
+            Text(
+                "Payment will be charged to your Apple ID account at confirmation of purchase. " +
+                    "The subscription automatically renews each month unless it is canceled at " +
+                    "least 24 hours before the end of the current period. Your account will be " +
+                    "charged for renewal within 24 hours prior to the end of the current period. " +
+                    "You can manage and cancel your subscription in your App Store account settings."
+            )
+            .font(.system(size: 11))
+            .foregroundStyle(AppTheme.textDim)
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
+
+            HStack(spacing: 16) {
+                Link(destination: URL(string: "https://blnd.movie/terms")!) {
+                    Text("Terms of Use")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(AppTheme.textMuted)
+                        .underline()
+                }
+                Text("·")
+                    .font(.system(size: 12))
+                    .foregroundStyle(AppTheme.textDim)
+                Link(destination: URL(string: "https://blnd.movie/privacy")!) {
+                    Text("Privacy Policy")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(AppTheme.textMuted)
+                        .underline()
+                }
+            }
         }
     }
 
