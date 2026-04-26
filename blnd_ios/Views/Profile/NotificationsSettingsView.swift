@@ -5,6 +5,7 @@ struct NotificationsSettingsView: View {
     @State private var groupInvites = true
     @State private var recommendations = true
     @State private var friendActivity = true
+    @State private var commentReplies = true
     @State private var isLoading = true
     @State private var error: String?
 
@@ -77,6 +78,14 @@ struct NotificationsSettingsView: View {
                 isOn: $friendActivity
             ) {
                 await updatePreference(friendActivity: friendActivity)
+            }
+            Divider().background(AppTheme.cardSecondary)
+            toggleRow(
+                label: "Comment Replies",
+                subtitle: "When someone replies to your comment",
+                isOn: $commentReplies
+            ) {
+                await updatePreference(commentReplies: commentReplies)
             }
         }
         .background(AppTheme.card)
@@ -159,6 +168,7 @@ struct NotificationsSettingsView: View {
             groupInvites = prefs.groupInvites
             recommendations = prefs.recommendations
             friendActivity = prefs.friendActivity
+            commentReplies = prefs.commentReplies
             isLoading = false
         } catch {
             self.error = "Could not load notification preferences."
@@ -171,14 +181,16 @@ struct NotificationsSettingsView: View {
         friendRequests: Bool? = nil,
         groupInvites: Bool? = nil,
         recommendations: Bool? = nil,
-        friendActivity: Bool? = nil
+        friendActivity: Bool? = nil,
+        commentReplies: Bool? = nil
     ) async {
         // swiftlint:enable discouraged_optional_boolean
         let request = UpdatePreferencesRequest(
             friendRequests: friendRequests,
             groupInvites: groupInvites,
             recommendations: recommendations,
-            friendActivity: friendActivity
+            friendActivity: friendActivity,
+            commentReplies: commentReplies
         )
         do {
             let prefs = try await NotificationAPI.updatePreferences(request)
@@ -186,6 +198,7 @@ struct NotificationsSettingsView: View {
             self.groupInvites = prefs.groupInvites
             self.recommendations = prefs.recommendations
             self.friendActivity = prefs.friendActivity
+            self.commentReplies = prefs.commentReplies
         } catch {
             // Revert toggle on failure by reloading
             await loadPreferences()
