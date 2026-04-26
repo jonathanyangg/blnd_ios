@@ -138,9 +138,10 @@ enum ScreenshotDummy {
         95 + (abs(tmdbId) % 55)
     }
 
-    /// Deterministic dummy vote average in range [7.0, 8.5).
+    /// Deterministic dummy vote average in range [3.5, 4.25), matching the
+    /// backend's 0-10 -> 0-5 scaled rating that non-screenshot data uses.
     static func voteAverage(for tmdbId: Int) -> Double {
-        7.0 + Double(abs(tmdbId) % 15) / 10.0
+        3.5 + Double(abs(tmdbId) % 15) / 20.0
     }
 
     static func castName(at index: Int) -> String {

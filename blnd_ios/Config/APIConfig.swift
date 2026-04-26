@@ -8,5 +8,5 @@ enum APIConfig {
 
     /// Set to true before taking App Store screenshots.
     /// Blurs movie posters to avoid copyright issues.
-    static let screenshotMode = true
+    static let screenshotMode = false
 }
