@@ -131,6 +131,7 @@ struct MovieResponse: Codable, Identifiable {
     let backdropPath: String?
     let imdbId: String?
     let matchScore: Double?
+    let commentCount: Int?
 
     var id: Int {
         tmdbId
@@ -167,6 +168,7 @@ struct MovieResponse: Codable, Identifiable {
         case backdropPath = "backdrop_path"
         case imdbId = "imdb_id"
         case matchScore = "match_score"
+        case commentCount = "comment_count"
     }
 }
 
