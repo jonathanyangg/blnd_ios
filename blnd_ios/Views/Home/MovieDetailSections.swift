@@ -202,6 +202,32 @@ extension MovieDetailView {
             try? await TrackingAPI.deleteWatchedMovie(tmdbId: tmdbId)
         }
     }
+
+    func commentsRow(_ movie: MovieResponse) -> some View {
+        VStack(spacing: 0) {
+            Divider()
+                .overlay(AppTheme.border)
+                .padding(.bottom, 12)
+            Button {
+                showCommentsSheet = true
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "bubble.left")
+                        .font(.system(size: 14))
+                        .foregroundStyle(AppTheme.textDim)
+                    Text("Comments (\(movie.commentCount ?? 0))")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundStyle(.white)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(AppTheme.textDim)
+                }
+                .padding(.vertical, 12)
+            }
+        }
+        .padding(.bottom, 8)
+    }
 }
 
 // MARK: - Data & Actions
