@@ -15,12 +15,14 @@ struct UpdatePreferencesRequest: Encodable {
     let groupInvites: Bool?
     let recommendations: Bool?
     let friendActivity: Bool?
+    let commentReplies: Bool?
 
     enum CodingKeys: String, CodingKey {
         case friendRequests = "friend_requests"
         case groupInvites = "group_invites"
         case recommendations
         case friendActivity = "friend_activity"
+        case commentReplies = "comment_replies"
     }
 
     func encode(to encoder: Encoder) throws {
@@ -29,6 +31,7 @@ struct UpdatePreferencesRequest: Encodable {
         try container.encodeIfPresent(groupInvites, forKey: .groupInvites)
         try container.encodeIfPresent(recommendations, forKey: .recommendations)
         try container.encodeIfPresent(friendActivity, forKey: .friendActivity)
+        try container.encodeIfPresent(commentReplies, forKey: .commentReplies)
     }
 }
 
@@ -97,11 +100,13 @@ struct NotificationPreferences: Codable {
     let groupInvites: Bool
     let recommendations: Bool
     let friendActivity: Bool
+    let commentReplies: Bool
 
     enum CodingKeys: String, CodingKey {
         case friendRequests = "friend_requests"
         case groupInvites = "group_invites"
         case recommendations
         case friendActivity = "friend_activity"
+        case commentReplies = "comment_replies"
     }
 }
