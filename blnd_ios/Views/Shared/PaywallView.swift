@@ -245,8 +245,12 @@ struct PaywallView: View {
         do {
             let offerings = try await Purchases.shared.offerings()
             offering = offerings.current
+            if offering?.monthly == nil {
+                print("PaywallView: offerings loaded but no monthly package available")
+            }
         } catch {
             offering = nil
+            print("PaywallView: failed to load offerings: \(error)")
         }
         isLoadingOffering = false
     }
