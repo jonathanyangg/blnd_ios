@@ -17,6 +17,7 @@ struct PaywallView: View {
     @State private var errorMessage: String?
     @State private var isRestoring = false
     @State private var didConvert = false
+    @State private var isLoadingOffering = true
 
     private let features: [PremiumFeature] = [
         PremiumFeature(
@@ -44,9 +45,8 @@ struct PaywallView: View {
                 VStack(spacing: 32) {
                     header
                     featureList
-                    if let pkg = offering?.monthly {
-                        purchaseSection(package: pkg)
-                    }
+                    offeringContent
+                    legalSection
                     restoreButton
                 }
                 .padding(.horizontal, 24)
@@ -129,8 +129,52 @@ struct PaywallView: View {
 
     // MARK: - Purchase
 
-    private func purchaseSection(package: Package) -> some View {
+    @ViewBuilder
+    private var offeringContent: some View {
+        if isLoadingOffering {
+            ProgressView()
+                .tint(.white)
+                .padding(.vertical, 28)
+        } else if let pkg = offering?.monthly {
+            purchaseSection(package: pkg)
+        } else {
+            unavailableSection
+        }
+    }
+
+    private var unavailableSection: some View {
         VStack(spacing: 12) {
+            Text("Subscription options are temporarily unavailable. Please try again later.")
+                .font(.system(size: 13))
+                .foregroundStyle(AppTheme.textMuted)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Button {
+                Task { await loadOffering() }
+            } label: {
+                Text("Try Again")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 44)
+                    .background(AppTheme.card)
+                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.cornerRadiusMedium))
+            }
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity)
+        .background(AppTheme.card.opacity(0.6))
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cornerRadiusLarge))
+    }
+
+    private func purchaseSection(package: Package) -> some View {
+        VStack(spacing: 10) {
+            Text("blnd+ Monthly Subscription · \(package.localizedPriceString) per month")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(AppTheme.textMuted)
+                .multilineTextAlignment(.center)
+
             Button {
                 Task { await purchase(package: package) }
             } label: {
@@ -139,7 +183,7 @@ struct PaywallView: View {
                         ProgressView()
                             .tint(.black)
                     } else {
-                        Text("\(package.localizedPriceString)/month")
+                        Text("Subscribe for \(package.localizedPriceString)/month")
                             .font(.system(size: 17, weight: .bold))
                     }
                 }
@@ -150,10 +194,42 @@ struct PaywallView: View {
                 .foregroundStyle(.black)
             }
             .disabled(isPurchasing)
+        }
+    }
 
-            Text("Cancel anytime · Managed by Apple")
-                .font(.system(size: 12))
-                .foregroundStyle(AppTheme.textDim)
+    // MARK: - Legal disclosures (App Store Review Guideline 3.1.2(c))
+
+    private var legalSection: some View {
+        VStack(spacing: 14) {
+            Text(
+                "Payment will be charged to your Apple ID account at confirmation of purchase. " +
+                    "The subscription automatically renews each month unless it is canceled at " +
+                    "least 24 hours before the end of the current period. Your account will be " +
+                    "charged for renewal within 24 hours prior to the end of the current period. " +
+                    "You can manage and cancel your subscription in your App Store account settings."
+            )
+            .font(.system(size: 11))
+            .foregroundStyle(AppTheme.textDim)
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
+
+            HStack(spacing: 16) {
+                Link(destination: URL(string: "https://blnd.movie/terms")!) {
+                    Text("Terms of Use")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(AppTheme.textMuted)
+                        .underline()
+                }
+                Text("·")
+                    .font(.system(size: 12))
+                    .foregroundStyle(AppTheme.textDim)
+                Link(destination: URL(string: "https://blnd.movie/privacy")!) {
+                    Text("Privacy Policy")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(AppTheme.textMuted)
+                        .underline()
+                }
+            }
         }
     }
 
@@ -176,12 +252,18 @@ struct PaywallView: View {
     // MARK: - Logic
 
     private func loadOffering() async {
+        isLoadingOffering = true
         do {
             let offerings = try await Purchases.shared.offerings()
             offering = offerings.current
+            if offering?.monthly == nil {
+                print("PaywallView: offerings loaded but no monthly package available")
+            }
         } catch {
-            errorMessage = "Could not load subscription options."
+            offering = nil
+            print("PaywallView: failed to load offerings: \(error)")
         }
+        isLoadingOffering = false
     }
 
     private func purchase(package: Package) async {
