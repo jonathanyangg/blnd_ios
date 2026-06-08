@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(swiftlint lint --path blnd_ios/Views/Home/MovieDetailView.swift --path blnd_ios/Views/Home/MovieDetailExtensions.swift --path blnd_ios/Views/Profile/ProfileView.swift --path blnd_ios/Models/TrackingModels.swift 2>&1)",
+      "Bash(swiftlint lint blnd_ios/Views/Home/MovieDetailView.swift blnd_ios/Views/Home/MovieDetailExtensions.swift blnd_ios/Views/Profile/ProfileView.swift blnd_ios/Models/TrackingModels.swift blnd_ios/Views/Home/FriendsWatchedSheet.swift 2>&1)",
+      "Bash(swiftlint lint:*)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:til.simonwillison.net)",
+      "Read(//Users/jonathanyang/Desktop/Github/blnd/**)",
+      "Bash(find blnd_backend -name \"*.py\" -exec grep -l \"trailer\" {})",
+      "Bash(curl -s http://localhost:8000/docs)",
+      "Bash(python -c \"from app.movies import services, views; print\\(''imports ok''\\)\")",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(swift -parse /Users/jonathanyang/Desktop/Github/blnd/blnd_ios/blnd_ios/Models/TrackingModels.swift)",
+      "WebFetch(domain:scottspence.com)",
+      "mcp__posthog__insight-create-from-query",
+      "mcp__posthog__insight-update",
+      "mcp__render__list_services",
+      "mcp__render__list_workspaces",
+      "Bash(pipx list:*)",
+      "Bash(pip3 show:*)",
+      "Bash(python3 -c \"import graphify; print\\('graphify import OK'\\)\")",
+      "Bash(python3 -c \"from graphify.watch import _rebuild_code; from pathlib import Path; _rebuild_code\\(Path\\('.'\\)\\)\")",
+      "Bash(graphify --help)",
+      "Bash(xcrun xctrace *)",
+      "Bash(xcode-select -p)",
+      "Bash(python3.11 --version)",
+      "Bash(claude mcp *)"
+    ]
+  }
+}
