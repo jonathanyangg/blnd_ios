@@ -12,7 +12,7 @@ struct SendFriendRequestRequest: Encodable {
 
 // MARK: - Responses
 
-struct FriendResponse: Decodable, Identifiable {
+struct FriendResponse: Decodable, Identifiable, Hashable {
     let friendshipId: Int?
     let id: String
     let username: String

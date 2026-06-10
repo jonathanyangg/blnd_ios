@@ -6,14 +6,16 @@ struct CommentResponse: Codable, Identifiable {
     let id: Int
     let tmdbId: Int
     let parentId: Int?
+    let replyToUserId: String?
+    let replyToUsername: String?
     let userId: String?
     let username: String?
     let avatarUrl: String?
-    let body: String
+    var body: String
     var likeCount: Int
     var likedByMe: Bool
     let commenterRating: Double?
-    let isEdited: Bool
+    var isEdited: Bool
     let createdAt: String
     var replies: [CommentResponse]
 
@@ -21,6 +23,8 @@ struct CommentResponse: Codable, Identifiable {
         case id, body, replies, username
         case tmdbId = "tmdb_id"
         case parentId = "parent_id"
+        case replyToUserId = "reply_to_user_id"
+        case replyToUsername = "reply_to_username"
         case userId = "user_id"
         case avatarUrl = "avatar_url"
         case likeCount = "like_count"
@@ -30,22 +34,28 @@ struct CommentResponse: Codable, Identifiable {
         case createdAt = "created_at"
     }
 
-    var isDeleted: Bool { userId == nil }
+    var isDeleted: Bool {
+        userId == nil
+    }
 
-    var displayUsername: String { username ?? "deleted" }
+    var displayUsername: String {
+        username ?? "deleted"
+    }
 
     var timeAgo: String {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        guard let date = formatter.date(from: createdAt) else { return "" }
+        let withFraction = ISO8601DateFormatter()
+        withFraction.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let plain = ISO8601DateFormatter()
+        plain.formatOptions = [.withInternetDateTime]
+        guard let date = withFraction.date(from: createdAt) ?? plain.date(from: createdAt) else { return "" }
         let seconds = Int(Date().timeIntervalSince(date))
         if seconds < 60 { return "just now" }
         if seconds < 3600 { return "\(seconds / 60)m" }
         if seconds < 86400 { return "\(seconds / 3600)h" }
         if seconds < 604_800 { return "\(seconds / 86400)d" }
-        let df = DateFormatter()
-        df.dateFormat = "MMM d"
-        return df.string(from: date)
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d"
+        return formatter.string(from: date)
     }
 }
 

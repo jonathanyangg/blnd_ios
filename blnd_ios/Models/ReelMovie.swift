@@ -16,6 +16,7 @@ struct ReelMovie: Identifiable, Hashable {
     let director: String?
     let cast: [CastMember]
     let tagline: String?
+    let commentCount: Int?
 
     var id: Int {
         tmdbId
@@ -54,6 +55,7 @@ struct ReelMovie: Identifiable, Hashable {
         director = movie.director
         cast = movie.cast
         tagline = movie.tagline
+        commentCount = movie.commentCount
     }
 
     init(from movie: MovieResponse) {
@@ -71,6 +73,7 @@ struct ReelMovie: Identifiable, Hashable {
         director = movie.director
         cast = movie.cast
         tagline = movie.tagline
+        commentCount = movie.commentCount
     }
 
     init(from movie: GroupRecMovieResponse) {
@@ -88,6 +91,7 @@ struct ReelMovie: Identifiable, Hashable {
         director = movie.director
         cast = movie.cast
         tagline = movie.tagline
+        commentCount = movie.commentCount
     }
 
     init(from movie: WatchlistMovieResponse) {
@@ -105,5 +109,6 @@ struct ReelMovie: Identifiable, Hashable {
         director = movie.director
         cast = movie.cast
         tagline = movie.tagline
+        commentCount = movie.commentCount
     }
 }

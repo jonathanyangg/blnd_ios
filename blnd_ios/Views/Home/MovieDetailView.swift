@@ -44,6 +44,9 @@ struct MovieDetailView: View {
                 movieContent(movie)
             }
         }
+        .refreshable {
+            await refreshAll()
+        }
         .background(AppTheme.background)
         .navigationBarBackButtonHidden()
         .swipeBackGesture()
@@ -140,7 +143,7 @@ struct MovieDetailView: View {
                             .foregroundStyle(
                                 AppTheme.aiPurple
                             )
-                        Text("\(pct)%")
+                        Text("\(pct)% match")
                             .font(.system(
                                 size: 13, weight: .bold
                             ))

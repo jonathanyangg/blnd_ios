@@ -241,6 +241,9 @@ struct ProfileView: View {
             )
             .disabled(selectedTab == .taste)
             .padding(.trailing, 16)
+            // Center the icon with the tab text (the tab VStack adds an
+            // underline below its text, which pushes the icon ~4pt low).
+            .offset(y: -4)
             .transaction { $0.animation = nil }
 
             HStack(spacing: 24) {

@@ -262,6 +262,7 @@ struct RecommendedMovieResponse: Codable, Identifiable {
     let tagline: String?
     let backdropPath: String?
     let matchScore: Double
+    let commentCount: Int?
 
     var id: Int {
         tmdbId
@@ -295,6 +296,7 @@ struct RecommendedMovieResponse: Codable, Identifiable {
         case director, cast, tagline
         case backdropPath = "backdrop_path"
         case matchScore = "match_score"
+        case commentCount = "comment_count"
     }
 }
 

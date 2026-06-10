@@ -34,17 +34,4 @@ extension ReelCardView {
                 .frame(maxWidth: .infinity, alignment: .topLeading)
         }
     }
-
-    /// Collapsed variant with a hard line cap. No preference keys —
-    /// the "more" button decision is made purely from data (cast exists
-    /// or overview text exists), avoiding AttributeGraph cycles.
-    func collapsedOverviewText(lineCap: Int) -> some View {
-        Text(overviewText)
-            .font(.system(size: 13))
-            .foregroundStyle(AppTheme.textMuted)
-            .lineSpacing(3)
-            .lineLimit(lineCap)
-            .fixedSize(horizontal: false, vertical: true)
-            .frame(maxWidth: .infinity, alignment: .topLeading)
-    }
 }

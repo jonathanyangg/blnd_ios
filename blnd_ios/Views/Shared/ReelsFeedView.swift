@@ -17,6 +17,7 @@ struct ReelsFeedView: View {
     @State private var lastWatchlistedTmdbId: Int?
     @State private var lastHiddenTmdbId: Int?
     @State private var detailMovie: ReelMovie?
+    @State private var selectedFriend: FriendResponse?
 
     private var currentIdBinding: Binding<Int?> {
         externalCurrentId ?? $internalCurrentId
@@ -58,6 +59,9 @@ struct ReelsFeedView: View {
                             onRated: { _ in },
                             onShowDetail: {
                                 detailMovie = movie
+                            },
+                            onShowFriend: { friend in
+                                selectedFriend = friend
                             }
                         )
                         .frame(height: cardHeight)
@@ -98,6 +102,9 @@ struct ReelsFeedView: View {
         }
         .navigationDestination(item: $detailMovie) { movie in
             MovieDetailView(tmdbId: movie.tmdbId, title: movie.title, source: .reels)
+        }
+        .navigationDestination(item: $selectedFriend) { friend in
+            FriendProfileView(friend: friend)
         }
         .overlay(alignment: .bottom) {
             if let toast = toastMessage {

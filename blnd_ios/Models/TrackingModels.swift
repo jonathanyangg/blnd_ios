@@ -75,6 +75,7 @@ struct WatchlistMovieResponse: Decodable, Identifiable {
     let addedDate: String?
     let createdAt: String
     let matchScore: Double?
+    let commentCount: Int?
 
     var matchPercent: Int? {
         guard let matchScore else { return nil }
@@ -99,6 +100,7 @@ struct WatchlistMovieResponse: Decodable, Identifiable {
         case addedDate = "added_date"
         case createdAt = "created_at"
         case matchScore = "match_score"
+        case commentCount = "comment_count"
     }
 }
 

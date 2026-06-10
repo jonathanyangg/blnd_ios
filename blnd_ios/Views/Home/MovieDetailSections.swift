@@ -237,15 +237,34 @@ extension MovieDetailView {
 // MARK: - Data & Actions
 
 extension MovieDetailView {
-    func fetchMovie() async {
-        isLoading = true
-        errorMessage = nil
+    func fetchMovie(showLoading: Bool = true) async {
+        if showLoading {
+            isLoading = true
+            errorMessage = nil
+        }
         do {
             movie = try await MoviesAPI.getMovie(tmdbId: tmdbId)
+            errorMessage = nil
         } catch {
-            errorMessage = error.localizedDescription
+            // On a silent refresh, keep showing the existing movie rather than
+            // replacing it with a full-screen error.
+            if movie == nil {
+                errorMessage = error.localizedDescription
+            }
         }
-        isLoading = false
+        if showLoading {
+            isLoading = false
+        }
+    }
+
+    /// Pull-to-refresh: reloads the movie (incl. comment count), watched/rating,
+    /// hidden, and friends state without flashing the loading spinner.
+    func refreshAll() async {
+        async let movie: () = fetchMovie(showLoading: false)
+        async let watched: () = checkWatchedStatus()
+        async let hidden: () = checkHiddenStatus()
+        async let friends: () = loadFriendsWhoWatched()
+        _ = await (movie, watched, hidden, friends)
     }
 
     func checkWatchedStatus() async {

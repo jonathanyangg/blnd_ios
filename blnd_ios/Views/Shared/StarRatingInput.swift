@@ -11,18 +11,23 @@ struct StarRatingInput: View {
                 starImage(for: index)
                     .font(.system(size: starSize))
                     .foregroundStyle(
-                        Double(index) <= rating ? .white
-                            : Double(index) - 0.5 <= rating ? .white
-                            : AppTheme.border
+                        Double(index) - 0.5 <= rating ? .white : AppTheme.border
                     )
-                    .onTapGesture {
-                        let half = Double(index) - 0.5
-                        if rating == Double(index) {
-                            rating = half
-                        } else {
-                            rating = Double(index)
+                    // Single tap: left half of the star = half rating, right
+                    // half = full. (Tapping twice is no longer required.)
+                    .overlay(
+                        GeometryReader { geo in
+                            Color.clear
+                                .contentShape(Rectangle())
+                                .gesture(
+                                    SpatialTapGesture()
+                                        .onEnded { event in
+                                            let leftHalf = event.location.x < geo.size.width / 2
+                                            rating = Double(index) - (leftHalf ? 0.5 : 0)
+                                        }
+                                )
                         }
-                    }
+                    )
             }
         }
     }

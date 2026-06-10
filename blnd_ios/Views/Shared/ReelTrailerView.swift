@@ -115,8 +115,8 @@ final class TrailerPlayer {
                 host: '\(host)',
                 playerVars: {
                     playsinline: 1,
-                    autoplay: 0,
-                    controls: 1,
+                    autoplay: 1,
+                    controls: 2,
                     rel: 0,
                     showinfo: 0,
                     modestbranding: 1,
@@ -131,8 +131,6 @@ final class TrailerPlayer {
                     },
                     onStateChange: function(e) {
                         if (e.data === 1) {
-                            window.webkit.messageHandlers.videoPlaying
-                                .postMessage('playing');
                             document.getElementById('wrap')
                                 .classList.add('visible');
                             document.getElementById('wrap')
@@ -202,8 +200,6 @@ final class TrailerPlayer {
             super.init()
             player.webView.configuration.userContentController
                 .add(self, name: "playerReady")
-            player.webView.configuration.userContentController
-                .add(self, name: "videoPlaying")
         }
 
         func userContentController(
@@ -212,8 +208,6 @@ final class TrailerPlayer {
         ) {
             if message.name == "playerReady" {
                 player?.markReady()
-            } else if message.name == "videoPlaying" {
-                player?.webView.alpha = 1
             }
         }
 
@@ -269,7 +263,6 @@ struct ReelTrailerView: UIViewRepresentable {
         let trailerWebView = TrailerPlayer.shared.webView
 
         if trailerWebView.superview != container {
-            trailerWebView.alpha = 0
             trailerWebView.removeFromSuperview()
             trailerWebView.frame = container.bounds
             trailerWebView.autoresizingMask = [

@@ -9,6 +9,7 @@ struct ReelCardView: View {
     var onWatchlistAdded: ((String) -> Void)?
     var onRated: ((Double) -> Void)?
     var onShowDetail: (() -> Void)?
+    var onShowFriend: ((FriendResponse) -> Void)?
 
     struct GroupContext {
         let groupId: Int
@@ -22,6 +23,7 @@ struct ReelCardView: View {
     @State var friendsWhoWatched: [FriendWatchedResponse] = []
     @State var showStreamingSheet = false
     @State var showCommentsSheet = false
+    @State var showWatchedBySheet = false
     @State var friendsLoadTask: Task<Void, Never>?
     @State var mediaBottomY: CGFloat = 0
     @State var selectedCastMember: CastMember?
@@ -46,13 +48,28 @@ struct ReelCardView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            titleRow
-                .padding(.top, 16)
+            titleLine
+                .padding(.top, 22)
                 .padding(.horizontal, 20)
-                .padding(.bottom, 12)
                 .layoutPriority(10)
 
+            // Title ↔ meta: small flexible gap (8–10pt).
+            Spacer(minLength: 8)
+                .frame(maxHeight: 10)
+
+            metaLine
+                .padding(.horizontal, 20)
+                .layoutPriority(10)
+
+            if !genres.isEmpty {
+                genrePills
+                    .padding(.top, 12)
+                    .padding(.horizontal, 20)
+                    .layoutPriority(5)
+            }
+
             mediaSection
+                .padding(.top, 12)
                 .padding(.horizontal, 4)
                 .background(GeometryReader { geo in
                     Color.clear.preference(
@@ -62,26 +79,29 @@ struct ReelCardView: View {
                 })
                 .layoutPriority(10)
 
-            detailsSection
-                .padding(.top, 14)
-                .padding(.horizontal, 20)
-                .layoutPriority(5)
+            // Video ↔ actions: the main flexible gap that fills remaining height.
+            Spacer(minLength: 10)
 
-            Spacer(minLength: 8)
-
-            commentsButton
-                .padding(.horizontal, 20)
-                .layoutPriority(10)
+            // Action block: Comments → Watched by → Rating.
+            VStack(spacing: 12) {
+                commentsButton
+                watchedByRow
+                inlineRatingBar
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 12)
+            .layoutPriority(10)
 
             Divider()
                 .overlay(AppTheme.border)
                 .padding(.horizontal, 20)
-                .padding(.bottom, 10)
+                .padding(.bottom, 12)
                 .layoutPriority(10)
 
-            inlineRatingBar
+            // Watch Now is the bottom-anchored primary CTA.
+            watchNowButton
                 .padding(.horizontal, 20)
-                .padding(.bottom, 26)
+                .padding(.bottom, 22)
                 .layoutPriority(10)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -127,6 +147,18 @@ struct ReelCardView: View {
                 tmdbId: movie.tmdbId,
                 movieTitle: movie.title
             )
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+            .presentationBackground(AppTheme.card)
+        }
+        .sheet(isPresented: $showWatchedBySheet) {
+            WatchedBySheet(friends: friendsWhoWatched) { friend in
+                showWatchedBySheet = false
+                // Let the sheet dismiss, then push the profile as a full page.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                    onShowFriend?(friend)
+                }
+            }
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
             .presentationBackground(AppTheme.card)

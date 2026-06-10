@@ -18,34 +18,39 @@ extension ReelCardView {
         return movie.scorePercent
     }
 
-    var titleRow: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            HStack(alignment: .center, spacing: 8) {
-                Text(displayTitle)
-                    .font(.system(size: 22, weight: .bold))
-                    .foregroundStyle(.white)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
+    var titleLine: some View {
+        HStack(alignment: .center, spacing: 8) {
+            Text(displayTitle)
+                .font(.system(size: 22, weight: .bold))
+                .foregroundStyle(.white)
+                .lineLimit(1)
+                .truncationMode(.tail)
 
-                if let pct = displayScorePercent {
-                    matchBadge(pct)
-                }
-
-                Spacer()
-
-                streamingButton
+            if let pct = displayScorePercent {
+                matchBadge(pct)
             }
 
-            metaLine
+            Spacer()
         }
     }
 
-    var streamingButton: some View {
-        Button { showStreamingSheet = true } label: {
-            Image(systemName: "tv")
-                .font(.system(size: 15))
-                .foregroundStyle(AppTheme.textDim)
+    /// Primary CTA — opens the where-to-watch streaming sheet.
+    var watchNowButton: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "play.fill")
+                .font(.system(size: 14))
+            Text("Watch Now")
+                .font(.system(size: 15, weight: .semibold))
         }
+        .foregroundStyle(.black)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+        .background(.white)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .contentShape(Rectangle())
+        .highPriorityGesture(
+            TapGesture().onEnded { showStreamingSheet = true }
+        )
     }
 
     func matchBadge(_ pct: Int) -> some View {
@@ -53,7 +58,7 @@ extension ReelCardView {
             Image(systemName: "sparkles")
                 .font(.system(size: 10))
                 .foregroundStyle(AppTheme.aiPurple)
-            Text("\(pct)%")
+            Text("\(pct)% match")
                 .font(.system(size: 12, weight: .bold))
                 .foregroundStyle(AppTheme.aiGradient)
         }
@@ -162,118 +167,47 @@ extension ReelCardView {
 
             cardTagline
                 .layoutPriority(2)
-
-            overviewGroup
-                .layoutPriority(1)
-
-            if !friendsWhoWatched.isEmpty {
-                compactFriendsSection
-                    .layoutPriority(5)
-            }
         }
     }
 
-    /// Overview + its toggle button. In collapsed state, `ViewThatFits`
-    /// picks the first variant that fits — so the overview grows up to
-    /// 5 lines when there's room, shrinks down to 1 line when tight,
-    /// and disappears entirely when there isn't even room for one line
-    /// (tagline wins, since it has higher layoutPriority).
-    @ViewBuilder
-    var overviewGroup: some View {
-        if !overviewText.isEmpty {
-            ViewThatFits(in: .vertical) {
-                collapsedOverviewBlock(lines: 5)
-                collapsedOverviewBlock(lines: 4)
-                collapsedOverviewBlock(lines: 3)
-                collapsedOverviewBlock(lines: 2)
-                collapsedOverviewBlock(lines: 1)
-                EmptyView()
-            }
-        }
-    }
-
-    /// One collapsed-state variant: overview capped at `lines` plus the
-    /// "more" button that navigates to the full detail view.
-    func collapsedOverviewBlock(lines: Int) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            collapsedOverviewText(lineCap: lines)
-            moreButton
-        }
-    }
-
-    var moreButton: some View {
-        HStack {
-            Spacer()
-            Button {
-                onShowDetail?()
-            } label: {
-                Text("more")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.white)
-            }
-        }
-    }
-
-    // MARK: - Friends Who Watched (Compact, only when at least one friend watched)
+    // MARK: - Watched By (compact row → modal)
 
     @ViewBuilder
-    var compactFriendsSection: some View {
+    var watchedByRow: some View {
         if !friendsWhoWatched.isEmpty {
-            VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 10) {
                 Text("Watched by")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(AppTheme.textMuted)
 
-                ScrollView(
-                    .horizontal,
-                    showsIndicators: false
-                ) {
-                    HStack(alignment: .top, spacing: 10) {
-                        ForEach(
-                            Array(friendsWhoWatched.enumerated()),
-                            id: \.element.id
-                        ) { idx, friend in
-                            NavigationLink {
-                                FriendProfileView(
-                                    friend: friend
-                                        .asFriendResponse
-                                )
-                            } label: {
-                                friendTile(friend, index: idx)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
+                overlappingAvatars
+
+                if friendsWhoWatched.count > 5 {
+                    Text("+\(friendsWhoWatched.count - 5)")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(AppTheme.textMuted)
                 }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(AppTheme.textDim)
             }
+            .contentShape(Rectangle())
+            .highPriorityGesture(
+                TapGesture().onEnded { showWatchedBySheet = true }
+            )
         }
     }
 
-    func friendTile(_ friend: FriendWatchedResponse, index: Int) -> some View {
-        VStack(spacing: 3) {
-            AvatarView(url: friend.avatarUrl, size: 36)
-            Text(
-                APIConfig.screenshotMode
-                    ? ScreenshotDummy.friendDisplayName(at: index)
-                    : (friend.displayName ?? friend.username)
-            )
-            .font(.system(size: 9))
-            .foregroundStyle(.white)
-            .lineLimit(1)
-            .frame(width: 36)
-            if let rating = friend.rating {
-                let text = rating.truncatingRemainder(dividingBy: 1) == 0
-                    ? String(format: "%.0f", rating)
-                    : String(format: "%.1f", rating)
-                HStack(spacing: 2) {
-                    Image(systemName: "star.fill").font(.system(size: 7))
-                    Text(text).font(.system(size: 9, weight: .bold))
-                }
-                .foregroundStyle(.white)
-                .padding(.horizontal, 4)
-                .padding(.vertical, 2)
-                .background(.black.opacity(0.7))
-                .clipShape(Capsule())
+    private var overlappingAvatars: some View {
+        HStack(spacing: 0) {
+            ForEach(
+                Array(friendsWhoWatched.prefix(5).enumerated()),
+                id: \.element.id
+            ) { idx, friend in
+                AvatarView(url: friend.avatarUrl, size: 26, overlap: idx > 0)
             }
         }
     }
@@ -388,13 +322,16 @@ extension ReelCardView {
 
     var commentsButton: some View {
         HStack(spacing: 6) {
-            Image(systemName: "bubble.left")
-                .font(.system(size: 13))
             Text("Comments")
                 .font(.system(size: 14, weight: .medium))
+            Image(systemName: "bubble.left")
+                .font(.system(size: 13))
+            if let count = movie.commentCount, count > 0 {
+                Text("\(count)")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(AppTheme.textDim)
+            }
             Spacer()
-            Image(systemName: "chevron.right")
-                .font(.system(size: 12, weight: .medium))
         }
         .foregroundStyle(AppTheme.textMuted)
         .padding(.vertical, 8)
