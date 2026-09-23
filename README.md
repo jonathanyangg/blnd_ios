@@ -20,7 +20,7 @@ Native iOS app for **blnd** — sync movie tastes with friends using AI recommen
 ## Setup
 
 1. Open `blnd.xcodeproj` in Xcode
-2. Start the backend: `cd ../blnd_backend && python -m uvicorn main:app --reload`
+2. Start the backend: `cd ../blnd_backend && uv sync && uv run uvicorn main:app --reload`
 3. Run on simulator (iPhone 15/16)
 
 ## Architecture
@@ -28,4 +28,4 @@ Native iOS app for **blnd** — sync movie tastes with friends using AI recommen
 - **SwiftUI** with `@Observable` state management
 - **async/await** networking via `URLSession`
 - **JWT auth** stored in Keychain
-- Zero third-party dependencies
+- Swift Package Manager dependencies are locked in Xcode's `Package.resolved`

@@ -622,7 +622,7 @@
 			repositoryURL = "https://github.com/PostHog/posthog-ios";
 			requirement = {
 				kind = upToNextMajorVersion;
-				minimumVersion = 3.49.0;
+				minimumVersion = 3.81.0;
 			};
 		};
 		8441E5712F889C5800DF0425 /* XCRemoteSwiftPackageReference "PhoneNumberKit" */ = {
@@ -630,7 +630,7 @@
 			repositoryURL = "https://github.com/marmelroy/PhoneNumberKit";
 			requirement = {
 				kind = upToNextMajorVersion;
-				minimumVersion = 4.2.9;
+				minimumVersion = 4.3.0;
 			};
 		};
 		8441F07C2F9574DD00DF0425 /* XCRemoteSwiftPackageReference "purchases-ios" */ = {
@@ -638,7 +638,7 @@
 			repositoryURL = "https://github.com/RevenueCat/purchases-ios.git";
 			requirement = {
 				kind = upToNextMajorVersion;
-				minimumVersion = 5.68.0;
+				minimumVersion = 5.90.2;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
