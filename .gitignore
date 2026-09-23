@@ -8,7 +8,6 @@ xcuserdata/
 # Swift Package Manager
 .build/
 Packages/
-Package.resolved
 
 # CocoaPods (if ever used)
 Pods/
