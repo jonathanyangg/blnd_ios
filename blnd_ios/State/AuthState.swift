@@ -64,9 +64,35 @@ class AuthState {
                     try? await Purchases.shared.logIn(uid)
                 }
             }
+        } catch APIError.unauthorized {
+            // Tokens definitively rejected - real sign-out. (APIClient's
+            // forceLogoutNotification also lands here when refresh fails.)
+            phase = .unauthenticated
         } catch {
-            // Token invalid/expired — APIClient retry + forceLogoutNotification
-            // handles refresh failures, so just mark unauthenticated
+            // Transient failure (offline, cold backend, server 5xx). The
+            // tokens are still in the Keychain - retry with backoff so a
+            // waking server doesn't dump the user at the login screen.
+            for delaySeconds in [2.0, 5.0, 10.0] {
+                try? await Task.sleep(
+                    nanoseconds: UInt64(delaySeconds * 1_000_000_000)
+                )
+                guard let user = try? await AuthAPI.me() else { continue }
+                currentUser = user
+                phase = user.username != nil ? .authenticated : .onboardingPending
+                if phase == .authenticated {
+                    await UserActionCache.shared.bootstrap()
+                    if let uid = KeychainManager.readString(key: "userId") {
+                        Analytics.identify(userId: uid)
+                        try? await Purchases.shared.logIn(uid)
+                    }
+                }
+                isCheckingSession = false
+                return
+            }
+            // Still failing: show sign-in, but tokens stay in the Keychain so
+            // the next launch (or a successful retry) restores the session.
+            error =
+                "Couldn't reach the server - check your connection and try again."
             phase = .unauthenticated
         }
 
