@@ -16,6 +16,7 @@ private struct APIErrorDetail: Decodable {
 enum APIError: LocalizedError {
     case invalidURL
     case unauthorized
+    case refreshUnavailable
     case badRequest(String)
     case notFound
     case rateLimited(detail: String?)
@@ -27,6 +28,7 @@ enum APIError: LocalizedError {
         switch self {
         case .invalidURL: return "Invalid URL"
         case .unauthorized: return "Invalid credentials"
+        case .refreshUnavailable: return "Couldn't refresh your session - check your connection and try again"
         case let .badRequest(message): return message
         case .notFound: return "Not found"
         case let .rateLimited(detail): return detail ?? "Too many requests, try again later"
@@ -144,12 +146,19 @@ final class APIClient: @unchecked Sendable {
 
         do {
             try await tokenRefresher.refresh()
-        } catch {
+        } catch APIError.unauthorized {
+            // The refresh token itself was rejected - the session is truly
+            // dead. Sign out.
             NotificationCenter.default.post(
                 name: Self.forceLogoutNotification,
                 object: nil
             )
             throw APIError.unauthorized
+        } catch {
+            // Transient refresh failure (server waking up, bad network, 5xx).
+            // Keep the stored tokens and surface a retryable error instead of
+            // deleting the session.
+            throw APIError.refreshUnavailable
         }
 
         return try await performRequest(
