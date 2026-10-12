@@ -110,7 +110,7 @@ struct OnboardingCompleteView: View {
         if let uid = KeychainManager.readString(key: "userId") {
             try? await Purchases.shared.logIn(uid)
         }
-        path.append(AuthRoute.findFriends)
+        path.append(AuthRoute.letterboxdImport)
     }
 }
 
