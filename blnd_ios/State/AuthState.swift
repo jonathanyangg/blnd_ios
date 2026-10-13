@@ -91,7 +91,7 @@ class AuthState {
             }
             // Still failing: show sign-in, but tokens stay in the Keychain so
             // the next launch (or a successful retry) restores the session.
-            error =
+            self.error =
                 "Couldn't reach the server - check your connection and try again."
             phase = .unauthenticated
         }
