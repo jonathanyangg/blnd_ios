@@ -128,22 +128,26 @@ struct HomeView: View {
         VStack(spacing: 0) {
             HStack {
                 Button {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
                     Task { await refreshCurrentTab() }
                 } label: {
                     Text("blnd")
-                        .font(.system(size: 24, weight: .bold))
+                        .font(.system(size: 24, weight: .semibold))
                         .foregroundStyle(.white)
                 }
+                .accessibilityHint("Refreshes this feed")
                 Spacer()
-                HStack(spacing: 16) {
+                HStack(spacing: 18) {
                     if !authState.isPremium {
                         Button { showPaywall = true } label: {
                             Text("+")
                                 .font(.system(size: 20, weight: .bold))
                                 .foregroundStyle(AppTheme.premiumGoldGradient)
                         }
+                        .accessibilityLabel("Blnd Plus")
                     }
                     Button {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
                         withAnimation(.easeInOut(duration: 0.2)) {
                             viewMode = viewMode == .reels
                                 ? .grid : .reels
@@ -164,9 +168,9 @@ struct HomeView: View {
                     }
                 }
             }
-            .padding(.top, 8)
-            .padding(.horizontal, 24)
-            .padding(.bottom, 12)
+            .padding(.top, 4)
+            .padding(.horizontal, 20)
+            .padding(.bottom, 8)
 
             Button {
                 UIImpactFeedbackGenerator(style: .medium).impactOccurred()
@@ -187,15 +191,12 @@ struct HomeView: View {
                 .clipShape(Capsule())
             }
             .accessibilityIdentifier("find-movie-now.entry")
-            .padding(.horizontal, 24)
-            .padding(.bottom, 12)
+            .padding(.horizontal, 20)
+            .padding(.bottom, 10)
 
             homeTabPicker()
-                .padding(.horizontal, 24)
-                .padding(.bottom, 4)
-
-            Divider()
-                .overlay(AppTheme.border)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 8)
         }
         .background(AppTheme.background)
     }
@@ -204,17 +205,19 @@ struct HomeView: View {
         HStack(spacing: 24) {
             ForEach(HomeTab.allCases, id: \.self) { tab in
                 Button {
+                    guard selectedTab != tab else { return }
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
                     withAnimation(.easeInOut(duration: 0.2)) {
                         selectedTab = tab
                         Analytics.tabSwitched(tab: tab.rawValue)
                     }
                 } label: {
-                    VStack(spacing: 8) {
+                    VStack(spacing: 6) {
                         Text(tab.rawValue)
                             .font(.system(
                                 size: 15,
                                 weight: selectedTab == tab
-                                    ? .bold : .medium
+                                    ? .semibold : .medium
                             ))
                             .foregroundStyle(
                                 selectedTab == tab
@@ -222,12 +225,20 @@ struct HomeView: View {
                                     : AppTheme.textMuted
                             )
 
-                        Rectangle()
-                            .fill(
-                                selectedTab == tab
-                                    ? .white : .clear
-                            )
-                            .frame(height: 2)
+                        ZStack {
+                            Capsule()
+                                .fill(.clear)
+                                .frame(height: 2)
+                            if selectedTab == tab {
+                                Capsule()
+                                    .fill(.white)
+                                    .frame(height: 2)
+                                    .matchedGeometryEffect(
+                                        id: "homeTab",
+                                        in: tabNamespace
+                                    )
+                            }
+                        }
                     }
                 }
             }
