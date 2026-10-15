@@ -4,7 +4,7 @@ struct ForgotPasswordView: View {
     @Binding var path: NavigationPath
     @State private var email = ""
     @State private var isLoading = false
-    @State private var error: String?
+    @State private var error: UserFacingError?
     @State private var didSend = false
 
     var body: some View {
@@ -50,9 +50,7 @@ struct ForgotPasswordView: View {
                             .textInputAutocapitalization(.never)
 
                         if let error {
-                            Text(error)
-                                .font(.system(size: 13))
-                                .foregroundStyle(AppTheme.destructive)
+                            InlineError(message: error)
                                 .padding(.bottom, 8)
                         }
 
@@ -87,7 +85,7 @@ struct ForgotPasswordView: View {
             try await AuthAPI.forgotPassword(email: email)
             withAnimation { didSend = true }
         } catch {
-            self.error = error.localizedDescription
+            self.error = UserFacingError.capture(error, screen: "ForgotPassword")
         }
 
         isLoading = false

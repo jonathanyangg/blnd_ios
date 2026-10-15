@@ -7,7 +7,7 @@ struct ChangePasswordView: View {
     @State private var newPassword = ""
     @State private var confirmPassword = ""
     @State private var isSaving = false
-    @State private var errorMessage: String?
+    @State private var errorMessage: UserFacingError?
     @State private var showSuccess = false
 
     var body: some View {
@@ -16,9 +16,9 @@ struct ChangePasswordView: View {
                 fieldsSection
 
                 if let errorMessage {
-                    Text(errorMessage)
-                        .font(.system(size: 13))
-                        .foregroundStyle(AppTheme.destructive)
+                    InlineError(message: errorMessage) {
+                        Task { await changePassword() }
+                    }
                 }
 
                 if !newPassword.isEmpty {
@@ -108,7 +108,7 @@ struct ChangePasswordView: View {
             )
             showSuccess = true
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = UserFacingError.capture(error, screen: "ChangePassword")
         }
         isSaving = false
     }

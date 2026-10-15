@@ -37,7 +37,7 @@ struct SignUpView: View {
                         case let .failure(error):
                             let isCancelled = (error as? ASAuthorizationError)?.code == .canceled
                             if !isCancelled {
-                                authState.error = error.localizedDescription
+                                authState.error = UserFacingError.capture(error, screen: "SignUp")
                             }
                         }
                     }
@@ -79,16 +79,12 @@ struct SignUpView: View {
                     }
 
                     if let emailError {
-                        Text(emailError)
-                            .font(.system(size: 13))
-                            .foregroundStyle(AppTheme.destructive)
+                        InlineError(message: .client(.validation, message: emailError))
                             .padding(.bottom, 8)
                     }
 
                     if let error = authState.error {
-                        Text(error)
-                            .font(.system(size: 13))
-                            .foregroundStyle(AppTheme.destructive)
+                        InlineError(message: error)
                             .padding(.bottom, 8)
                     }
 

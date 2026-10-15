@@ -5,7 +5,7 @@ struct ChooseUsernameView: View {
     @Environment(OnboardingState.self) var onboardingState
     @Binding var path: NavigationPath
     @State private var isLoading = false
-    @State private var error: String?
+    @State private var error: UserFacingError?
 
     var body: some View {
         @Bindable var state = onboardingState
@@ -33,9 +33,7 @@ struct ChooseUsernameView: View {
                     PhoneNumberInputField(phoneNumber: $state.phoneNumber)
 
                     if let error {
-                        Text(error)
-                            .font(.system(size: 13))
-                            .foregroundStyle(AppTheme.destructive)
+                        InlineError(message: error)
                             .padding(.bottom, 8)
                     }
 
@@ -114,10 +112,10 @@ struct ChooseUsernameView: View {
                 onboardingState.appleRawNonce = nil
                 onboardingState.appleDisplayName = nil
                 onboardingState.appleAuthCode = nil
-                self.error = error.localizedDescription
+                self.error = UserFacingError.capture(error, screen: "ChooseUsername")
             } else {
                 // completeOnboarding failed (e.g. username taken) — keep Apple state
-                self.error = error.localizedDescription
+                self.error = UserFacingError.capture(error, screen: "ChooseUsername")
             }
         }
     }

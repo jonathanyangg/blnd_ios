@@ -15,7 +15,7 @@ struct AccountSettingsView: View {
         "Drama", "Animation", "Documentary", "Mystery", "Fantasy", "Crime",
     ]
     @State private var isSaving = false
-    @State private var errorMessage: String?
+    @State private var errorMessage: UserFacingError?
     @State private var showSuccess = false
     @State private var showDeleteConfirmation = false
     @State private var isDeleting = false
@@ -54,9 +54,7 @@ struct AccountSettingsView: View {
                 }
 
                 if let errorMessage {
-                    Text(errorMessage)
-                        .font(.system(size: 13))
-                        .foregroundStyle(AppTheme.destructive)
+                    InlineError(message: errorMessage)
                 }
 
                 AppButton(label: "Save Changes", isLoading: isSaving) {
@@ -265,7 +263,7 @@ struct AccountSettingsView: View {
             avatarImage = nil
             selectedPhoto = nil
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = UserFacingError.capture(error, screen: "Account")
         }
     }
 
@@ -287,7 +285,7 @@ struct AccountSettingsView: View {
             authState.currentUser = updated
         } catch {
             avatarImage = nil
-            errorMessage = error.localizedDescription
+            errorMessage = UserFacingError.capture(error, screen: "Account")
         }
         isUploadingAvatar = false
     }
@@ -297,7 +295,7 @@ struct AccountSettingsView: View {
         errorMessage = nil
         let success = await authState.deleteAccount()
         if !success {
-            errorMessage = "Failed to delete account. Please try again."
+            errorMessage = authState.error
             isDeleting = false
         }
         // If success, AuthState.logout() triggers navigation to WelcomeView
@@ -320,7 +318,7 @@ struct AccountSettingsView: View {
             authState.currentUser = updated
             dismiss()
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = UserFacingError.capture(error, screen: "Account")
         }
         isSaving = false
     }

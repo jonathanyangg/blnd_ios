@@ -149,7 +149,7 @@ extension HomeView {
     }
 
     func errorView(
-        message: String,
+        message: UserFacingError,
         retry: @escaping () -> Void
     ) -> some View {
         ErrorStateView(message: message, retry: retry)

@@ -90,22 +90,25 @@ extension HomeView {
     }
 
     func handleLoadError(_ error: Error) {
+        let copy = UserFacingError.capture(error, screen: "ForYou")
         if case APIError.rateLimited = error {
-            showToast("Woah, slow down! Try again in a minute")
+            showToast(copy)
         } else if recommendations.isEmpty {
-            fypError = error.localizedDescription
+            fypError = copy
         } else {
-            showToast(error.localizedDescription)
+            showToast(copy) { Task { await refreshFYP() } }
         }
     }
 
-    func showToast(_ message: String) {
+    func showToast(_ message: UserFacingError, retry: (() -> Void)? = nil) {
         toastTask?.cancel()
         toastMessage = message
+        toastRetry = retry
         toastTask = Task {
             try? await Task.sleep(for: .seconds(3))
             if !Task.isCancelled {
                 toastMessage = nil
+                toastRetry = nil
             }
         }
     }
@@ -113,5 +116,6 @@ extension HomeView {
     func dismissToast() {
         toastTask?.cancel()
         toastMessage = nil
+        toastRetry = nil
     }
 }

@@ -8,7 +8,7 @@ struct MovieDetailView: View {
 
     @State var movie: MovieResponse?
     @State var isLoading = true
-    @State var errorMessage: String?
+    @State var errorMessage: UserFacingError?
     @State var isInWatchlist = false
     @State var isWatched = false
     @State var userRating: Double?

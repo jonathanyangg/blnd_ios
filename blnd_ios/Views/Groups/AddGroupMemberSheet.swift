@@ -13,7 +13,7 @@ struct AddGroupMemberSheet: View {
     @State private var query = ""
     @State private var addingId: String?
     @State private var addedIds: Set<String> = []
-    @State private var errorMessage: String?
+    @State private var errorMessage: UserFacingError?
     @State private var showPaywall = false
 
     private let freeGroupCap = 8
@@ -37,9 +37,7 @@ struct AddGroupMemberSheet: View {
                 .padding(.bottom, 12)
 
             if let errorMessage {
-                Text(errorMessage)
-                    .font(.system(size: 13))
-                    .foregroundStyle(.red)
+                InlineError(message: errorMessage)
                     .padding(.horizontal, 24)
                     .padding(.bottom, 8)
             }
@@ -179,7 +177,7 @@ struct AddGroupMemberSheet: View {
             friends = response.friends.filter {
                 !existingMemberIds.contains($0.id)
             }
-        } catch { errorMessage = error.localizedDescription }
+        } catch { errorMessage = UserFacingError.capture(error, screen: "BlendMembers") }
         isLoadingFriends = false
     }
 
@@ -199,14 +197,15 @@ struct AddGroupMemberSheet: View {
             )
             addedIds.insert(friend.id)
             onMemberAdded(updated)
-        } catch let APIError.badRequest(message) {
-            if message.contains("Upgrade") || message.contains("blnd+") {
+        } catch let error as APIError {
+            if case let .badRequest(message) = error,
+               message.contains("Upgrade") || message.contains("blnd+") {
                 showPaywall = true
             } else {
-                errorMessage = message
+                errorMessage = UserFacingError.capture(error, screen: "BlendMembers")
             }
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = UserFacingError.capture(error, screen: "BlendMembers")
         }
         addingId = nil
     }

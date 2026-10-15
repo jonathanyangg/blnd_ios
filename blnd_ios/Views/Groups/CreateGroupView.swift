@@ -6,7 +6,7 @@ struct CreateGroupView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var groupName = ""
     @State private var isCreating = false
-    @State private var errorMessage: String?
+    @State private var errorMessage: UserFacingError?
     @State private var createdGroup: GroupDetailResponse?
 
     var body: some View {
@@ -81,9 +81,7 @@ struct CreateGroupView: View {
                 }
 
                 if let errorMessage {
-                    Text(errorMessage)
-                        .font(.system(size: 13))
-                        .foregroundStyle(.red)
+                    InlineError(message: errorMessage)
                         .padding(.top, 8)
                 }
             }
@@ -114,10 +112,8 @@ struct CreateGroupView: View {
             Analytics.groupCreated()
             await onCreated?()
             withAnimation { createdGroup = group }
-        } catch let APIError.badRequest(message) {
-            errorMessage = message
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = UserFacingError.capture(error, screen: "CreateBlend")
         }
 
         isCreating = false

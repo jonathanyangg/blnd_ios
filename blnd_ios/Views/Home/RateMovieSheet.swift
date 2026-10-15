@@ -11,7 +11,7 @@ struct RateMovieSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var rating: Double = 4
     @State private var isSaving = false
-    @State private var saveError: String?
+    @State private var saveError: UserFacingError?
 
     private var isRerating: Bool {
         existingRating != nil
@@ -41,9 +41,7 @@ struct RateMovieSheet: View {
                 .padding(.bottom, 16)
 
             if let saveError {
-                Text(saveError)
-                    .font(.system(size: 13))
-                    .foregroundStyle(.red)
+                InlineError(message: saveError)
                     .padding(.bottom, 8)
             }
 
@@ -103,7 +101,7 @@ struct RateMovieSheet: View {
             onSaved?(rating)
             dismiss()
         } catch {
-            saveError = error.localizedDescription
+            saveError = UserFacingError.capture(error, screen: "RateMovie")
         }
         isSaving = false
     }

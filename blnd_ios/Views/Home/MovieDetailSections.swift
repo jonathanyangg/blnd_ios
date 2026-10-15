@@ -249,7 +249,7 @@ extension MovieDetailView {
             // On a silent refresh, keep showing the existing movie rather than
             // replacing it with a full-screen error.
             if movie == nil {
-                errorMessage = error.localizedDescription
+                errorMessage = UserFacingError.capture(error, screen: "MovieDetail")
             }
         }
         if showLoading {
@@ -310,7 +310,7 @@ extension MovieDetailView {
             )
             isHidden = true
             onHide?()
-        } catch { errorMessage = error.localizedDescription }
+        } catch { errorMessage = UserFacingError.capture(error, screen: "HideMovie") }
     }
 
     func unhideMovie() async {
@@ -319,6 +319,6 @@ extension MovieDetailView {
                 tmdbId: tmdbId
             )
             isHidden = false
-        } catch { errorMessage = error.localizedDescription }
+        } catch { errorMessage = UserFacingError.capture(error, screen: "UnhideMovie") }
     }
 }

@@ -25,17 +25,7 @@ enum APIError: LocalizedError {
     case networkError(Error)
 
     var errorDescription: String? {
-        switch self {
-        case .invalidURL: return "Invalid URL"
-        case .unauthorized: return "Invalid credentials"
-        case .refreshUnavailable: return "Couldn't refresh your session - check your connection and try again"
-        case let .badRequest(message): return message
-        case .notFound: return "Not found"
-        case let .rateLimited(detail): return detail ?? "Too many requests, try again later"
-        case let .serverError(code): return "Server error (\(code))"
-        case .decodingError: return "Unexpected response format"
-        case let .networkError(error): return error.localizedDescription
-        }
+        UserFacingError.map(self).message
     }
 }
 

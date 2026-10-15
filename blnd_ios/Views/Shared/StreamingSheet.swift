@@ -7,7 +7,7 @@ struct StreamingSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var options: [StreamingOption] = []
     @State private var isLoading = true
-    @State private var errorMessage: String?
+    @State private var errorMessage: UserFacingError?
 
     private var streamOptions: [StreamingOption] {
         options.filter(\.isStreamable)
@@ -31,11 +31,9 @@ struct StreamingSheet: View {
                 Spacer()
             } else if let error = errorMessage {
                 Spacer()
-                Text(error)
-                    .font(.system(size: 14))
-                    .foregroundStyle(AppTheme.textMuted)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 24)
+                ErrorStateView(message: error) {
+                    Task { await fetchStreaming() }
+                }
                 Spacer()
             } else if options.isEmpty {
                 Spacer()
@@ -205,13 +203,15 @@ struct StreamingSheet: View {
     // MARK: - Data
 
     private func fetchStreaming() async {
+        isLoading = true
+        errorMessage = nil
         do {
             let response = try await MoviesAPI.getStreaming(tmdbId: tmdbId)
             options = response.options
         } catch is CancellationError {
             // View dismissed before load finished
         } catch {
-            errorMessage = "Couldn't load streaming options"
+            errorMessage = UserFacingError.capture(error, screen: "Streaming")
         }
         isLoading = false
     }
