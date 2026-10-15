@@ -24,7 +24,7 @@ enum TutorialPreset {
             demo: .forYouTaste
         ),
         .init(
-            text: "Swipe right to add to watchlist",
+            text: "Swipe right if you're interested",
             demo: .swipeRight
         ),
         .init(
@@ -213,7 +213,7 @@ private struct SwipeLeftDemo: View {
                 .offset(x: phase * -60)
                 .opacity(1.0 - (phase * 0.4))
 
-            Image(systemName: "hand.thumbsdown.fill")
+            Image(systemName: "eye.slash")
                 .font(.system(size: 24))
                 .foregroundStyle(.white.opacity(phase))
                 .offset(x: -40)
@@ -229,7 +229,7 @@ private struct SwipeLeftDemo: View {
     }
 }
 
-// MARK: - Swipe Right Demo (Watchlist)
+// MARK: - Swipe Right Demo (Interested)
 
 private struct SwipeRightDemo: View {
     @State private var phase: CGFloat = 0
@@ -242,7 +242,7 @@ private struct SwipeRightDemo: View {
                 .offset(x: phase * 60)
                 .opacity(1.0 - (phase * 0.4))
 
-            Image(systemName: "bookmark.fill")
+            Image(systemName: "heart")
                 .font(.system(size: 24))
                 .foregroundStyle(.white.opacity(phase))
                 .offset(x: 40)
