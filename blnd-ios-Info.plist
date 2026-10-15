@@ -8,25 +8,7 @@
 	<string>blnd sends phone numbers from your contacts to our server to find friends already on the app. We only store numbers that match existing users.</string>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
-		<string>nflx</string>
 		<string>aiv</string>
-		<string>primevideo</string>
-		<string>amazon</string>
-		<string>amzn</string>
-		<string>videos</string>
-		<string>appletv</string>
-		<string>hulu</string>
-		<string>max</string>
-		<string>hbomax</string>
-		<string>disneyplus</string>
-		<string>paramountplus</string>
-		<string>peacock</string>
-		<string>starz</string>
-		<string>showtime</string>
-		<string>mubi</string>
-		<string>tubitv</string>
-		<string>plutotv</string>
-		<string>crunchyroll</string>
 	</array>
 </dict>
 </plist>

@@ -49,17 +49,17 @@ extension MovieDetailView {
 
     var whereToWatchSection: some View {
         WhereToWatchSection(
-            options: watchOptions,
+            payload: whereToWatch,
             isLoading: watchLoading,
             failed: watchFailed,
             isPremium: authState.isPremium
-        ) { offer in
-            Task { await WatchLinkOpener.open(offer) }
+        ) { offer, kind in
+            Task { await WatchLinkOpener.open(offer, kind: kind) }
         }
     }
 
-    var bestWatchNow: StreamingOption? {
-        WhereToWatchList.offers(from: watchOptions, kind: .watchNow).first
+    var bestWatchNow: WatchOffer? {
+        whereToWatch?.offers(.watchNow).first
     }
 
     var actionButtonsRow: some View {
@@ -67,7 +67,7 @@ extension MovieDetailView {
             Button {
                 guard let offer = bestWatchNow else { return }
                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                Task { await WatchLinkOpener.open(offer) }
+                Task { await WatchLinkOpener.open(offer, kind: .watchNow) }
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "play.circle.fill")
@@ -307,13 +307,13 @@ extension MovieDetailView {
                 tmdbId: tmdbId,
                 mediaType: type
             )
-            watchOptions = response.options
-            watchFailed = false
+            whereToWatch = response.whereToWatch
+            watchFailed = response.whereToWatch == nil
         } catch is CancellationError {
             return
         } catch {
-            guard watchOptions.isEmpty else { return }
-            watchOptions = []
+            guard whereToWatch == nil else { return }
+            whereToWatch = nil
             watchFailed = true
         }
     }

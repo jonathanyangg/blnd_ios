@@ -3,13 +3,13 @@ import UIKit
 /// Opens a where-to-watch offer in Safari or the provider's app.
 ///
 /// Amazon rejects affiliate traffic from in-app browsers, so this never uses
-/// `SFSafariViewController` or `WKWebView`. Watch now tries the title's
-/// universal link first. If that app is not installed, the web URL opens with
-/// the backend click redirect and affiliate tag left intact.
+/// `SFSafariViewController` or `WKWebView`. Watch now tries `ios_link` first
+/// (universal link, or the `aiv` scheme). Rent and buy open `click_url`, then
+/// `web_url`. The client does not add a tag.
 enum WatchLinkOpener {
     @MainActor
-    static func open(_ option: StreamingOption) async {
-        guard let plan = option.openPlan() else { return }
+    static func open(_ offer: WatchOffer, kind: WatchOfferKind) async {
+        guard let plan = offer.openPlan(kind: kind) else { return }
         if let appLink = plan.appLink {
             let opened = await UIApplication.shared.open(
                 appLink,
