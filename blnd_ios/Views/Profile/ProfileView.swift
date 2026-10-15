@@ -7,12 +7,13 @@ private enum ProfileTab: String, CaseIterable {
 }
 
 struct ProfileView: View {
-    @Environment(AuthState.self) private var authState
+    @Environment(AuthState.self) var authState
     @Environment(TabState.self) private var tabState
     @State private var showSettings = false
     @State private var showImportContext = false
     @State private var showNotifications = false
-    @State private var unreadCount = 0
+    @State private var showFriends = false
+    @State var unreadCount = 0
     @State private var showFullAvatar = false
     @State private var showPaywall = false
     @State private var selectedTab: ProfileTab = .watched
@@ -26,8 +27,8 @@ struct ProfileView: View {
     @State private var isLoadingWatchlist = false
     @State private var friendsCount = 0
     @State private var groupsCount = 0
-    @State private var genreTaste: GenreTasteResponse?
-    @State private var isLoadingTaste = false
+    @State var genreTaste: GenreTasteResponse?
+    @State var isLoadingTaste = false
 
     @State private var watchedSort: MovieSortOption = .dateDesc
     @State private var watchlistSort: MovieSortOption = .dateDesc
@@ -44,12 +45,12 @@ struct ProfileView: View {
                         StatItem(
                             label: "Friends",
                             value: friendsCount,
-                            onTap: { tabState.switchTab(1) }
+                            onTap: { showFriends = true }
                         ),
                         StatItem(
                             label: "Blends",
                             value: groupsCount,
-                            onTap: { tabState.switchTab(2) }
+                            onTap: { tabState.switchTab(1) }
                         ),
                     ])
 
@@ -87,6 +88,9 @@ struct ProfileView: View {
             .navigationDestination(isPresented: $showNotifications) {
                 ActivityFeedView()
             }
+            .navigationDestination(isPresented: $showFriends) {
+                FriendsListView()
+            }
             .sheet(isPresented: $showPaywall) {
                 PaywallView(source: .manual)
                     .environment(authState)
@@ -103,6 +107,10 @@ struct ProfileView: View {
                 async let taste: () = loadTaste()
                 async let unread: () = loadUnreadCount()
                 _ = await (watched, watchlist, counts, taste, unread)
+            }
+            .onAppear { openNotificationsIfNeeded() }
+            .onChange(of: tabState.openNotifications) { _, _ in
+                openNotificationsIfNeeded()
             }
             .onChange(of: showNotifications) {
                 if !showNotifications {
@@ -422,6 +430,12 @@ extension ProfileView {
 // MARK: - Data Loading
 
 extension ProfileView {
+    private func openNotificationsIfNeeded() {
+        guard tabState.openNotifications else { return }
+        showNotifications = true
+        tabState.openNotifications = false
+    }
+
     func loadWatched() async {
         isLoadingWatched = true
         do {
@@ -458,37 +472,6 @@ extension ProfileView {
             return
         } catch { /* Non-critical — empty state shown */ }
         isLoadingWatchlist = false
-    }
-
-    func loadUnreadCount() async {
-        do {
-            let response = try await NotificationAPI.getInbox(limit: 1)
-            unreadCount = response.unreadCount
-        } catch {
-            // Non-critical
-        }
-    }
-
-    func loadTaste() async {
-        isLoadingTaste = true
-        do {
-            genreTaste = try await ProfileAPI.getGenreTaste()
-        } catch is CancellationError {
-            return
-        } catch { /* Non-critical — "rate more movies" fallback shown */ }
-        isLoadingTaste = false
-    }
-
-    func refreshAll() async {
-        UserActionCache.shared.invalidateGroups()
-        UserActionCache.shared.invalidateFriends()
-        async let watched: () = loadWatched()
-        async let watchlist: () = loadWatchlist()
-        async let counts: () = loadCounts()
-        async let taste: () = loadTaste()
-        async let unread: () = loadUnreadCount()
-        _ = await (watched, watchlist, counts, taste, unread)
-        await authState.fetchCurrentUser()
     }
 }
 

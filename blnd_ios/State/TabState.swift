@@ -6,6 +6,7 @@ class TabState {
     var navigationReset = 0
     var homeRefreshTrigger = 0
     var pendingRequestCount = 0
+    var openNotifications = false
 
     func switchTab(_ tab: Int) {
         navigationReset += 1
