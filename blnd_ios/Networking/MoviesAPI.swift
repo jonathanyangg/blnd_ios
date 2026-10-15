@@ -116,11 +116,74 @@ enum MoviesAPI {
 
 /// TV endpoints (backend feature flag)
 enum TVAPI {
-    /// GET /tv/search — only available when the backend TV flag is enabled.
-    static func search(query: String, page: Int = 1) async throws -> TVSearchResponse {
-        try await APIClient.shared.request(
-            endpoint: "/tv/search?query=\(query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query)&page=\(page)",
+    /// GET /tv/search. Years are sent. The path already means TV, so media_type is omitted.
+    static func search(
+        query: String,
+        page: Int = 1,
+        filter: CatalogFilter = CatalogFilter()
+    ) async throws -> TVSearchResponse {
+        let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query
+        return try await APIClient.shared.request(
+            endpoint: filter.yearsOnly.appending(to: "/tv/search?query=\(encoded)&page=\(page)"),
             authenticated: true
+        )
+    }
+}
+
+enum CatalogSearch {
+    /// Movies stay on `/movies/search`. TV uses `/tv/search`. All calls both and merges.
+    static func search(
+        query: String,
+        page: Int = 1,
+        filter: CatalogFilter
+    ) async throws -> [MovieResponse] {
+        let years = filter.yearsOnly
+        switch filter.media {
+        case .movies:
+            return try await MoviesAPI.search(query: query, page: page, filter: years).results
+        case .tv:
+            let shows = try await TVAPI.search(query: query, page: page, filter: years)
+            return shows.results.map { MovieResponse(show: $0) }
+        case .all:
+            async let movies = MoviesAPI.search(query: query, page: page, filter: years)
+            async let shows = TVAPI.search(query: query, page: page, filter: years)
+            let movieRows = try await movies.results
+            let showRows: [MovieResponse]
+            do {
+                showRows = try await shows.results.map { MovieResponse(show: $0) }
+            } catch APIError.notFound {
+                showRows = []
+            }
+            return merge(movies: movieRows, shows: showRows)
+        }
+    }
+
+    static func merge(movies: [MovieResponse], shows: [MovieResponse]) -> [MovieResponse] {
+        var seen = Set<Int>()
+        return (movies + shows).filter { seen.insert($0.tmdbId).inserted }
+    }
+}
+
+extension MovieResponse {
+    init(show: TVShowResponse) {
+        self.init(
+            tmdbId: show.tmdbId,
+            title: show.title,
+            year: show.year,
+            overview: show.overview,
+            posterPath: show.posterPath,
+            genres: [],
+            runtime: nil,
+            voteAverage: nil,
+            trailerUrl: nil,
+            director: nil,
+            cast: [],
+            tagline: nil,
+            backdropPath: nil,
+            imdbId: nil,
+            matchScore: nil,
+            commentCount: nil,
+            mediaType: show.mediaType
         )
     }
 }
@@ -212,6 +275,22 @@ enum RecommendationsAPI {
         try await APIClient.shared.request(
             endpoint: filter.appending(to: "/recommendations/me/refresh?limit=\(limit)"),
             method: "POST",
+            authenticated: true
+        )
+    }
+
+    /// GET /recommendations/now. A 404 means nothing matched the filter.
+    static func findNow(
+        genre: String? = nil,
+        exclude: [Int] = [],
+        filter: CatalogFilter = CatalogFilter()
+    ) async throws -> NowPickResponse {
+        try await APIClient.shared.request(
+            endpoint: FindNowCatalogFilter.endpoint(
+                genre: genre,
+                exclude: exclude,
+                filter: filter
+            ),
             authenticated: true
         )
     }

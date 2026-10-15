@@ -149,6 +149,13 @@ struct CatalogFilter: Codable, Equatable, Sendable {
         return items
     }
 
+    /// Years only. Search routes pick movie vs TV by the path, not `media_type`.
+    var yearsOnly: CatalogFilter {
+        var copy = self
+        copy.media = .all
+        return copy
+    }
+
     /// Appends media and year params. Leaves the endpoint unchanged when nothing is set.
     func appending(to endpoint: String) -> String {
         let extra = queryItems.map { "\($0.name)=\($0.value)" }.joined(separator: "&")
@@ -157,13 +164,14 @@ struct CatalogFilter: Codable, Equatable, Sendable {
         return endpoint + joiner + extra
     }
 
-    /// Client fallback. Legacy rows with no media type count as movies.
-    /// A year window drops rows that have no year.
+    /// Client fallback. A missing year or media type never hides the row.
+    /// A present year still has to sit in the window, and a present type still has to match.
     func matches(mediaType: MediaType?, year: Int?) -> Bool {
-        if media == .movies, mediaType == .tv { return false }
-        if media == .tv, mediaType != .tv { return false }
-        if yearMin != nil || yearMax != nil {
-            guard let year else { return false }
+        if let mediaType {
+            if media == .movies, mediaType != .movie { return false }
+            if media == .tv, mediaType != .tv { return false }
+        }
+        if let year {
             if let yearMin, year < yearMin { return false }
             if let yearMax, year > yearMax { return false }
         }

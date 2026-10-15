@@ -13,6 +13,23 @@ private struct APIErrorDetail: Decodable {
     let detail: String?
 }
 
+/// `{"error": {"code": "...", "message": "..."}}`
+enum APIErrorEnvelope {
+    static func message(in data: Data) -> String? {
+        struct Payload: Decodable {
+            struct Body: Decodable {
+                let code: String
+                let message: String
+            }
+
+            let error: Body
+        }
+        guard let payload = try? JSONDecoder().decode(Payload.self, from: data) else { return nil }
+        let message = payload.error.message.trimmingCharacters(in: .whitespacesAndNewlines)
+        return message.isEmpty ? nil : message
+    }
+}
+
 enum APIError: LocalizedError {
     case invalidURL
     case unauthorized
@@ -20,7 +37,7 @@ enum APIError: LocalizedError {
     case badRequest(String)
     case notFound
     case rateLimited(detail: String?)
-    case serverError(Int)
+    case serverError(Int, String?)
     case decodingError
     case networkError(Error)
 
@@ -32,7 +49,7 @@ enum APIError: LocalizedError {
         case let .badRequest(message): return message
         case .notFound: return "Not found"
         case let .rateLimited(detail): return detail ?? "Too many requests, try again later"
-        case let .serverError(code): return "Server error (\(code))"
+        case let .serverError(code, message): return message ?? "Server error (\(code))"
         case .decodingError: return "Unexpected response format"
         case let .networkError(error): return error.localizedDescription
         }
@@ -154,7 +171,7 @@ final class APIClient: @unchecked Sendable {
         case 401:
             throw APIError.unauthorized
         case 403, 500, 503:
-            throw APIError.serverError(http.statusCode)
+            throw APIError.serverError(http.statusCode, APIErrorEnvelope.message(in: data))
         default:
             throw mapError(status: http.statusCode, data: data)
         }
@@ -246,7 +263,7 @@ final class APIClient: @unchecked Sendable {
         }
 
         guard let http = response as? HTTPURLResponse else {
-            throw APIError.serverError(0)
+            throw APIError.serverError(0, nil)
         }
 
         return (http, data)
@@ -286,19 +303,22 @@ final class APIClient: @unchecked Sendable {
         case 404:
             return .notFound
         case 429:
-            let detail = try? JSONDecoder().decode(APIErrorDetail.self, from: data).detail
+            let detail = APIErrorEnvelope.message(in: data)
+                ?? (try? JSONDecoder().decode(APIErrorDetail.self, from: data).detail)
             return .rateLimited(detail: detail)
         case 400 ..< 500:
             return .badRequest(parseDetail(from: data))
         default:
-            return .serverError(status)
+            return .serverError(status, APIErrorEnvelope.message(in: data))
         }
     }
 
-    /// Parses error detail from FastAPI response body.
-    /// Tries {"detail": "string"} first, then {"detail": {"message": "..."}},
-    /// then {"detail": [{"msg": ...}]}.
+    /// Parses error detail from the response body.
+    /// Prefers {"error": {"code": "...", "message": "..."}}, then FastAPI shapes.
     private func parseDetail(from data: Data) -> String {
+        if let message = APIErrorEnvelope.message(in: data) {
+            return message
+        }
         // Shape 1: {"detail": "Username already taken"}
         if let obj = try? decoder.decode([String: String].self, from: data), let detail = obj["detail"] {
             return detail

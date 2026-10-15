@@ -277,7 +277,9 @@ struct SearchView: View {
 
     private var aiEmptyState: some View {
         VStack(spacing: 8) {
-            Text("No results found")
+            Text(catalogFilters.filter.media == .tv
+                ? "TV recommendations are coming soon"
+                : "No results found")
                 .font(.system(size: 15, weight: .medium))
                 .foregroundStyle(.white)
             Text("Try describing the mood or vibe you're looking for")
@@ -394,7 +396,7 @@ private extension SearchView {
     func moviesSection(cardWidth: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             if !actorResults.isEmpty {
-                Text("Movies")
+                Text(catalogFilters.filter.media == .tv ? "TV" : "Movies")
                     .font(.system(size: 15, weight: .bold))
                     .foregroundStyle(.white)
                     .padding(.horizontal, 24)
@@ -445,11 +447,11 @@ private extension SearchView {
         isLoading = true
         let filter = catalogFilters.current()
         do {
-            async let movieResponse = MoviesAPI.search(query: query, filter: filter)
+            async let movieResponse = CatalogSearch.search(query: query, filter: filter)
             async let actorResponse = MoviesAPI.searchPerson(query: query)
             let (movies, actors) = try await (movieResponse, actorResponse)
             if debouncedQuery == query {
-                let visible = movies.results.filter {
+                let visible = movies.filter {
                     filter.matches(mediaType: $0.mediaType, year: $0.year)
                 }
                 results = visible

@@ -213,6 +213,33 @@ struct CatalogFilterSheet: View {
     }
 }
 
+struct CatalogFilterNotice: View {
+    let title: String
+    var button: String?
+    var onButton: (() -> Void)?
+
+    var body: some View {
+        VStack(spacing: 16) {
+            Text(title)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(.white)
+                .multilineTextAlignment(.center)
+            if let button, let onButton {
+                Button(button, action: onButton)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.black)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(.white)
+                    .clipShape(Capsule())
+                    .accessibilityIdentifier("catalog-filter-notice-action")
+            }
+        }
+        .padding(.horizontal, 32)
+        .accessibilityIdentifier("catalog-filter-notice")
+    }
+}
+
 /// Full-screen stand-in so the simulator can open the sheet without a session.
 /// `-catalogFilterSample` opens TV plus the 2020s chip.
 struct CatalogFilterScreenshotHost: View {

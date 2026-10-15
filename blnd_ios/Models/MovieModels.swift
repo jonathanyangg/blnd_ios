@@ -367,6 +367,11 @@ struct HiddenMoviesListResponse: Decodable {
     let total: Int
 }
 
+struct NowPickResponse: Decodable {
+    let movie: RecommendedMovieResponse
+    let reason: String
+}
+
 struct RecommendationsResponse: Decodable {
     let results: [RecommendedMovieResponse]
     let tasteBio: String?

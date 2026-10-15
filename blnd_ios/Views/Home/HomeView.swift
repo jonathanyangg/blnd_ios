@@ -18,6 +18,7 @@ struct HomeView: View {
     @Environment(AuthState.self) var authState
     @State var selectedTab: HomeTab = .forYou
     @State var showSearch = false
+    @State var showFindNow = false
     @State var showPaywall = false
     @State var viewMode: ViewMode = .reels
     @Namespace private var tabNamespace
@@ -62,6 +63,9 @@ struct HomeView: View {
             .background(AppTheme.background)
             .fullScreenCover(isPresented: $showSearch) {
                 NavigationStack { SearchView() }
+            }
+            .fullScreenCover(isPresented: $showFindNow) {
+                FindMovieNowView()
             }
             .onChange(of: showSearch) { _, isShowing in
                 if isShowing {
@@ -159,6 +163,12 @@ struct HomeView: View {
                         .font(.system(size: 18))
                         .foregroundStyle(.white)
                     }
+                    Button { showFindNow = true } label: {
+                        Image(systemName: "sparkle")
+                            .font(.system(size: 20))
+                            .foregroundStyle(.white)
+                    }
+                    .accessibilityIdentifier("find-movie-now-button")
                     Button { showSearch = true } label: {
                         Image(systemName: "magnifyingglass")
                             .font(.system(size: 20))

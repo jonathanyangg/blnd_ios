@@ -54,14 +54,101 @@ struct CatalogFilterTests {
         #expect(filter.matches(mediaType: .tv, year: 2029))
         #expect(!filter.matches(mediaType: .movie, year: 2021))
         #expect(!filter.matches(mediaType: .tv, year: 2019))
-        #expect(!filter.matches(mediaType: nil, year: 2021))
-        #expect(!filter.matches(mediaType: .tv, year: nil))
+        #expect(filter.matches(mediaType: nil, year: 2021))
+        #expect(filter.matches(mediaType: .tv, year: nil))
 
         var movies = CatalogFilter()
         movies.media = .movies
         #expect(movies.matches(mediaType: nil, year: nil))
         #expect(movies.matches(mediaType: .movie, year: 1972))
         #expect(!movies.matches(mediaType: .tv, year: 2011))
+    }
+
+    @Test func nullYearAndMissingMediaTypePass() throws {
+        var filter = CatalogFilter()
+        filter.media = .tv
+        filter.apply(.twenties, calendarYear: 2026)
+
+        #expect(filter.matches(mediaType: nil, year: nil))
+        #expect(filter.matches(mediaType: nil, year: 2024))
+        #expect(filter.matches(mediaType: .tv, year: nil))
+        #expect(!filter.matches(mediaType: .movie, year: nil))
+        #expect(!filter.matches(mediaType: nil, year: 1994))
+
+        let watched = try JSONDecoder().decode(
+            WatchedMovieResponse.self,
+            from: Data("""
+            {"id":1,"tmdb_id":1,"title":"Lost year","liked":false,"year":null,"created_at":"2026-01-01T00:00:00Z"}
+            """.utf8)
+        )
+        let watchlist = try JSONDecoder().decode(
+            WatchlistMovieResponse.self,
+            from: Data("""
+            {"id":2,"tmdb_id":2,"title":"No type","year":null,"genres":[],"cast":[],"created_at":"2026-01-01T00:00:00Z","media_type":null}
+            """.utf8)
+        )
+        let blend = try JSONDecoder().decode(
+            GroupRecMovieResponse.self,
+            from: Data("""
+            {"tmdb_id":3,"title":"Blend","year":null,"genres":[],"cast":[],"match_score":0.5}
+            """.utf8)
+        )
+
+        for row in [
+            (watched.mediaType, watched.year),
+            (watchlist.mediaType, watchlist.year),
+            (blend.mediaType, blend.year),
+        ] {
+            #expect(row.0 == nil)
+            #expect(row.1 == nil)
+            #expect(filter.matches(mediaType: row.0, year: row.1))
+        }
+    }
+
+    @Test func searchKeepsMoviesAndTVOnSeparateRoutes() {
+        var filter = CatalogFilter()
+        filter.media = .tv
+        filter.apply(.twenties, calendarYear: 2026)
+        let path = filter.yearsOnly.appending(to: "/tv/search?query=the")
+        #expect(!path.contains("media_type"))
+        #expect(path.contains("year_min=2020"))
+        #expect(path.contains("year_max=2029"))
+
+        let movie = MovieResponse(show: TVShowResponse(
+            tmdbId: 1,
+            title: "Show",
+            year: 2024,
+            overview: nil,
+            posterPath: nil,
+            mediaType: .tv
+        ))
+        let same = MovieResponse(show: TVShowResponse(
+            tmdbId: 1,
+            title: "Show again",
+            year: 2024,
+            overview: nil,
+            posterPath: nil,
+            mediaType: .tv
+        ))
+        let other = MovieResponse(show: TVShowResponse(
+            tmdbId: 2,
+            title: "Other",
+            year: nil,
+            overview: nil,
+            posterPath: nil,
+            mediaType: .tv
+        ))
+        let merged = CatalogSearch.merge(movies: [movie], shows: [same, other])
+        #expect(merged.map(\.tmdbId) == [1, 2])
+        #expect(merged[0].title == "Show")
+    }
+
+    @Test func errorEnvelopeMessage() {
+        let data = Data("""
+        {"error":{"code":"invalid_filter","message":"year_min is too small"}}
+        """.utf8)
+        #expect(APIErrorEnvelope.message(in: data) == "year_min is too small")
+        #expect(APIError.serverError(400, APIErrorEnvelope.message(in: data)).errorDescription == "year_min is too small")
     }
 
     @Test func findNowEndpointCarriesFilterWhenSet() {

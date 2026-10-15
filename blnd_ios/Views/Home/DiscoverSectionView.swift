@@ -36,7 +36,10 @@ struct DiscoverSectionView: View {
     var body: some View {
         VStack(spacing: 0) {
             filterHeader
-            if viewMode == .reels {
+            if catalogFilters.filter.media == .tv {
+                CatalogFilterNotice(title: "TV recommendations are coming soon")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if viewMode == .reels {
                 reelsFeed
             } else {
                 gridFeed
