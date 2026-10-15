@@ -24,6 +24,8 @@ extension GroupDetailView {
                     externalCurrentId: $blendCurrentId
                 )
             }
+        case .timeline:
+            EmptyView()
         case .watchlist:
             if watchlist.isEmpty {
                 Spacer()

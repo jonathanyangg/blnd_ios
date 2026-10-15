@@ -114,7 +114,7 @@ struct CreateGroupView: View {
             Analytics.groupCreated()
             await onCreated?()
             withAnimation { createdGroup = group }
-        } catch let APIError.badRequest(message) {
+        } catch let APIError.badRequest(message, _) {
             errorMessage = message
         } catch {
             errorMessage = error.localizedDescription

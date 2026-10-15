@@ -15,7 +15,11 @@ struct BlndApp: App {
         config.captureApplicationLifecycleEvents = true
         PostHogSDK.shared.setup(config)
 
+        #if DEBUG
         Purchases.logLevel = .debug
+        #else
+        Purchases.logLevel = .warn
+        #endif
         Purchases.configure(withAPIKey: "appl_XsVFffVINQJHsPlnmgVzYyPAleP")
     }
 
@@ -24,15 +28,32 @@ struct BlndApp: App {
             ZStack {
                 AppTheme.background
                     .ignoresSafeArea()
-                ContentView()
-                    .environment(authState)
-                    .environment(onboardingState)
-                    .environment(deepLinkState)
-                    .onAppear {
-                        appDelegate.deepLinkState = deepLinkState
-                    }
+                root
             }
             .preferredColorScheme(.dark)
         }
+    }
+
+    private var mainContent: some View {
+        ContentView()
+            .environment(authState)
+            .environment(onboardingState)
+            .environment(deepLinkState)
+            .onAppear {
+                appDelegate.deepLinkState = deepLinkState
+            }
+    }
+
+    @ViewBuilder
+    private var root: some View {
+        #if DEBUG
+            if TimelinePreview.isEnabled {
+                TimelinePreviewHost()
+            } else {
+                mainContent
+            }
+        #else
+            mainContent
+        #endif
     }
 }

@@ -4,6 +4,7 @@ struct ChooseUsernameView: View {
     @Environment(AuthState.self) var authState
     @Environment(OnboardingState.self) var onboardingState
     @Binding var path: NavigationPath
+    var onAccountReady: (() -> Void)?
     @State private var isLoading = false
     @State private var error: String?
 
@@ -11,8 +12,10 @@ struct ChooseUsernameView: View {
         @Bindable var state = onboardingState
 
         VStack(spacing: 0) {
-            OnboardingProgressBar(step: 3, total: 5)
-                .padding(.top, 12)
+            if onAccountReady == nil {
+                OnboardingProgressBar(step: 3, total: 5)
+                    .padding(.top, 12)
+            }
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
@@ -104,9 +107,14 @@ struct ChooseUsernameView: View {
                 phoneNumber: phone.isEmpty ? nil : phone
             )
 
-            // Both calls succeeded — navigate to completion
+            // Both calls succeeded. The v2 account gate continues in place.
+            // A brand-new Apple sign-in starts Onboarding v2 from Welcome.
             authState.phase = .onboardingPending
-            path.append(AuthRoute.onboardingComplete)
+            if let onAccountReady {
+                onAccountReady()
+            } else {
+                onboardingState.continueWithV2 = true
+            }
         } catch {
             isLoading = false
             // Determine which call failed
