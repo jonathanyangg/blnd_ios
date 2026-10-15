@@ -12,8 +12,12 @@ enum ImportAPI {
     /// - Throws: `APIError.unauthorized` if no access token is found in Keychain,
     ///   `APIError.serverError` for non-2xx responses, or a `DecodingError` for
     ///   unexpected response shapes.
-    static func upload(zipData: Data) async throws -> ImportSummaryResponse {
-        guard let token = KeychainManager.readString(key: "accessToken") else {
+    static func upload(
+        zipData: Data,
+        session: URLSession = .shared,
+        accessToken: String? = KeychainManager.readString(key: "accessToken")
+    ) async throws -> ImportSummaryResponse {
+        guard let token = accessToken else {
             throw APIError.unauthorized
         }
 
@@ -29,7 +33,7 @@ enum ImportAPI {
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.httpBody = buildBody(zipData: zipData, boundary: boundary)
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await session.data(for: request)
 
         guard let http = response as? HTTPURLResponse else {
             throw APIError.serverError(0)
