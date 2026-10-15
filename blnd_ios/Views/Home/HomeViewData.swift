@@ -31,6 +31,11 @@ extension HomeView {
 
     func loadForYou() async {
         guard recommendations.isEmpty else { return }
+        if UITestLaunch.screen == .findNowEntry {
+            recommendations = NowCatalog.feed
+            rebuildReelMovies()
+            return
+        }
         isLoadingFYP = true
         fypError = nil
         do {

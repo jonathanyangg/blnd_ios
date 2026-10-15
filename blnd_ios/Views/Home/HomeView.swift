@@ -18,8 +18,9 @@ struct HomeView: View {
     @Environment(AuthState.self) var authState
     @State var selectedTab: HomeTab = .forYou
     @State var showSearch = false
+    @State var showFindNow = false
     @State var showPaywall = false
-    @State var viewMode: ViewMode = .reels
+    @State var viewMode: ViewMode = UITestLaunch.prefersGrid ? .grid : .reels
     @Namespace private var tabNamespace
 
     // For You
@@ -57,6 +58,9 @@ struct HomeView: View {
             .background(AppTheme.background)
             .fullScreenCover(isPresented: $showSearch) {
                 NavigationStack { SearchView() }
+            }
+            .fullScreenCover(isPresented: $showFindNow) {
+                FindMovieNowView()
             }
             .onChange(of: showSearch) { _, isShowing in
                 if isShowing {
@@ -154,7 +158,29 @@ struct HomeView: View {
             }
             .padding(.top, 8)
             .padding(.horizontal, 24)
-            .padding(.bottom, 16)
+            .padding(.bottom, 12)
+
+            Button {
+                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                showFindNow = true
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "sparkles")
+                    Text("Find a movie now")
+                        .font(.system(size: 15, weight: .semibold))
+                    Spacer()
+                    Image(systemName: "arrow.right")
+                        .font(.system(size: 13, weight: .bold))
+                }
+                .foregroundStyle(.black)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(.white)
+                .clipShape(Capsule())
+            }
+            .accessibilityIdentifier("find-movie-now.entry")
+            .padding(.horizontal, 24)
+            .padding(.bottom, 12)
 
             homeTabPicker()
                 .padding(.horizontal, 24)

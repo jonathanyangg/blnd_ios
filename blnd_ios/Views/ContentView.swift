@@ -9,6 +9,14 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
+        if let screen = UITestLaunch.screen {
+            UITestHost(screen: screen)
+        } else {
+            authenticatedBody
+        }
+    }
+
+    private var authenticatedBody: some View {
         Group {
             #if DEBUG
             if ProcessInfo.processInfo.arguments.contains("UI_TEST_LETTERBOXD_IMPORT") {

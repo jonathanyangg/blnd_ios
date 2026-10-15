@@ -44,7 +44,8 @@ enum TrackingAPI {
                 endpoint: "/tracking/\(tmdbId)",
                 authenticated: true
             )
-        } catch APIError.notFound {
+        } catch let error as APIError {
+            guard case .notFound = error else { throw error }
             return nil
         }
     }

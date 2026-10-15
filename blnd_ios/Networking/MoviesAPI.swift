@@ -216,6 +216,18 @@ enum RecommendationsAPI {
         )
     }
 
+    /// GET /recommendations/now — one movie and a reason.
+    /// `exclude` is the re-roll list of tmdb ids.
+    static func findNow(
+        genre: String?,
+        exclude: [Int]
+    ) async throws -> NowPickResponse {
+        try await APIClient.shared.request(
+            endpoint: NowPickQuery.endpoint(genre: genre, exclude: exclude),
+            authenticated: true
+        )
+    }
+
     /// GET /recommendations/hidden — list hidden movies
     static func getHidden(
         limit: Int = 100,

@@ -15,6 +15,12 @@ struct APIFieldError: Equatable, Sendable {
     var field: String? { issues.first?.field }
 }
 
+/// Message from `{error:{code,message}, detail}`. `detail` may be a string.
+func apiErrorMessage(from data: Data, fallback: String = "Request failed") -> String {
+    let raw = APIFieldError.parse(data).raw
+    return raw.isEmpty ? fallback : raw
+}
+
 enum APIError: LocalizedError {
     case invalidURL
     case unauthorized
