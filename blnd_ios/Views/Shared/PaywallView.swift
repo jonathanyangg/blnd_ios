@@ -51,7 +51,9 @@ struct PaywallView: View {
                     subscriptionSummary
                     legalSection
                     purchaseActions
-                    restoreButton
+                    if isLoadingOffering || !subscriptionPackages.isEmpty {
+                        restoreButton
+                    }
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, 20)
@@ -186,16 +188,19 @@ struct PaywallView: View {
 
     private var unavailableSection: some View {
         VStack(spacing: 12) {
-            Text("Subscription options are temporarily unavailable. Please try again later.")
-                .font(.system(size: 13))
-                .foregroundStyle(AppTheme.textMuted)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
+            Text(
+                "We couldn't load blnd+ just now. Try again in a moment. " +
+                    "If you already subscribed, you can restore it here."
+            )
+            .font(.system(size: 13))
+            .foregroundStyle(AppTheme.textMuted)
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
 
             Button {
                 Task { await loadOffering() }
             } label: {
-                Text("Try Again")
+                Text("Retry")
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
@@ -203,6 +208,7 @@ struct PaywallView: View {
                     .background(AppTheme.card)
                     .clipShape(RoundedRectangle(cornerRadius: AppTheme.cornerRadiusMedium))
             }
+            restoreButton
         }
         .padding(20)
         .frame(maxWidth: .infinity)
