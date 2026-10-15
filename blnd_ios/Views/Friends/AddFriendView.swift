@@ -444,7 +444,7 @@ extension AddFriendView {
             Analytics.friendRequestSent()
             contactSuggestions.removeAll { $0.id == id }
             mutualSuggestions.removeAll { $0.id == id }
-        } catch let APIError.badRequest(message) {
+        } catch let APIError.badRequest(message, _) {
             errorMessage = message
         } catch {
             errorMessage = error.localizedDescription

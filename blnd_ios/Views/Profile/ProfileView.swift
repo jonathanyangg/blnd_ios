@@ -2,6 +2,7 @@ import SwiftUI
 
 private enum ProfileTab: String, CaseIterable {
     case watched = "Watched"
+    case diary = "Diary"
     case watchlist = "Watchlist"
     case taste = "Taste"
 }
@@ -31,6 +32,7 @@ struct ProfileView: View {
 
     @State private var watchedSort: MovieSortOption = .dateDesc
     @State private var watchlistSort: MovieSortOption = .dateDesc
+    @State private var diaryReload = 0
 
     var body: some View {
         NavigationStack {
@@ -66,6 +68,15 @@ struct ProfileView: View {
                     switch selectedTab {
                     case .watched:
                         watchedGrid
+                    case .diary:
+                        WatchTimelineScreen(
+                            source: .own,
+                            embedsInParentScroll: true,
+                            emptyTitle: "Your diary is empty",
+                            emptyMessage: "Rate a movie and tag the friends you watched it with.",
+                            detailSource: .profile,
+                            reloadToken: diaryReload
+                        )
                     case .watchlist:
                         watchlistGrid
                     case .taste:
@@ -239,14 +250,15 @@ struct ProfileView: View {
                 sort: currentSortBinding,
                 allowsRating: selectedTab == .watched
             )
-            .disabled(selectedTab == .taste)
+            .disabled(selectedTab == .taste || selectedTab == .diary)
             .padding(.trailing, 16)
             // Center the icon with the tab text (the tab VStack adds an
             // underline below its text, which pushes the icon ~4pt low).
             .offset(y: -4)
             .transaction { $0.animation = nil }
 
-            HStack(spacing: 24) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 22) {
                 ForEach(ProfileTab.allCases, id: \.self) { tab in
                     Button {
                         withAnimation(.easeInOut(duration: 0.2)) {
@@ -279,9 +291,10 @@ struct ProfileView: View {
                         }
                     }
                 }
+                }
             }
 
-            Spacer()
+            Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity)
     }
@@ -485,6 +498,7 @@ extension ProfileView {
         async let taste: () = loadTaste()
         async let unread: () = loadUnreadCount()
         _ = await (watched, watchlist, counts, taste, unread)
+        diaryReload += 1
         await authState.fetchCurrentUser()
     }
 }

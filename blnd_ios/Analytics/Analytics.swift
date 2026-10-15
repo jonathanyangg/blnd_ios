@@ -48,7 +48,7 @@ enum Analytics {
     }
 
     enum WatchlistSource: String {
-        case detail, reels, picker
+        case detail, reels, picker, now
     }
 
     enum FeedSource: String {
