@@ -38,8 +38,18 @@ struct HomeView: View {
     @State var lastScrollOffset: CGFloat = 0
     @State var deepLinkTmdbId: Int?
 
-    /// Show tutorial overlay on first launch only
-    @AppStorage("hasSeenReelsTutorial") private var hasSeenTutorial = false
+    /// Show the reel coach once. The key matches `ReelTutorialStore`.
+    @AppStorage(ReelTutorialStore.seenKey) private var hasSeenTutorial = false
+    @State var tutorialNudge = ReelTutorialNudge.rest
+    @State var tutorialFrames: [ReelTutorialTarget: CGRect] = [:]
+
+    var showReelTutorial: Bool {
+        !hasSeenTutorial
+            && viewMode == .reels
+            && selectedTab == .forYou
+            && !isLoadingFYP
+            && !fypReelMovies.isEmpty
+    }
 
     var body: some View {
         NavigationStack {
@@ -48,7 +58,19 @@ struct HomeView: View {
                 if viewMode == .reels {
                     reelsFeed
                         .task { await loadForYou() }
-                        .allowsHitTesting(hasSeenTutorial || isLoadingFYP || fypReelMovies.isEmpty)
+                        .allowsHitTesting(!showReelTutorial)
+                        .coordinateSpace(name: "homeReel")
+                        .onPreferenceChange(ReelTutorialFrameKey.self) { tutorialFrames = $0 }
+                        .overlay {
+                            if showReelTutorial {
+                                ReelTutorialOverlay(
+                                    frames: tutorialFrames,
+                                    nudge: $tutorialNudge,
+                                    initialIndex: UITestLaunch.tutorialStep,
+                                    onDismiss: dismissReelTutorial
+                                )
+                            }
+                        }
                 } else {
                     gridFeed
                         .task { await loadForYou() }
@@ -69,13 +91,6 @@ struct HomeView: View {
             .sheet(isPresented: $showPaywall) {
                 PaywallView(source: .aiSearch)
                     .environment(authState)
-            }
-            .overlay {
-                if !hasSeenTutorial, viewMode == .reels, !isLoadingFYP, !fypReelMovies.isEmpty {
-                    ScrollHintOverlay {
-                        hasSeenTutorial = true
-                    }
-                }
             }
             .onChange(of: tabState.homeRefreshTrigger) {
                 Task { await refreshFYP() }
@@ -199,6 +214,12 @@ struct HomeView: View {
                 .padding(.bottom, 8)
         }
         .background(AppTheme.background)
+    }
+
+    func dismissReelTutorial() {
+        tutorialNudge = .rest
+        ReelTutorialStore.markSeen()
+        hasSeenTutorial = true
     }
 
     func homeTabPicker() -> some View {

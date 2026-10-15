@@ -21,7 +21,9 @@ extension HomeView {
 
     func loadForYou() async {
         guard recommendations.isEmpty else { return }
-        if UITestLaunch.screen == .findNowEntry || UITestLaunch.screen == .onboardFeed {
+        if UITestLaunch.screen == .findNowEntry
+            || UITestLaunch.screen == .onboardFeed
+            || UITestLaunch.screen == .reelTutorial {
             recommendations = NowCatalog.feed
             rebuildReelMovies()
             return

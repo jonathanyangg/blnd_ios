@@ -7,6 +7,8 @@ struct ReelsFeedView: View {
     var onLoadMore: (() async -> Void)?
     var onRefresh: (() async -> Void)?
     var externalCurrentId: Binding<Int?>?
+    var tutorialNudge: ReelTutorialNudge = .rest
+    var showsTutorial = false
 
     @State private var internalCurrentId: Int?
     @State private var toastMessage: String?
@@ -67,7 +69,9 @@ struct ReelsFeedView: View {
                             },
                             onShowFriend: { friend in
                                 selectedFriend = friend
-                            }
+                            },
+                            tutorialNudge: movie.tmdbId == currentId ? tutorialNudge : .rest,
+                            showsTutorial: showsTutorial && movie.tmdbId == currentId
                         )
                         .frame(height: cardHeight)
                         .id(movie.tmdbId)
