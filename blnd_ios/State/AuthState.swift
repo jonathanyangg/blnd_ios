@@ -13,7 +13,7 @@ class AuthState {
     var isCheckingSession: Bool
     var currentUser: UserResponse?
     var isLoading = false
-    var error: String?
+    var error: UserFacingError?
     var showPaywall = false
     /// Latest RevenueCat customer info. Nil until logIn, purchase, or restore refreshes it.
     private(set) var revenueCatCustomerInfo: CustomerInfo?
@@ -136,27 +136,31 @@ class AuthState {
             // Transient failure (offline, cold backend, server 5xx). The
             // tokens are still in the Keychain - retry with backoff so a
             // waking server doesn't dump the user at the login screen.
+            var lastError: Error = error
             for delaySeconds in [2.0, 5.0, 10.0] {
                 try? await Task.sleep(
                     nanoseconds: UInt64(delaySeconds * 1_000_000_000)
                 )
-                guard let user = try? await AuthAPI.me() else { continue }
-                currentUser = user
-                phase = user.username != nil ? .authenticated : .onboardingPending
-                if phase == .authenticated {
-                    await UserActionCache.shared.bootstrap()
-                    if let uid = KeychainManager.readString(key: "userId") {
-                        Analytics.identify(userId: uid)
-                        await logInRevenueCat(userId: uid)
+                do {
+                    let user = try await AuthAPI.me()
+                    currentUser = user
+                    phase = user.username != nil ? .authenticated : .onboardingPending
+                    if phase == .authenticated {
+                        await UserActionCache.shared.bootstrap()
+                        if let uid = KeychainManager.readString(key: "userId") {
+                            Analytics.identify(userId: uid)
+                            await logInRevenueCat(userId: uid)
+                        }
                     }
+                    isCheckingSession = false
+                    return
+                } catch {
+                    lastError = error
                 }
-                isCheckingSession = false
-                return
             }
             // Still failing: show sign-in, but tokens stay in the Keychain so
             // the next launch (or a successful retry) restores the session.
-            self.error =
-                "Couldn't reach the server - check your connection and try again."
+            self.error = UserFacingError.capture(lastError, screen: "CheckSession")
             phase = .unauthenticated
         }
 
@@ -187,7 +191,7 @@ class AuthState {
             // Explicitly mark as needing onboarding (genres + ratings)
             phase = .onboardingPending
         } catch {
-            self.error = error.localizedDescription
+            self.error = UserFacingError.capture(error, screen: "SignUp")
         }
 
         isLoading = false
@@ -220,7 +224,7 @@ class AuthState {
             isLoading = false
             return response
         } catch {
-            self.error = error.localizedDescription
+            self.error = UserFacingError.capture(error, screen: "AppleLogin")
             isLoading = false
             return nil
         }
@@ -246,7 +250,7 @@ class AuthState {
             }
             await logInRevenueCat(userId: response.userId)
         } catch {
-            self.error = error.localizedDescription
+            self.error = UserFacingError.capture(error, screen: "Login")
         }
 
         isLoading = false
@@ -262,7 +266,7 @@ class AuthState {
             isLoading = false
             return true
         } catch {
-            self.error = error.localizedDescription
+            self.error = UserFacingError.capture(error, screen: "DeleteAccount")
             isLoading = false
             return false
         }

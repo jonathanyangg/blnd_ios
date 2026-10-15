@@ -71,6 +71,7 @@ extension ReelCardView {
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
         let cache = UserActionCache.shared
         let wasWatched = cache.isWatched(movie.tmdbId)
+        let previousRating = cache.rating(for: movie.tmdbId)
         let fromWatchlist = cache.isWatchlisted(movie.tmdbId)
         cache.didRate(movie.tmdbId, rating: value)
 
@@ -89,7 +90,13 @@ extension ReelCardView {
                     isUpdate: wasWatched
                 )
             } catch {
-                // Non-critical — cache stays updated; user can retry
+                if let previousRating {
+                    cache.didRate(movie.tmdbId, rating: previousRating)
+                } else {
+                    cache.didUnwatch(movie.tmdbId)
+                }
+                let copy = UserFacingError.capture(error, screen: "RateMovie")
+                onMutationFailed?(copy) { saveRating(value) }
             }
         }
 

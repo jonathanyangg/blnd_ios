@@ -38,7 +38,7 @@ struct GateErrorTests {
             {"detail":{"code":"free_group_cap","cap":4,"message":"\(message)"}}
             """
         )
-        expectPaywall(legacy, code: "free_group_cap", message: message)
+        expectPaywall(legacy, code: "FREE_GROUP_CAP", message: message)
     }
 
     @Test func groupFullShowsMessageAndSkipsPaywall() {
@@ -57,7 +57,7 @@ struct GateErrorTests {
             {"detail":{"code":"group_full","cap":12,"message":"\(message)"}}
             """
         )
-        expectMessage(legacy, code: "group_full", message: message)
+        expectMessage(legacy, code: "GROUP_FULL", message: message)
     }
 
     @Test func legacyStringDetailAndGarbageBody() {
@@ -69,41 +69,44 @@ struct GateErrorTests {
             json: #"{"detail":"Upgrade to blnd+ for groups up to 12."}"#
         )
         #expect(upgrade.opensPaywall)
-        #expect(upgrade.localizedDescription == "Upgrade to blnd+ for groups up to 12.")
+        #expect(fieldError(upgrade)?.raw == "Upgrade to blnd+ for groups up to 12.")
 
         let partial = map(status: 402, json: #"{"detail":{"code":"FREE_GROUP_CAP"}}"#)
         expectPaywall(partial, code: "FREE_GROUP_CAP", message: "Request failed")
 
-        let garbage = APIClient.shared.mapError(status: 402, data: Data("not-json".utf8))
+        let garbage = APIError.decode(status: 402, data: Data("not-json".utf8))
         expectMessage(garbage, code: nil, message: "Request failed")
 
-        let empty = APIClient.shared.mapError(status: 402, data: Data())
+        let empty = APIError.decode(status: 402, data: Data())
         expectMessage(empty, code: nil, message: "Request failed")
     }
 
     private func map(status: Int, json: String) -> APIError {
-        APIClient.shared.mapError(status: status, data: Data(json.utf8))
+        APIError.decode(status: status, data: Data(json.utf8))
+    }
+
+    private func fieldError(_ error: APIError) -> APIFieldError? {
+        guard case let .badRequest(info) = error else { return nil }
+        return info
     }
 
     private func expectPaywall(_ error: APIError, code: String, message: String) {
-        guard case let .badRequest(parsed, parsedCode) = error else {
+        guard let info = fieldError(error) else {
             Issue.record("expected badRequest, got \(error)")
             return
         }
-        #expect(parsed == message)
-        #expect(parsedCode == code)
+        #expect(info.raw == message)
+        #expect(info.code == code)
         #expect(error.opensPaywall)
-        #expect(error.localizedDescription == message)
     }
 
     private func expectMessage(_ error: APIError, code: String?, message: String) {
-        guard case let .badRequest(parsed, parsedCode) = error else {
+        guard let info = fieldError(error) else {
             Issue.record("expected badRequest, got \(error)")
             return
         }
-        #expect(parsed == message)
-        #expect(parsedCode == code)
+        #expect(info.raw == message)
+        #expect(info.code == code)
         #expect(!error.opensPaywall)
-        #expect(error.localizedDescription == message)
     }
 }

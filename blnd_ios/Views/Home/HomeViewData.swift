@@ -8,14 +8,24 @@ extension HomeView {
     }
 
     func hideMovie(_ tmdbId: Int) {
+        guard let index = recommendations.firstIndex(where: { $0.tmdbId == tmdbId }) else { return }
+        let movie = recommendations[index]
         withAnimation {
             recommendations.removeAll { $0.tmdbId == tmdbId }
-            fypReelMovies.removeAll { $0.tmdbId == tmdbId }
+            rebuildReelMovies()
         }
         Task {
-            _ = try? await RecommendationsAPI.hideMovie(
-                tmdbId: tmdbId
-            )
+            do {
+                _ = try await RecommendationsAPI.hideMovie(tmdbId: tmdbId)
+            } catch {
+                withAnimation {
+                    recommendations.insert(movie, at: min(index, recommendations.count))
+                    rebuildReelMovies()
+                }
+                showToast(UserFacingError.capture(error, screen: "HideMovie")) {
+                    hideMovie(tmdbId)
+                }
+            }
         }
     }
 
@@ -90,22 +100,25 @@ extension HomeView {
     }
 
     func handleLoadError(_ error: Error) {
+        let copy = UserFacingError.capture(error, screen: "ForYou")
         if case APIError.rateLimited = error {
-            showToast("Woah, slow down! Try again in a minute")
+            showToast(copy)
         } else if recommendations.isEmpty {
-            fypError = error.localizedDescription
+            fypError = copy
         } else {
-            showToast(error.localizedDescription)
+            showToast(copy) { Task { await refreshFYP() } }
         }
     }
 
-    func showToast(_ message: String) {
+    func showToast(_ message: UserFacingError, retry: (() -> Void)? = nil) {
         toastTask?.cancel()
         toastMessage = message
+        toastRetry = retry
         toastTask = Task {
             try? await Task.sleep(for: .seconds(3))
             if !Task.isCancelled {
                 toastMessage = nil
+                toastRetry = nil
             }
         }
     }
@@ -113,5 +126,6 @@ extension HomeView {
     func dismissToast() {
         toastTask?.cancel()
         toastMessage = nil
+        toastRetry = nil
     }
 }

@@ -7,7 +7,7 @@ struct ChangePasswordView: View {
     @State private var newPassword = ""
     @State private var confirmPassword = ""
     @State private var isSaving = false
-    @State private var errorMessage: String?
+    @State private var errorMessage: UserFacingError?
     @State private var showSuccess = false
 
     var body: some View {
@@ -15,10 +15,10 @@ struct ChangePasswordView: View {
             VStack(spacing: 24) {
                 fieldsSection
 
-                if let errorMessage {
-                    Text(errorMessage)
-                        .font(.system(size: 13))
-                        .foregroundStyle(AppTheme.destructive)
+                if let errorMessage, errorMessage.fields.isEmpty {
+                    InlineError(message: errorMessage) {
+                        Task { await changePassword() }
+                    }
                 }
 
                 if !newPassword.isEmpty {
@@ -69,6 +69,9 @@ struct ChangePasswordView: View {
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(AppTheme.textMuted)
                 AppTextField(placeholder: "Current password", text: $currentPassword, isSecure: true)
+                if let note = errorMessage?.inline(for: "current_password") {
+                    InlineError(message: note)
+                }
             }
 
             VStack(alignment: .leading, spacing: 6) {
@@ -76,6 +79,9 @@ struct ChangePasswordView: View {
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(AppTheme.textMuted)
                 AppTextField(placeholder: "New password", text: $newPassword, isSecure: true)
+                if let note = errorMessage?.inline(for: "new_password") ?? errorMessage?.inline(for: "password") {
+                    InlineError(message: note)
+                }
             }
 
             VStack(alignment: .leading, spacing: 6) {
@@ -108,7 +114,7 @@ struct ChangePasswordView: View {
             )
             showSuccess = true
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = UserFacingError.capture(error, screen: "ChangePassword")
         }
         isSaving = false
     }

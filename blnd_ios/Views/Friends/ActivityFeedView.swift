@@ -8,7 +8,7 @@ struct ActivityFeedView: View {
     @State private var isLoading = true
     @State private var isLoadingMore = false
     @State private var hasMore = true
-    @State private var errorMessage: String?
+    @State private var errorMessage: UserFacingError?
 
     private let pageSize = 30
 
@@ -19,15 +19,8 @@ struct ActivityFeedView: View {
                     .tint(.white)
                     .padding(.top, 60)
             } else if let error = errorMessage {
-                VStack(spacing: 12) {
-                    Text(error)
-                        .font(.system(size: 14))
-                        .foregroundStyle(AppTheme.textMuted)
-                    Button("Retry") {
-                        Task { await loadInbox(reset: true) }
-                    }
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(.white)
+                ErrorStateView(message: error) {
+                    Task { await loadInbox(reset: true) }
                 }
                 .padding(.top, 60)
             } else if items.isEmpty {
@@ -147,7 +140,7 @@ struct ActivityFeedView: View {
             hasMore = response.results.count >= pageSize
         } catch {
             if items.isEmpty {
-                errorMessage = "Could not load notifications"
+                errorMessage = UserFacingError.capture(error, screen: "Activity")
             }
         }
         isLoading = false

@@ -17,11 +17,12 @@ struct GroupDetailView: View {
     @State var blendCurrentId: Int?
     @State var watchlistCurrentId: Int?
     @State var isLoading = true
-    @State var loadError: String?
+    @State var loadError: UserFacingError?
     @State var showMembers = false
     @State var selectedTab: GroupTab = .blendPicks
     @State var viewMode: ViewMode = .reels
-    @State var toastMessage: String?
+    @State var toastMessage: UserFacingError?
+    @State var toastRetry: (() -> Void)?
     @State var toastTask: Task<Void, Never>?
     @State var isEditingName = false
     @State var editedName = ""
@@ -85,23 +86,17 @@ struct GroupDetailView: View {
         }
         .overlay(alignment: .top) {
             if let toast = toastMessage {
-                Text(toast)
-                    .font(.system(
-                        size: 13, weight: .medium
-                    ))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .background(.red.opacity(0.85))
-                    .clipShape(Capsule())
-                    .padding(.top, 60)
-                    .transition(
-                        .move(edge: .top)
-                            .combined(with: .opacity)
-                    )
-                    .onTapGesture {
-                        toastMessage = nil
-                    }
+                ErrorToast(
+                    message: toast,
+                    retry: toastRetry,
+                    onDismiss: { toastMessage = nil; toastRetry = nil }
+                )
+                .padding(.horizontal, 24)
+                .padding(.top, 60)
+                .transition(
+                    .move(edge: .top)
+                        .combined(with: .opacity)
+                )
             }
         }
         .animation(

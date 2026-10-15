@@ -37,7 +37,7 @@ struct SignUpView: View {
                         case let .failure(error):
                             let isCancelled = (error as? ASAuthorizationError)?.code == .canceled
                             if !isCancelled {
-                                authState.error = error.localizedDescription
+                                authState.error = UserFacingError.capture(error, screen: "SignUp")
                             }
                         }
                     }
@@ -66,29 +66,28 @@ struct SignUpView: View {
                     AppTextField(placeholder: "Username", text: $state.username)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
+                    fieldNote("username")
                     AppTextField(placeholder: "Email", text: $state.email)
                         .textContentType(.emailAddress)
                         .keyboardType(.emailAddress)
                         .textInputAutocapitalization(.never)
+                    if let emailError {
+                        InlineError(message: .client(.validation, message: emailError))
+                            .padding(.bottom, 8)
+                    }
+                    fieldNote("email")
                     AppTextField(placeholder: "Password", text: $state.password, isSecure: true)
+                    fieldNote("password")
                     PhoneNumberInputField(phoneNumber: $state.phoneNumber)
+                    fieldNote("phone_number")
 
                     if !state.password.isEmpty {
                         PasswordRequirements(password: state.password)
                             .padding(.bottom, 8)
                     }
 
-                    if let emailError {
-                        Text(emailError)
-                            .font(.system(size: 13))
-                            .foregroundStyle(AppTheme.destructive)
-                            .padding(.bottom, 8)
-                    }
-
-                    if let error = authState.error {
-                        Text(error)
-                            .font(.system(size: 13))
-                            .foregroundStyle(AppTheme.destructive)
+                    if let error = authState.error, error.fields.isEmpty {
+                        InlineError(message: error)
                             .padding(.bottom, 8)
                     }
 
@@ -155,6 +154,14 @@ struct SignUpView: View {
         }
         .task {
             Analytics.onboardingStepViewed(step: .signup)
+        }
+    }
+
+    @ViewBuilder
+    private func fieldNote(_ name: String) -> some View {
+        if let note = authState.error?.inline(for: name) {
+            InlineError(message: note)
+                .padding(.bottom, 8)
         }
     }
 

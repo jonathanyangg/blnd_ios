@@ -106,7 +106,11 @@ extension ReelCardView {
                     )
                 }
             } catch {
-                onWatchlistAdded?("Already in Watchlist")
+                if groupContext == nil {
+                    UserActionCache.shared.didRemoveFromWatchlist(movie.tmdbId)
+                }
+                let copy = UserFacingError.capture(error, screen: "Watchlist")
+                onMutationFailed?(copy) { addToWatchlist() }
             }
         }
     }
@@ -147,7 +151,10 @@ extension ReelCardView {
                 tmdbId: movie.tmdbId
             )
             Analytics.movieHidden(tmdbId: movie.tmdbId)
-        } catch {}
+        } catch {
+            let copy = UserFacingError.capture(error, screen: "HideMovie")
+            onMutationFailed?(copy) { Task { await hideMovie() } }
+        }
     }
 
     func posterURL(_ path: String) -> URL? {

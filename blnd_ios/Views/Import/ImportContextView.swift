@@ -7,7 +7,7 @@ struct ImportContextView: View {
         case instructions
         case loading
         case results(ImportSummaryResponse)
-        case error(String)
+        case error(UserFacingError)
     }
 
     @State var viewState: ImportViewState = .instructions
@@ -80,8 +80,7 @@ struct ImportContextView: View {
                 if !(error is CancellationError) {
                     withAnimation {
                         viewState = .error(
-                            "Something went wrong. "
-                                + "Please try again."
+                            UserFacingError.capture(error, screen: "LetterboxdImport")
                         )
                     }
                 }

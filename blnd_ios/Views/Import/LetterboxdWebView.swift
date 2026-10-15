@@ -12,8 +12,7 @@ struct LetterboxdWebView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var isLoading = true
     @State private var showDismissConfirm = false
-    @State private var showError = false
-    @State private var errorMessage = ""
+    @State private var downloadError: UserFacingError?
     @State private var downloadComplete = false
 
     private let letterboxdURL = URL(
@@ -31,8 +30,7 @@ struct LetterboxdWebView: View {
                         onZipCaptured(data)
                     },
                     onDownloadFailed: { error in
-                        errorMessage = error.localizedDescription
-                        showError = true
+                        downloadError = UserFacingError.capture(error, screen: "Letterboxd")
                     },
                     isLoading: $isLoading,
                     scrollToBottomURLPath: "/settings/data"
@@ -58,13 +56,14 @@ struct LetterboxdWebView: View {
                 "Your Letterboxd login session will be lost."
             )
         }
-        .alert(
-            "Download Failed",
-            isPresented: $showError
-        ) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(errorMessage)
+        .overlay(alignment: .bottom) {
+            if let downloadError {
+                ErrorToast(message: downloadError, onDismiss: {
+                    self.downloadError = nil
+                })
+                .padding(.horizontal, 24)
+                .padding(.bottom, 24)
+            }
         }
     }
 

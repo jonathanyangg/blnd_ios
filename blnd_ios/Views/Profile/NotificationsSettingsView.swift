@@ -7,7 +7,7 @@ struct NotificationsSettingsView: View {
     @State private var friendActivity = true
     @State private var commentReplies = true
     @State private var isLoading = true
-    @State private var error: String?
+    @State private var error: UserFacingError?
 
     var body: some View {
         ScrollView {
@@ -114,17 +114,9 @@ struct NotificationsSettingsView: View {
         }
     }
 
-    private func errorSection(_ message: String) -> some View {
-        VStack(spacing: 12) {
-            Text(message)
-                .font(.system(size: 14))
-                .foregroundStyle(AppTheme.textMuted)
-                .multilineTextAlignment(.center)
-            Button("Retry") {
-                Task { await loadPreferences() }
-            }
-            .font(.system(size: 14, weight: .medium))
-            .foregroundStyle(.white)
+    private func errorSection(_ message: UserFacingError) -> some View {
+        ErrorStateView(message: message) {
+            Task { await loadPreferences() }
         }
         .frame(maxWidth: .infinity, minHeight: 200)
     }
@@ -171,7 +163,7 @@ struct NotificationsSettingsView: View {
             commentReplies = prefs.commentReplies
             isLoading = false
         } catch {
-            self.error = "Could not load notification preferences."
+            self.error = UserFacingError.capture(error, screen: "NotificationSettings")
             isLoading = false
         }
     }

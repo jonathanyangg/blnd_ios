@@ -11,6 +11,8 @@ struct ReelsFeedView: View {
 
     @State private var internalCurrentId: Int?
     @State private var toastMessage: String?
+    @State private var mutationError: UserFacingError?
+    @State private var mutationRetry: (() -> Void)?
     @State private var toastTask: Task<Void, Never>?
     @State private var watchlistTmdbId: Int?
     @State private var addedToWatchlist: Set<Int> = []
@@ -37,35 +39,7 @@ struct ReelsFeedView: View {
                         Array(movies.enumerated()),
                         id: \.element.id
                     ) { index, movie in
-                        ReelCardView(
-                            movie: movie,
-                            isActive: movie.tmdbId == currentId
-                                && isTabVisible,
-                            groupContext: groupContext,
-                            position: index,
-                            feed: feed,
-                            onWatchlistAdded: { msg in
-                                if msg.contains("Won't show") {
-                                    lastHiddenTmdbId = movie.tmdbId
-                                } else {
-                                    addedToWatchlist.insert(
-                                        movie.tmdbId
-                                    )
-                                    lastWatchlistedTmdbId = movie.tmdbId
-                                }
-                                showToast(msg)
-                                advanceToNext(from: movie.tmdbId)
-                            },
-                            onRated: { _ in },
-                            onShowDetail: {
-                                detailMovie = movie
-                            },
-                            onShowFriend: { friend in
-                                selectedFriend = friend
-                            }
-                        )
-                        .frame(height: cardHeight)
-                        .id(movie.tmdbId)
+                        reelCard(movie, index: index, height: cardHeight)
                     }
                 }
                 .scrollTargetLayout()
@@ -107,7 +81,14 @@ struct ReelsFeedView: View {
             FriendProfileView(friend: friend)
         }
         .overlay(alignment: .bottom) {
-            if let toast = toastMessage {
+            if let mutationError {
+                ErrorToast(message: mutationError, retry: mutationRetry, onDismiss: {
+                    self.mutationError = nil
+                    mutationRetry = nil
+                })
+                .padding(.horizontal, 24)
+                .padding(.bottom, 24)
+            } else if let toast = toastMessage {
                 ReelToast(
                     message: toast,
                     actionLabel: toastActionLabel(toast),
@@ -157,6 +138,53 @@ struct ReelsFeedView: View {
     }
 
     // MARK: - Toast
+
+    private func reelCard(_ movie: ReelMovie, index: Int, height: CGFloat) -> some View {
+        ReelCardView(
+            movie: movie,
+            isActive: movie.tmdbId == currentId && isTabVisible,
+            groupContext: groupContext,
+            position: index,
+            feed: feed,
+            onWatchlistAdded: { msg in
+                self.noteWatchlist(msg, tmdbId: movie.tmdbId)
+            },
+            onRated: { _ in },
+            onMutationFailed: { copy, retry in
+                noteMutationFailure(copy, retry: retry, tmdbId: movie.tmdbId)
+            },
+            onShowDetail: { detailMovie = movie },
+            onShowFriend: { selectedFriend = $0 }
+        )
+        .frame(height: height)
+        .id(movie.tmdbId)
+    }
+
+    private func noteWatchlist(_ message: String, tmdbId: Int) {
+        if message.contains("Won't show") {
+            lastHiddenTmdbId = tmdbId
+        } else {
+            addedToWatchlist.insert(tmdbId)
+            lastWatchlistedTmdbId = tmdbId
+        }
+        showToast(message)
+        advanceToNext(from: tmdbId)
+    }
+
+    private func noteMutationFailure(
+        _ copy: UserFacingError,
+        retry: @escaping () -> Void,
+        tmdbId: Int
+    ) {
+        toastMessage = nil
+        addedToWatchlist.remove(tmdbId)
+        if lastHiddenTmdbId == tmdbId {
+            currentIdBinding.wrappedValue = tmdbId
+            lastHiddenTmdbId = nil
+        }
+        mutationError = copy
+        mutationRetry = retry
+    }
 
     private func showToast(_ message: String) {
         toastTask?.cancel()

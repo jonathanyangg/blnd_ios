@@ -28,10 +28,11 @@ struct HomeView: View {
     @State var seenFYPIds: Set<Int> = []
     @State var isLoadingFYP = false
     @State var isLoadingMoreFYP = false
-    @State var fypError: String?
+    @State var fypError: UserFacingError?
     @State var fypCurrentId: Int?
     @State var discoverCurrentId: Int?
-    @State var toastMessage: String?
+    @State var toastMessage: UserFacingError?
+    @State var toastRetry: (() -> Void)?
     @State var toastTask: Task<Void, Never>?
     @State var showStickySearch = false
     @State var lastScrollOffset: CGFloat = 0
@@ -93,22 +94,13 @@ struct HomeView: View {
             }
             .overlay(alignment: .top) {
                 if let toast = toastMessage {
-                    Text(toast)
-                        .font(.system(
-                            size: 13,
-                            weight: .medium
-                        ))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
-                        .background(.red.opacity(0.85))
-                        .clipShape(Capsule())
+                    ErrorToast(message: toast, retry: toastRetry, onDismiss: dismissToast)
+                        .padding(.horizontal, 24)
                         .padding(.top, 60)
                         .transition(
                             .move(edge: .top)
                                 .combined(with: .opacity)
                         )
-                        .onTapGesture { dismissToast() }
                 }
             }
             .animation(
