@@ -295,20 +295,14 @@ struct SearchView: View {
     private func aiResultsGrid(cardWidth: CGFloat) -> some View {
         LazyVGrid(columns: columns, spacing: 16) {
             ForEach(aiResults) { movie in
-                NavigationLink {
-                    MovieDetailView(tmdbId: movie.tmdbId, title: movie.title, source: .search)
-                } label: {
-                    MovieCard(
-                        tmdbId: movie.tmdbId,
-                        title: movie.title,
-                        year: movie.yearString,
-                        posterPath: movie.posterPath,
-                        width: cardWidth,
-                        height: cardWidth * 1.5,
-                        mediaType: movie.mediaType
-                    )
-                }
-                .buttonStyle(.plain)
+                SearchResultCard(
+                    tmdbId: movie.tmdbId,
+                    title: movie.title,
+                    year: movie.yearString,
+                    posterPath: movie.posterPath,
+                    mediaType: movie.mediaType,
+                    cardWidth: cardWidth
+                )
             }
         }
         .padding(.horizontal, 24)
@@ -404,20 +398,15 @@ private extension SearchView {
 
             LazyVGrid(columns: columns, spacing: 16) {
                 ForEach(results) { movie in
-                    NavigationLink {
-                        MovieDetailView(tmdbId: movie.tmdbId, title: movie.title, source: .search)
-                    } label: {
-                        MovieCard(
-                            tmdbId: movie.tmdbId,
-                            title: movie.title,
-                            year: movie.yearString,
-                            posterPath: movie.posterPath,
-                            width: cardWidth,
-                            height: cardWidth * 1.5,
-                            mediaType: movie.mediaType
-                        )
-                    }
-                    .buttonStyle(.plain)
+                    SearchResultCard(
+                        tmdbId: movie.tmdbId,
+                        title: movie.title,
+                        year: movie.yearString,
+                        posterPath: movie.posterPath,
+                        overview: movie.overview,
+                        mediaType: movie.mediaType,
+                        cardWidth: cardWidth
+                    )
                 }
             }
             .padding(.horizontal, 24)
