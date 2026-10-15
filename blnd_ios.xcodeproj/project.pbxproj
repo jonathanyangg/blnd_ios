@@ -11,6 +11,7 @@
 		8441E5732F889C5800DF0425 /* PhoneNumberKit in Frameworks */ = {isa = PBXBuildFile; productRef = 8441E5722F889C5800DF0425 /* PhoneNumberKit */; };
 		8441F07E2F9574DD00DF0425 /* RevenueCat in Frameworks */ = {isa = PBXBuildFile; productRef = 8441F07D2F9574DD00DF0425 /* RevenueCat */; };
 		8441F2682F95D77400DF0425 /* blnd movies.storekit in Resources */ = {isa = PBXBuildFile; fileRef = 8441F2672F95D77400DF0425 /* blnd movies.storekit */; };
+		B7E4A1022F57B001001B73F1 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = B7E4A1012F57B001001B73F1 /* PrivacyInfo.xcprivacy */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -32,6 +33,7 @@
 
 /* Begin PBXFileReference section */
 		8441F2672F95D77400DF0425 /* blnd movies.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = "blnd movies.storekit"; sourceTree = "<group>"; };
+		B7E4A1012F57B001001B73F1 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; name = PrivacyInfo.xcprivacy; path = blnd_ios/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		84CAD8C72F56A2E7001B73F1 /* blnd_ios.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = blnd_ios.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		84CAD8D42F56A2E8001B73F1 /* blnd_iosTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = blnd_iosTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		84CAD8DE2F56A2E9001B73F1 /* blnd_iosUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = blnd_iosUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -40,6 +42,9 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		84CAD8C92F56A2E7001B73F1 /* blnd_ios */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				B7E4A1032F57B001001B73F1 /* Exceptions for "blnd_ios" folder in "blnd_ios" target */,
+			);
 			path = blnd_ios;
 			sourceTree = "<group>";
 		};
@@ -54,6 +59,16 @@
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		B7E4A1032F57B001001B73F1 /* Exceptions for "blnd_ios" folder in "blnd_ios" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				PrivacyInfo.xcprivacy,
+			);
+			target = 84CAD8C62F56A2E7001B73F1 /* blnd_ios */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		84CAD8C42F56A2E7001B73F1 /* Frameworks */ = {
@@ -94,6 +109,7 @@
 			isa = PBXGroup;
 			children = (
 				8441F2672F95D77400DF0425 /* blnd movies.storekit */,
+				B7E4A1012F57B001001B73F1 /* PrivacyInfo.xcprivacy */,
 				84CAD8C92F56A2E7001B73F1 /* blnd_ios */,
 				84CAD8D72F56A2E8001B73F1 /* blnd_iosTests */,
 				84CAD8E12F56A2E9001B73F1 /* blnd_iosUITests */,
@@ -241,6 +257,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				8441F2682F95D77400DF0425 /* blnd movies.storekit in Resources */,
+				B7E4A1022F57B001001B73F1 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -420,6 +437,7 @@
 		84CAD8E92F56A2E9001B73F1 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				API_BASE_URL = "http://192.168.7.121:8000";
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = blnd_ios/blnd_ios.entitlements;
@@ -438,6 +456,8 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_PREPROCESS = YES;
+				INFOPLIST_PREPROCESSOR_DEFINITIONS = "DEBUG=1";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -459,6 +479,7 @@
 		84CAD8EA2F56A2E9001B73F1 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				API_BASE_URL = "https://blnd-backend.onrender.com";
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = blnd_ios/blnd_ios.entitlements;
@@ -477,6 +498,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_PREPROCESS = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",

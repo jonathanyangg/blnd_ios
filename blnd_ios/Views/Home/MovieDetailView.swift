@@ -4,8 +4,10 @@ struct MovieDetailView: View {
     let tmdbId: Int
     var title: String = ""
     var source: Analytics.DetailSource = .grid
+    var mediaType: MediaType? = nil
     var onHide: (() -> Void)?
 
+    @Environment(AuthState.self) var authState
     @State var movie: MovieResponse?
     @State var isLoading = true
     @State var errorMessage: String?
@@ -16,9 +18,12 @@ struct MovieDetailView: View {
     @State var friendsWhoWatched: [FriendWatchedResponse] = []
     @State var isHidden = false
     @State var showHideConfirm = false
-    @State var showStreamingSheet = false
     @State var showCommentsSheet = false
+    @State var showLogSheet = false
     @State var overviewExpanded = false
+    @State var watchOptions: [StreamingOption] = []
+    @State var watchLoading = true
+    @State var watchFailed = false
 
     private var displayTitle: String {
         movie?.title ?? title
@@ -35,6 +40,8 @@ struct MovieDetailView: View {
                     .tint(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.top, 100)
+            } else if mediaType == .tv {
+                tvContent
             } else if let error = errorMessage {
                 ErrorStateView(message: error) {
                     Task { await fetchMovie() }
@@ -58,43 +65,39 @@ struct MovieDetailView: View {
                 EmptyView()
             }
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button {
-                    if isHidden {
-                        Task { await unhideMovie() }
-                    } else {
-                        showHideConfirm = true
+                if mediaType != .tv {
+                    Button {
+                        if isHidden {
+                            Task { await unhideMovie() }
+                        } else {
+                            showHideConfirm = true
+                        }
+                    } label: {
+                        Image(
+                            systemName: isHidden
+                                ? "hand.thumbsdown.fill"
+                                : "hand.thumbsdown"
+                        )
+                        .font(.system(size: 16))
+                        .foregroundStyle(
+                            isHidden ? .red : AppTheme.textMuted
+                        )
                     }
-                } label: {
-                    Image(
-                        systemName: isHidden
-                            ? "hand.thumbsdown.fill"
-                            : "hand.thumbsdown"
-                    )
-                    .font(.system(size: 16))
-                    .foregroundStyle(
-                        isHidden ? .red : AppTheme.textMuted
-                    )
-                }
-                .confirmationDialog(
-                    "Not interested?",
-                    isPresented: $showHideConfirm,
-                    titleVisibility: .visible
-                ) {
-                    Button("Not for me", role: .destructive) {
-                        Task { await hideMovie() }
+                    .confirmationDialog(
+                        "Not interested?",
+                        isPresented: $showHideConfirm,
+                        titleVisibility: .visible
+                    ) {
+                        Button("Not for me", role: .destructive) {
+                            Task { await hideMovie() }
+                        }
+                    } message: {
+                        Text(
+                            "This movie won't show in your recommendations."
+                        )
                     }
-                } message: {
-                    Text(
-                        "This movie won't show in your recommendations."
-                    )
                 }
             }
-        }
-        .sheet(isPresented: $showStreamingSheet) {
-            StreamingSheet(tmdbId: tmdbId, title: displayTitle)
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
-                .presentationBackground(AppTheme.card)
         }
         .sheet(isPresented: $showCommentsSheet) {
             MovieCommentsView(tmdbId: tmdbId, movieTitle: displayTitle)
@@ -104,12 +107,36 @@ struct MovieDetailView: View {
         }
         .task {
             Analytics.movieDetailViewed(tmdbId: tmdbId, source: source)
-            await fetchMovie()
-            async let watched: () = checkWatchedStatus()
-            async let hidden: () = checkHiddenStatus()
-            async let friends: () = loadFriendsWhoWatched()
-            _ = await (watched, hidden, friends)
+            if mediaType == .tv {
+                isLoading = false
+                await loadWhereToWatch()
+            } else {
+                await fetchMovie()
+                async let watch: () = loadWhereToWatch()
+                async let watched: () = checkWatchedStatus()
+                async let hidden: () = checkHiddenStatus()
+                async let friends: () = loadFriendsWhoWatched()
+                _ = await (watch, watched, hidden, friends)
+            }
         }
+    }
+
+    /// Series have no movie-detail payload yet. Title plus where to watch.
+    private var tvContent: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(displayTitle)
+                .font(.system(size: 26, weight: .bold))
+                .foregroundStyle(.white)
+                .padding(.top, 16)
+            Text("TV series")
+                .font(.system(size: 14))
+                .foregroundStyle(AppTheme.textMuted)
+                .padding(.top, 4)
+                .padding(.bottom, 16)
+            whereToWatchSection
+        }
+        .padding(.horizontal, 24)
+        .padding(.bottom, 32)
     }
 
     // MARK: - Movie Content
@@ -172,7 +199,9 @@ struct MovieDetailView: View {
                 .padding(.bottom, 20)
 
             detailRatingBar
+            watchedWithRow
             actionButtonsRow
+            whereToWatchSection
             FriendsWhoWatchedSection(friends: friendsWhoWatched)
             commentsRow(movie)
         }

@@ -1,35 +1,38 @@
 import Foundation
 
-/// Pydantic 422 validation error shape
-private struct ValidationErrorDetail: Decodable {
-    let msg: String
-}
-
-private struct ValidationErrorResponse: Decodable {
-    let detail: [ValidationErrorDetail]
-}
-
-private struct APIErrorDetail: Decodable {
-    let detail: String?
-}
-
 enum APIError: LocalizedError {
     case invalidURL
     case unauthorized
     case refreshUnavailable
-    case badRequest(String)
+    /// `code` is `error.code` from the current envelope, or the legacy `detail.code`.
+    case badRequest(message: String, code: String?)
     case notFound
     case rateLimited(detail: String?)
     case serverError(Int)
     case decodingError
     case networkError(Error)
 
+    /// Paywall codes. `GROUP_FULL` is a full group, not an upgrade prompt.
+    /// A missing code still opens the paywall when the legacy string mentions an upgrade.
+    var opensPaywall: Bool {
+        guard case let .badRequest(message, code) = self else { return false }
+        if let code {
+            switch code.uppercased() {
+            case "PREMIUM_REQUIRED", "FREE_GROUP_CAP":
+                return true
+            default:
+                return false
+            }
+        }
+        return message.contains("Upgrade") || message.contains("blnd+")
+    }
+
     var errorDescription: String? {
         switch self {
         case .invalidURL: return "Invalid URL"
         case .unauthorized: return "Invalid credentials"
         case .refreshUnavailable: return "Couldn't refresh your session - check your connection and try again"
-        case let .badRequest(message): return message
+        case let .badRequest(message, _): return message
         case .notFound: return "Not found"
         case let .rateLimited(detail): return detail ?? "Too many requests, try again later"
         case let .serverError(code): return "Server error (\(code))"
@@ -275,45 +278,61 @@ final class APIClient: @unchecked Sendable {
     }
 
     /// Maps HTTP status + response body to an APIError.
-    /// Handles all FastAPI error shapes:
-    ///   - 400/409: {"detail": "string"}
-    ///   - 422:     {"detail": [{"msg": "string", ...}]}
-    ///   - 429:     plain text (rate limit)
-    private func mapError(status: Int, data: Data) -> APIError {
+    /// A body that is not JSON still returns an error. It does not throw.
+    func mapError(status: Int, data: Data) -> APIError {
         switch status {
         case 401:
             return .unauthorized
         case 404:
             return .notFound
         case 429:
-            let detail = try? JSONDecoder().decode(APIErrorDetail.self, from: data).detail
-            return .rateLimited(detail: detail)
+            let parsed = Self.parseBody(data)
+            return .rateLimited(detail: parsed.foundMessage ? parsed.message : nil)
         case 400 ..< 500:
-            return .badRequest(parseDetail(from: data))
+            let parsed = Self.parseBody(data)
+            return .badRequest(message: parsed.message, code: parsed.code)
         default:
             return .serverError(status)
         }
     }
 
-    /// Parses error detail from FastAPI response body.
-    /// Tries {"detail": "string"} first, then {"detail": {"message": "..."}},
-    /// then {"detail": [{"msg": ...}]}.
-    private func parseDetail(from data: Data) -> String {
-        // Shape 1: {"detail": "Username already taken"}
-        if let obj = try? decoder.decode([String: String].self, from: data), let detail = obj["detail"] {
-            return detail
+    /// Current body: `{"error": {"code", "message"}, "detail": "<message>"}`.
+    /// Legacy body: `detail` as a string, an object with `code`/`message`, or a 422 list.
+    private static func parseBody(_ data: Data) -> (message: String, code: String?, foundMessage: Bool) {
+        let fallback = "Request failed"
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return (fallback, nil, false)
         }
-        // Shape 2: {"detail": {"message": "...", "code": "...", ...}}
-        if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-            if let detail = json["detail"] as? [String: Any], let msg = detail["message"] as? String {
-                return msg
+
+        let error = json["error"] as? [String: Any]
+        let code = (error?["code"] as? String) ?? legacyCode(json["detail"])
+        if let message = nonEmpty(error?["message"] as? String) {
+            return (message, code, true)
+        }
+        if let message = nonEmpty(json["detail"] as? String) {
+            return (message, code, true)
+        }
+        if let detail = json["detail"] as? [String: Any],
+           let message = nonEmpty(detail["message"] as? String) {
+            return (message, code, true)
+        }
+        if let detail = json["detail"] as? [[String: Any]] {
+            let messages = detail.compactMap { nonEmpty($0["msg"] as? String) }
+            if !messages.isEmpty {
+                return (messages.joined(separator: ". "), code, true)
             }
         }
-        // Shape 3: {"detail": [{"msg": "String should have at most 250 characters", ...}]}
-        if let obj = try? decoder.decode(ValidationErrorResponse.self, from: data) {
-            let messages = obj.detail.map(\.msg)
-            return messages.joined(separator: ". ")
-        }
-        return "Request failed"
+        return (fallback, code, false)
+    }
+
+    private static func legacyCode(_ detail: Any?) -> String? {
+        guard let detail = detail as? [String: Any] else { return nil }
+        return nonEmpty(detail["code"] as? String)
+    }
+
+    private static func nonEmpty(_ value: String?) -> String? {
+        guard let value else { return nil }
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 }
