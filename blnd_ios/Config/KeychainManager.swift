@@ -5,14 +5,17 @@ import Security
 /// be called from any actor or isolation domain.
 nonisolated enum KeychainManager {
     static func save(key: String, data: Data) {
-        let query: [String: Any] = [
+        // Delete by account only. Accessibility and value are not search keys,
+        // so including them leaves the old item in place and the add fails.
+        let match: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrAccount as String: key,
-            kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
         ]
+        SecItemDelete(match as CFDictionary)
 
-        SecItemDelete(query as CFDictionary)
+        var query = match
+        query[kSecValueData as String] = data
+        query[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
         SecItemAdd(query as CFDictionary, nil)
     }
 
