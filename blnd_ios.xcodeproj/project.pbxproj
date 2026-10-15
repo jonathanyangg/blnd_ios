@@ -11,6 +11,9 @@
 		8441E5732F889C5800DF0425 /* PhoneNumberKit in Frameworks */ = {isa = PBXBuildFile; productRef = 8441E5722F889C5800DF0425 /* PhoneNumberKit */; };
 		8441F07E2F9574DD00DF0425 /* RevenueCat in Frameworks */ = {isa = PBXBuildFile; productRef = 8441F07D2F9574DD00DF0425 /* RevenueCat */; };
 		8441F2682F95D77400DF0425 /* blnd movies.storekit in Resources */ = {isa = PBXBuildFile; fileRef = 8441F2672F95D77400DF0425 /* blnd movies.storekit */; };
+		AA1100082F56A2E7001B0008 /* ShareExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = AA1100022F56A2E7001B0002 /* ShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		AA11000F2F56A2E7001B000F /* NotesShareText.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1100102F56A2E7001B0010 /* NotesShareText.swift */; };
+		AA1100112F56A2E7001B0011 /* NotesShareText.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1100102F56A2E7001B0010 /* NotesShareText.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -35,6 +38,8 @@
 		84CAD8C72F56A2E7001B73F1 /* blnd_ios.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = blnd_ios.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		84CAD8D42F56A2E8001B73F1 /* blnd_iosTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = blnd_iosTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		84CAD8DE2F56A2E9001B73F1 /* blnd_iosUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = blnd_iosUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		AA1100022F56A2E7001B0002 /* ShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		AA1100102F56A2E7001B0010 /* NotesShareText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotesShareText.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -53,7 +58,26 @@
 			path = blnd_iosUITests;
 			sourceTree = "<group>";
 		};
+		AA1100032F56A2E7001B0003 /* ShareExtension */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				AA11000E2F56A2E7001B000E /* Exceptions for "ShareExtension" folder in "ShareExtension" target */,
+			);
+			path = ShareExtension;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		AA11000E2F56A2E7001B000E /* Exceptions for "ShareExtension" folder in "ShareExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+				ShareExtension.entitlements,
+			);
+			target = AA1100012F56A2E7001B0001 /* ShareExtension */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		84CAD8C42F56A2E7001B73F1 /* Frameworks */ = {
@@ -80,6 +104,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		AA1100052F56A2E7001B0005 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -97,6 +128,8 @@
 				84CAD8C92F56A2E7001B73F1 /* blnd_ios */,
 				84CAD8D72F56A2E8001B73F1 /* blnd_iosTests */,
 				84CAD8E12F56A2E9001B73F1 /* blnd_iosUITests */,
+				AA1100032F56A2E7001B0003 /* ShareExtension */,
+				AA1100122F56A2E7001B0012 /* Shared */,
 				8441DF0E2F835F4F00DF0425 /* Frameworks */,
 				84CAD8C82F56A2E7001B73F1 /* Products */,
 			);
@@ -108,8 +141,17 @@
 				84CAD8C72F56A2E7001B73F1 /* blnd_ios.app */,
 				84CAD8D42F56A2E8001B73F1 /* blnd_iosTests.xctest */,
 				84CAD8DE2F56A2E9001B73F1 /* blnd_iosUITests.xctest */,
+				AA1100022F56A2E7001B0002 /* ShareExtension.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		AA1100122F56A2E7001B0012 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				AA1100102F56A2E7001B0010 /* NotesShareText.swift */,
+			);
+			path = Shared;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -122,10 +164,12 @@
 				84CAD8C32F56A2E7001B73F1 /* Sources */,
 				84CAD8C42F56A2E7001B73F1 /* Frameworks */,
 				84CAD8C52F56A2E7001B73F1 /* Resources */,
+				AA1100072F56A2E7001B0007 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				AA11000A2F56A2E7001B000A /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				84CAD8C92F56A2E7001B73F1 /* blnd_ios */,
@@ -186,6 +230,28 @@
 			productReference = 84CAD8DE2F56A2E9001B73F1 /* blnd_iosUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		AA1100012F56A2E7001B0001 /* ShareExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AA11000D2F56A2E9001B000D /* Build configuration list for PBXNativeTarget "ShareExtension" */;
+			buildPhases = (
+				AA1100042F56A2E7001B0004 /* Sources */,
+				AA1100052F56A2E7001B0005 /* Frameworks */,
+				AA1100062F56A2E7001B0006 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				AA1100032F56A2E7001B0003 /* ShareExtension */,
+			);
+			name = ShareExtension;
+			packageProductDependencies = (
+			);
+			productName = ShareExtension;
+			productReference = AA1100022F56A2E7001B0002 /* ShareExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -206,6 +272,9 @@
 					84CAD8DD2F56A2E9001B73F1 = {
 						CreatedOnToolsVersion = 26.3;
 						TestTargetID = 84CAD8C62F56A2E7001B73F1;
+					};
+					AA1100012F56A2E7001B0001 = {
+						CreatedOnToolsVersion = 26.3;
 					};
 				};
 			};
@@ -231,6 +300,7 @@
 				84CAD8C62F56A2E7001B73F1 /* blnd_ios */,
 				84CAD8D32F56A2E8001B73F1 /* blnd_iosTests */,
 				84CAD8DD2F56A2E9001B73F1 /* blnd_iosUITests */,
+				AA1100012F56A2E7001B0001 /* ShareExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -258,13 +328,35 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		AA1100062F56A2E7001B0006 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		AA1100072F56A2E7001B0007 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				AA1100082F56A2E7001B0008 /* ShareExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		84CAD8C32F56A2E7001B73F1 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AA11000F2F56A2E7001B000F /* NotesShareText.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -282,6 +374,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		AA1100042F56A2E7001B0004 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AA1100112F56A2E7001B0011 /* NotesShareText.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -294,6 +394,18 @@
 			isa = PBXTargetDependency;
 			target = 84CAD8C62F56A2E7001B73F1 /* blnd_ios */;
 			targetProxy = 84CAD8DF2F56A2E9001B73F1 /* PBXContainerItemProxy */;
+		};
+		AA1100092F56A2E7001B0009 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 84CAD8BF2F56A2E7001B73F1 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AA1100012F56A2E7001B0001;
+			remoteInfo = ShareExtension;
+		};
+		AA11000A2F56A2E7001B000A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AA1100012F56A2E7001B0001 /* ShareExtension */;
+			targetProxy = AA1100092F56A2E7001B0009 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -575,6 +687,60 @@
 			};
 			name = Release;
 		};
+		AA11000B2F56A2E9001B000B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = ShareExtension/ShareExtension.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				DEVELOPMENT_TEAM = 22FH42LJ33;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ShareExtension/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = blnd;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 7;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.jonathan.blnd-ios.ShareExtension";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		AA11000C2F56A2E9001B000C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = ShareExtension/ShareExtension.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				DEVELOPMENT_TEAM = 22FH42LJ33;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ShareExtension/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = blnd;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 7;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.jonathan.blnd-ios.ShareExtension";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -610,6 +776,15 @@
 			buildConfigurations = (
 				84CAD8EF2F56A2E9001B73F1 /* Debug */,
 				84CAD8F02F56A2E9001B73F1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AA11000D2F56A2E9001B000D /* Build configuration list for PBXNativeTarget "ShareExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA11000B2F56A2E9001B000B /* Debug */,
+				AA11000C2F56A2E9001B000C /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
