@@ -4,6 +4,8 @@ import Foundation
 
 enum MediaType: String, Codable {
     case movie
+    // Backend uses the short "tv" media_type string.
+    // swiftlint:disable:next identifier_name
     case tv
 }
 

@@ -119,15 +119,7 @@ class AuthState {
 
         do {
             let user = try await AuthAPI.me()
-            currentUser = user
-            phase = user.username != nil ? .authenticated : .onboardingPending
-            if phase == .authenticated {
-                await UserActionCache.shared.bootstrap()
-                if let uid = KeychainManager.readString(key: "userId") {
-                    Analytics.identify(userId: uid)
-                    await logInRevenueCat(userId: uid)
-                }
-            }
+            await applySession(user)
         } catch APIError.unauthorized {
             // Tokens definitively rejected - real sign-out. (APIClient's
             // forceLogoutNotification also lands here when refresh fails.)
@@ -141,22 +133,10 @@ class AuthState {
                 try? await Task.sleep(
                     nanoseconds: UInt64(delaySeconds * 1_000_000_000)
                 )
-                do {
-                    let user = try await AuthAPI.me()
-                    currentUser = user
-                    phase = user.username != nil ? .authenticated : .onboardingPending
-                    if phase == .authenticated {
-                        await UserActionCache.shared.bootstrap()
-                        if let uid = KeychainManager.readString(key: "userId") {
-                            Analytics.identify(userId: uid)
-                            await logInRevenueCat(userId: uid)
-                        }
-                    }
-                    isCheckingSession = false
-                    return
-                } catch {
-                    lastError = error
-                }
+                guard let user = try? await AuthAPI.me() else { continue }
+                await applySession(user)
+                isCheckingSession = false
+                return
             }
             // Still failing: show sign-in, but tokens stay in the Keychain so
             // the next launch (or a successful retry) restores the session.
@@ -165,6 +145,19 @@ class AuthState {
         }
 
         isCheckingSession = false
+    }
+
+    private func applySession(_ user: UserResponse) async {
+        currentUser = user
+        phase = user.username != nil ? .authenticated : .onboardingPending
+
+        guard phase == .authenticated, let uid = KeychainManager.readString(key: "userId") else {
+            return
+        }
+
+        await UserActionCache.shared.bootstrap()
+        Analytics.identify(userId: uid)
+        await logInRevenueCat(userId: uid)
     }
 
     func signup(
