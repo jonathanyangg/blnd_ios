@@ -101,7 +101,8 @@ enum NowCatalog {
             tagline: nil,
             backdropPath: nil,
             matchScore: matchScore,
-            commentCount: 0
+            commentCount: 0,
+            mediaType: .movie
         )
     }
 }

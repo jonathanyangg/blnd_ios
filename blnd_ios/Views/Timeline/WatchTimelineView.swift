@@ -153,7 +153,9 @@ struct WatchTimelineScreen: View {
             .padding(.horizontal, 40)
             .padding(.top, 48)
         case let .message(message):
-            ErrorStateView(message: message) {
+            ErrorStateView(
+                message: UserFacingError.client(.server, message: message)
+            ) {
                 Task { await loadFirst() }
             }
             .padding(.top, 32)

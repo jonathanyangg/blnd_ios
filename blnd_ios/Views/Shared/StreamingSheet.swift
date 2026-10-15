@@ -71,7 +71,10 @@ struct StreamingSheet: View {
             let response = try await MoviesAPI.getStreaming(tmdbId: tmdbId)
             payload = response.whereToWatch
             if response.whereToWatch == nil {
-                errorMessage = "Couldn't load where to watch"
+                errorMessage = UserFacingError.client(
+                    .server,
+                    message: "Couldn't load where to watch"
+                )
             }
         } catch is CancellationError {
             // View dismissed before load finished

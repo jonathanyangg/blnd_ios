@@ -37,7 +37,7 @@ struct ProfileView: View {
     @State private var catalogFilters = CatalogFilterStore.shared
     @State private var watchedRequest = 0
     @State private var watchlistRequest = 0
-    @State private var diaryReload = 0
+    @State var diaryReload = 0
 
     var body: some View {
         NavigationStack {
@@ -475,7 +475,12 @@ extension ProfileView {
 // MARK: - Data Loading
 
 extension ProfileView {
-    private func openNotificationsIfNeeded() {
+    private func openNotificationsIfNeeded(_ link: DeepLink? = nil) {
+        if case .friendRequests = link {
+            showNotifications = true
+            deepLinkState.pending = nil
+            return
+        }
         guard tabState.openNotifications else { return }
         showNotifications = true
         tabState.openNotifications = false
@@ -535,38 +540,6 @@ extension ProfileView {
         if request == watchlistRequest {
             isLoadingWatchlist = false
         }
-    }
-
-    func loadUnreadCount() async {
-        do {
-            let response = try await NotificationAPI.getInbox(limit: 1)
-            unreadCount = response.unreadCount
-        } catch {
-            // Non-critical
-        }
-    }
-
-    func loadTaste() async {
-        isLoadingTaste = true
-        do {
-            genreTaste = try await ProfileAPI.getGenreTaste()
-        } catch is CancellationError {
-            return
-        } catch { /* Non-critical — "rate more movies" fallback shown */ }
-        isLoadingTaste = false
-    }
-
-    func refreshAll() async {
-        UserActionCache.shared.invalidateGroups()
-        UserActionCache.shared.invalidateFriends()
-        async let watched: () = loadWatched()
-        async let watchlist: () = loadWatchlist()
-        async let counts: () = loadCounts()
-        async let taste: () = loadTaste()
-        async let unread: () = loadUnreadCount()
-        _ = await (watched, watchlist, counts, taste, unread)
-        diaryReload += 1
-        await authState.fetchCurrentUser()
     }
 }
 

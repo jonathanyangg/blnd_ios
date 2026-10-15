@@ -12,6 +12,7 @@ struct PosterTile: View {
             .aspectRatio(2.0 / 3.0, contentMode: .fit)
             .overlay { poster }
             .overlay(alignment: .bottomTrailing) { ratingBadge }
+            .overlay(alignment: .topLeading) { tvBadge }
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .contentShape(RoundedRectangle(cornerRadius: 8))
     }
@@ -51,19 +52,20 @@ struct PosterTile: View {
             .background(.black.opacity(0.55), in: Capsule())
             .padding(4)
         }
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-        .overlay(alignment: .topLeading) {
-            if mediaType == .tv {
-                Text("TV")
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 3)
-                    .background(.black.opacity(0.7))
-                    .clipShape(Capsule())
-                    .padding(4)
-                    .accessibilityIdentifier("tv-show-badge")
-            }
+    }
+
+    @ViewBuilder
+    private var tvBadge: some View {
+        if mediaType == .tv {
+            Text("TV")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 3)
+                .background(.black.opacity(0.7))
+                .clipShape(Capsule())
+                .padding(4)
+                .accessibilityIdentifier("tv-show-badge")
         }
     }
 }

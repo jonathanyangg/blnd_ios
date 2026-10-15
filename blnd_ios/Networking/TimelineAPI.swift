@@ -39,7 +39,14 @@ enum TimelineAPI {
     @discardableResult
     static func setWatchedWith(tmdbId: Int, userIds: [String]) async throws -> [TimelinePerson] {
         if userIds.count > DiaryCopy.maxCompanions {
-            throw APIError.badRequest(DiaryCopy.companionCapMessage)
+            throw APIError.badRequest(
+                APIFieldError(
+                    code: nil,
+                    issues: [APIIssue(field: nil, text: DiaryCopy.companionCapMessage)],
+                    raw: DiaryCopy.companionCapMessage,
+                    opensPaywall: false
+                )
+            )
         }
         let body = SetWatchedWithRequest(userIds: userIds)
         let response: WatchedWithResponse = try await APIClient.shared.request(

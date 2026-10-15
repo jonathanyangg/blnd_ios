@@ -194,9 +194,9 @@ struct ReelsFeedView: View {
         tmdbId: Int
     ) {
         toastMessage = nil
-        if lastHiddenTmdbId == tmdbId {
+        if lastNotForMeTmdbId == tmdbId {
             currentIdBinding.wrappedValue = tmdbId
-            lastHiddenTmdbId = nil
+            lastNotForMeTmdbId = nil
         }
         mutationError = copy
         mutationRetry = retry

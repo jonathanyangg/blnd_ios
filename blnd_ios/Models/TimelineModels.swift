@@ -152,12 +152,10 @@ enum TimelineLoadFailure: Equatable {
     case message(String)
 
     static func from(_ error: Error) -> TimelineLoadFailure {
-        if let api = error as? APIError, case let .notFound(message) = api {
-            if let message, !message.isEmpty { return .message(message) }
+        if let api = error as? APIError, case .notFound = api {
             return .unavailable
         }
-        let text = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-        return .message(text)
+        return .message(UserFacingError.map(error).message)
     }
 }
 
@@ -303,5 +301,9 @@ enum APIErrorEnvelope {
               !message.isEmpty
         else { return nil }
         return message
+    }
+
+    static func message(in data: Data) -> String? {
+        message(from: data)
     }
 }

@@ -150,7 +150,9 @@ private struct TimelineLiveDiary: View {
         NavigationStack {
             Group {
                 if let failure {
-                    ErrorStateView(message: failure)
+                    ErrorStateView(
+                        message: UserFacingError.client(.server, message: failure)
+                    )
                 } else if entries.isEmpty {
                     ProgressView().tint(.white)
                 } else {
@@ -185,7 +187,15 @@ private struct TimelineLiveDiary: View {
                 let (data, response) = try await URLSession.shared.data(for: request)
                 let status = (response as? HTTPURLResponse)?.statusCode ?? 0
                 guard (200 ..< 300).contains(status) else {
-                    throw APIError.badRequest(APIErrorEnvelope.message(from: data) ?? "Request failed (\(status))")
+                    let message = APIErrorEnvelope.message(from: data) ?? "Request failed (\(status))"
+                    throw APIError.badRequest(
+                        APIFieldError(
+                            code: nil,
+                            issues: [APIIssue(field: nil, text: message)],
+                            raw: message,
+                            opensPaywall: false
+                        )
+                    )
                 }
                 let decoded = try JSONDecoder().decode(TimelinePage.self, from: data)
                 collected.append(contentsOf: decoded.results)

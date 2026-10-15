@@ -168,8 +168,10 @@ struct TimelineTests {
     @Test func errorEnvelopeMessage() {
         let body = #"{"error":{"code":"NOT_FOUND","message":"Group not found"},"detail":"Group not found"}"#
         #expect(APIErrorEnvelope.message(from: Data(body.utf8)) == "Group not found")
-        #expect(TimelineLoadFailure.from(APIError.notFound(nil)) == .unavailable)
-        #expect(TimelineLoadFailure.from(APIError.notFound("Group not found")) == .message("Group not found"))
-        #expect(TimelineLoadFailure.from(APIError.badRequest("Invalid cursor")) == .message("Invalid cursor"))
+        #expect(TimelineLoadFailure.from(APIError.notFound) == .unavailable)
+        let invalid = APIError.badRequest(
+            APIFieldError(code: nil, issues: [], raw: "Invalid cursor", opensPaywall: false)
+        )
+        #expect(TimelineLoadFailure.from(invalid) == .message(UserFacingError.map(invalid).message))
     }
 }

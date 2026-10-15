@@ -148,7 +148,12 @@ struct CatalogFilterTests {
         {"error":{"code":"invalid_filter","message":"year_min is too small"}}
         """.utf8)
         #expect(APIErrorEnvelope.message(in: data) == "year_min is too small")
-        #expect(APIError.serverError(400, APIErrorEnvelope.message(in: data)).errorDescription == "year_min is too small")
+        let error = APIError.decode(status: 400, data: data)
+        guard case let .badRequest(info) = error else {
+            Issue.record("expected badRequest")
+            return
+        }
+        #expect(info.raw == "year_min is too small")
     }
 
     @Test func findNowEndpointCarriesFilterWhenSet() {
