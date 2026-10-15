@@ -10,6 +10,11 @@ struct BlndApp: App {
     @State private var deepLinkState = DeepLinkState()
 
     init() {
+        #if DEBUG
+        if NotesImportPreviewLaunch.isEnabled {
+            NotesImportPreviewLaunch.install()
+        }
+        #endif
         let config = PostHogConfig(apiKey: "phc_o8gysMyjwxqas8WBdUzNXwiQN9xsASDhCyetHvfnSWY5")
         config.captureScreenViews = true
         config.captureApplicationLifecycleEvents = true
@@ -37,6 +42,12 @@ struct BlndApp: App {
                     }
             }
             .preferredColorScheme(.dark)
+            .onOpenURL { url in
+                guard NotesShareText.isOpenURL(url) else { return }
+                if let text = NotesShareText.consume() {
+                    deepLinkState.pendingNotesText = text
+                }
+            }
         }
     }
 }

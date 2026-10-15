@@ -3,6 +3,17 @@
 <dict>
 	<key>API_BASE_URL</key>
 	<string>$(API_BASE_URL)</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.jonathan.blnd-ios</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>blnd</string>
+			</array>
+		</dict>
+	</array>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>blnd needs access to your photo library to set a profile picture.</string>
 	<key>NSContactsUsageDescription</key>
