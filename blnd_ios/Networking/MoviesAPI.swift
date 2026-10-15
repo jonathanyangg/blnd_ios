@@ -196,6 +196,16 @@ enum RecommendationsAPI {
         )
     }
 
+    /// POST /recommendations/{tmdb_id}/interested — positive taste signal.
+    /// Does not add the movie to a watchlist. The backend does not have this route yet.
+    static func markInterested(tmdbId: Int) async throws {
+        try await APIClient.shared.requestVoid(
+            endpoint: "/recommendations/\(tmdbId)/interested",
+            method: "POST",
+            authenticated: true
+        )
+    }
+
     /// POST /recommendations/{tmdb_id}/hide — exclude from future recs
     static func hideMovie(
         tmdbId: Int

@@ -121,13 +121,10 @@ extension HomeView {
             }
         }
         .contextMenu {
-            Button(role: .destructive) {
+            Button {
                 hideMovie(movie.tmdbId)
             } label: {
-                Label(
-                    "Not for me",
-                    systemImage: "hand.thumbsdown"
-                )
+                Label("Not for me", systemImage: "eye.slash")
             }
         }
     }
