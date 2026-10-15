@@ -15,7 +15,11 @@ struct BlndApp: App {
         config.captureApplicationLifecycleEvents = true
         PostHogSDK.shared.setup(config)
 
+        #if DEBUG
         Purchases.logLevel = .debug
+        #else
+        Purchases.logLevel = .warn
+        #endif
         Purchases.configure(withAPIKey: "appl_XsVFffVINQJHsPlnmgVzYyPAleP")
     }
 
