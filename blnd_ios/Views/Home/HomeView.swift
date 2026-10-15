@@ -18,6 +18,7 @@ struct HomeView: View {
     @Environment(AuthState.self) var authState
     @State var selectedTab: HomeTab = .forYou
     @State var showSearch = false
+    @State var showFindNow = false
     @State var showPaywall = false
     @State var viewMode: ViewMode = .reels
     @Namespace private var tabNamespace
@@ -36,6 +37,7 @@ struct HomeView: View {
     @State var showStickySearch = false
     @State var lastScrollOffset: CGFloat = 0
     @State var deepLinkTmdbId: Int?
+    @State var catalogFilters = CatalogFilterStore.shared
 
     /// Show tutorial overlay on first launch only
     @AppStorage("hasSeenReelsTutorial") private var hasSeenTutorial = false
@@ -46,16 +48,24 @@ struct HomeView: View {
                 homeHeader
                 if viewMode == .reels {
                     reelsFeed
-                        .task { await loadForYou() }
                         .allowsHitTesting(hasSeenTutorial || isLoadingFYP || fypReelMovies.isEmpty)
                 } else {
                     gridFeed
-                        .task { await loadForYou() }
                 }
+            }
+            .task(id: catalogFilters.filter) {
+                recommendations = []
+                seenFYPIds = []
+                fypReelMovies = []
+                fypCurrentId = nil
+                await loadForYou()
             }
             .background(AppTheme.background)
             .fullScreenCover(isPresented: $showSearch) {
                 NavigationStack { SearchView() }
+            }
+            .fullScreenCover(isPresented: $showFindNow) {
+                FindMovieNowView()
             }
             .onChange(of: showSearch) { _, isShowing in
                 if isShowing {
@@ -153,6 +163,12 @@ struct HomeView: View {
                         .font(.system(size: 18))
                         .foregroundStyle(.white)
                     }
+                    Button { showFindNow = true } label: {
+                        Image(systemName: "sparkle")
+                            .font(.system(size: 20))
+                            .foregroundStyle(.white)
+                    }
+                    .accessibilityIdentifier("find-movie-now-button")
                     Button { showSearch = true } label: {
                         Image(systemName: "magnifyingglass")
                             .font(.system(size: 20))
@@ -162,7 +178,14 @@ struct HomeView: View {
             }
             .padding(.top, 8)
             .padding(.horizontal, 24)
-            .padding(.bottom, 16)
+            .padding(.bottom, 12)
+
+            HStack {
+                CatalogFilterButton()
+                Spacer()
+            }
+            .padding(.horizontal, 24)
+            .padding(.bottom, 10)
 
             homeTabPicker()
                 .padding(.horizontal, 24)

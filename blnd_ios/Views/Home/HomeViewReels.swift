@@ -17,6 +17,14 @@ extension HomeView {
                     Task { await loadForYou() }
                 }
                 Spacer()
+            } else if fypReelMovies.isEmpty, catalogFilters.filter.media == .tv {
+                Spacer()
+                CatalogFilterNotice(title: "TV recommendations are coming soon")
+                Spacer()
+            } else if fypReelMovies.isEmpty, catalogFilters.filter.isActive {
+                Spacer()
+                CatalogFilterNotice(title: "Nothing matches this filter")
+                Spacer()
             } else {
                 ReelsFeedView(
                     movies: fypReelMovies,

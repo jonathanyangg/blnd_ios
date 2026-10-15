@@ -32,11 +32,11 @@ enum ImportAPI {
         let (data, response) = try await URLSession.shared.data(for: request)
 
         guard let http = response as? HTTPURLResponse else {
-            throw APIError.serverError(0)
+            throw APIError.serverError(0, nil)
         }
 
         guard 200 ..< 300 ~= http.statusCode else {
-            throw APIError.serverError(http.statusCode)
+            throw APIError.serverError(http.statusCode, APIErrorEnvelope.message(in: data))
         }
 
         return try JSONDecoder().decode(ImportSummaryResponse.self, from: data)

@@ -31,6 +31,9 @@ struct ProfileView: View {
 
     @State private var watchedSort: MovieSortOption = .dateDesc
     @State private var watchlistSort: MovieSortOption = .dateDesc
+    @State private var catalogFilters = CatalogFilterStore.shared
+    @State private var watchedRequest = 0
+    @State private var watchlistRequest = 0
 
     var body: some View {
         NavigationStack {
@@ -100,6 +103,12 @@ struct ProfileView: View {
                 async let taste: () = loadTaste()
                 async let unread: () = loadUnreadCount()
                 _ = await (watched, watchlist, counts, taste, unread)
+            }
+            .onChange(of: catalogFilters.filter) {
+                Task {
+                    await loadWatched()
+                    await loadWatchlist()
+                }
             }
             .onChange(of: showNotifications) {
                 if !showNotifications {
@@ -282,6 +291,10 @@ struct ProfileView: View {
             }
 
             Spacer()
+            if selectedTab != .taste {
+                CatalogFilterButton()
+                    .offset(y: -4)
+            }
         }
         .frame(maxWidth: .infinity)
     }
@@ -324,14 +337,20 @@ extension ProfileView {
                     .tint(.white)
                     .padding(.top, 40)
             } else if watchedMovies.isEmpty {
-                emptyState(message: "No watched movies yet")
+                emptyState(message: catalogFilters.filter.isActive
+                    ? "Nothing matches this filter"
+                    : "No watched movies yet")
             } else {
                 PosterGrid {
                     ForEach(watchedMovies) { movie in
                         NavigationLink {
                             MovieDetailView(tmdbId: movie.tmdbId, title: movie.title, source: .profile)
                         } label: {
-                            PosterTile(posterPath: movie.posterPath, rating: movie.rating)
+                            PosterTile(
+                                posterPath: movie.posterPath,
+                                rating: movie.rating,
+                                mediaType: movie.mediaType
+                            )
                         }
                         .buttonStyle(.plain)
                         .id(movie.tmdbId)
@@ -348,14 +367,20 @@ extension ProfileView {
                     .tint(.white)
                     .padding(.top, 40)
             } else if watchlistMovies.isEmpty {
-                emptyState(message: "Your watchlist is empty")
+                emptyState(message: catalogFilters.filter.isActive
+                    ? "Nothing matches this filter"
+                    : "Your watchlist is empty")
             } else {
                 PosterGrid {
                     ForEach(watchlistMovies) { movie in
                         NavigationLink {
                             MovieDetailView(tmdbId: movie.tmdbId, title: movie.title, source: .watchlist)
                         } label: {
-                            PosterTile(posterPath: movie.posterPath, rating: nil)
+                            PosterTile(
+                                posterPath: movie.posterPath,
+                                rating: nil,
+                                mediaType: movie.mediaType
+                            )
                         }
                         .buttonStyle(.plain)
                         .id(movie.tmdbId)
@@ -420,18 +445,27 @@ extension ProfileView {
 
 extension ProfileView {
     func loadWatched() async {
+        watchedRequest += 1
+        let request = watchedRequest
         isLoadingWatched = true
         do {
+            let filter = catalogFilters.current()
             let response = try await TrackingAPI.getWatchHistory(
                 limit: 50,
-                sort: watchedSort
+                sort: watchedSort,
+                filter: filter
             )
-            watchedMovies = response.results
+            guard request == watchedRequest else { return }
+            watchedMovies = response.results.filter {
+                filter.matches(mediaType: $0.mediaType, year: $0.year)
+            }
             watchedTotal = response.total
         } catch is CancellationError {
             return
         } catch { /* Non-critical — empty state shown */ }
-        isLoadingWatched = false
+        if request == watchedRequest {
+            isLoadingWatched = false
+        }
     }
 
     func loadCounts() async {
@@ -443,18 +477,27 @@ extension ProfileView {
     }
 
     func loadWatchlist() async {
+        watchlistRequest += 1
+        let request = watchlistRequest
         isLoadingWatchlist = true
         do {
+            let filter = catalogFilters.current()
             let response = try await TrackingAPI.getWatchlist(
                 limit: 50,
-                sort: watchlistSort
+                sort: watchlistSort,
+                filter: filter
             )
-            watchlistMovies = response.results
+            guard request == watchlistRequest else { return }
+            watchlistMovies = response.results.filter {
+                filter.matches(mediaType: $0.mediaType, year: $0.year)
+            }
             watchlistTotal = response.total
         } catch is CancellationError {
             return
         } catch { /* Non-critical — empty state shown */ }
-        isLoadingWatchlist = false
+        if request == watchlistRequest {
+            isLoadingWatchlist = false
+        }
     }
 
     func loadUnreadCount() async {

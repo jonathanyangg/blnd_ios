@@ -21,6 +21,7 @@ struct SearchView: View {
     @State private var selectedActor: PersonResult?
     @State private var searchMode: SearchMode = .standard
     @State private var showPaywall = false
+    @State private var catalogFilters = CatalogFilterStore.shared
 
     private let columns = [
         GridItem(.flexible(), spacing: 12),
@@ -86,6 +87,13 @@ struct SearchView: View {
             PaywallView(source: .aiSearch)
                 .environment(authState)
         }
+        .task(id: catalogFilters.filter) {
+            if searchMode == .standard, !debouncedQuery.isEmpty {
+                await search(query: debouncedQuery)
+            } else if searchMode == .aiSearch {
+                await aiSearch()
+            }
+        }
     }
 
     // MARK: - Mode Toggle
@@ -95,6 +103,7 @@ struct SearchView: View {
             modeChip("Movies", mode: .standard, icon: "film")
             modeChip("AI Search", mode: .aiSearch, icon: "sparkles")
             Spacer()
+            CatalogFilterButton()
         }
         .padding(.horizontal, 24)
         .padding(.bottom, 12)
@@ -268,7 +277,9 @@ struct SearchView: View {
 
     private var aiEmptyState: some View {
         VStack(spacing: 8) {
-            Text("No results found")
+            Text(catalogFilters.filter.media == .tv
+                ? "TV recommendations are coming soon"
+                : "No results found")
                 .font(.system(size: 15, weight: .medium))
                 .foregroundStyle(.white)
             Text("Try describing the mood or vibe you're looking for")
@@ -284,19 +295,14 @@ struct SearchView: View {
     private func aiResultsGrid(cardWidth: CGFloat) -> some View {
         LazyVGrid(columns: columns, spacing: 16) {
             ForEach(aiResults) { movie in
-                NavigationLink {
-                    MovieDetailView(tmdbId: movie.tmdbId, title: movie.title, source: .search)
-                } label: {
-                    MovieCard(
-                        tmdbId: movie.tmdbId,
-                        title: movie.title,
-                        year: movie.yearString,
-                        posterPath: movie.posterPath,
-                        width: cardWidth,
-                        height: cardWidth * 1.5
-                    )
-                }
-                .buttonStyle(.plain)
+                SearchResultCard(
+                    tmdbId: movie.tmdbId,
+                    title: movie.title,
+                    year: movie.yearString,
+                    posterPath: movie.posterPath,
+                    mediaType: movie.mediaType,
+                    cardWidth: cardWidth
+                )
             }
         }
         .padding(.horizontal, 24)
@@ -384,7 +390,7 @@ private extension SearchView {
     func moviesSection(cardWidth: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             if !actorResults.isEmpty {
-                Text("Movies")
+                Text(catalogFilters.filter.media == .tv ? "TV" : "Movies")
                     .font(.system(size: 15, weight: .bold))
                     .foregroundStyle(.white)
                     .padding(.horizontal, 24)
@@ -392,20 +398,15 @@ private extension SearchView {
 
             LazyVGrid(columns: columns, spacing: 16) {
                 ForEach(results) { movie in
-                    NavigationLink {
-                        MovieDetailView(tmdbId: movie.tmdbId, title: movie.title, source: .search)
-                    } label: {
-                        MovieCard(
-                            tmdbId: movie.tmdbId,
-                            title: movie.title,
-                            year: movie.yearString,
-                            posterPath: movie.posterPath,
-                            width: cardWidth,
-                            height: cardWidth * 1.5,
-                            mediaType: movie.mediaType
-                        )
-                    }
-                    .buttonStyle(.plain)
+                    SearchResultCard(
+                        tmdbId: movie.tmdbId,
+                        title: movie.title,
+                        year: movie.yearString,
+                        posterPath: movie.posterPath,
+                        overview: movie.overview,
+                        mediaType: movie.mediaType,
+                        cardWidth: cardWidth
+                    )
                 }
             }
             .padding(.horizontal, 24)
@@ -433,17 +434,21 @@ private extension SearchView {
 
     func search(query: String) async {
         isLoading = true
+        let filter = catalogFilters.current()
         do {
-            async let movieResponse = MoviesAPI.search(query: query)
+            async let movieResponse = CatalogSearch.search(query: query, filter: filter)
             async let actorResponse = MoviesAPI.searchPerson(query: query)
             let (movies, actors) = try await (movieResponse, actorResponse)
             if debouncedQuery == query {
-                results = movies.results
+                let visible = movies.filter {
+                    filter.matches(mediaType: $0.mediaType, year: $0.year)
+                }
+                results = visible
                 actorResults = actors.results
                 hasSearched = true
                 Analytics.searchPerformed(
                     queryLength: query.count,
-                    resultCount: movies.results.count + actors.results.count
+                    resultCount: visible.count + actors.results.count
                 )
             }
         } catch {
@@ -461,13 +466,17 @@ private extension SearchView {
         isLoading = true
         hasSearched = false
         let isPremium = authState.isPremium
+        let filter = catalogFilters.current()
         do {
-            let response = try await RecommendationsAPI.semanticSearch(query: trimmed)
-            aiResults = response.results
+            let response = try await RecommendationsAPI.semanticSearch(query: trimmed, filter: filter)
+            let visible = response.results.filter {
+                filter.matches(mediaType: $0.mediaType, year: $0.year)
+            }
+            aiResults = visible
             hasSearched = true
             Analytics.aiSearchPerformed(
                 queryLength: trimmed.count,
-                resultCount: response.results.count,
+                resultCount: visible.count,
                 isPremium: isPremium,
                 hitRateLimit: false
             )

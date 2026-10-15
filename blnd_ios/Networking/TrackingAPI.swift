@@ -22,7 +22,8 @@ enum TrackingAPI {
         limit: Int = 20,
         offset: Int = 0,
         query: String? = nil,
-        sort: MovieSortOption? = nil
+        sort: MovieSortOption? = nil,
+        filter: CatalogFilter = CatalogFilter()
     ) async throws -> WatchHistoryResponse {
         var endpoint = "/tracking/?limit=\(limit)&offset=\(offset)"
         if let query, !query.isEmpty {
@@ -31,6 +32,7 @@ enum TrackingAPI {
         if let sort {
             endpoint += "&sort=\(sort.rawValue)"
         }
+        endpoint = filter.appending(to: endpoint)
         return try await APIClient.shared.request(
             endpoint: endpoint,
             authenticated: true
@@ -126,7 +128,8 @@ enum TrackingAPI {
         limit: Int = 20,
         offset: Int = 0,
         query: String? = nil,
-        sort: MovieSortOption? = nil
+        sort: MovieSortOption? = nil,
+        filter: CatalogFilter = CatalogFilter()
     ) async throws -> WatchlistResponse {
         var endpoint = "/watchlist/?limit=\(limit)&offset=\(offset)"
         if let query, !query.isEmpty {
@@ -135,6 +138,7 @@ enum TrackingAPI {
         if let sort {
             endpoint += "&sort=\(sort.rawValue)"
         }
+        endpoint = filter.appending(to: endpoint)
         return try await APIClient.shared.request(
             endpoint: endpoint,
             authenticated: true

@@ -10,7 +10,9 @@ struct ContentView: View {
 
     var body: some View {
         Group {
-            if authState.isCheckingSession {
+            if ProcessInfo.processInfo.arguments.contains("-showCatalogFilter") {
+                CatalogFilterScreenshotHost()
+            } else if authState.isCheckingSession {
                 launchScreen
             } else {
                 switch authState.phase {

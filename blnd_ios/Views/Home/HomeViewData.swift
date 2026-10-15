@@ -24,16 +24,43 @@ extension HomeView {
         isLoadingFYP = true
         fypError = nil
         do {
-            let response = try await RecommendationsAPI.getFeed()
-            recommendations = response.results
-            seenFYPIds = Set(response.results.map(\.tmdbId))
+            let filter = catalogFilters.current()
+            let page = try await nextFilteredFeed(filter: filter)
+            guard !Task.isCancelled else { return }
+            recommendations = page
             rebuildReelMovies()
         } catch {
             if !Task.isCancelled {
                 handleLoadError(error)
             }
         }
+        guard !Task.isCancelled else { return }
         isLoadingFYP = false
+    }
+
+    /// Requests up to three pages so a client-side filter can still fill the feed.
+    /// shortcut: stops after 3 pages, so a filter the backend ignores can stay short until media_type and year params are honored.
+    func nextFilteredFeed(filter: CatalogFilter) async throws -> [RecommendedMovieResponse] {
+        var matched: [RecommendedMovieResponse] = []
+        var pages = 0
+        while matched.isEmpty, pages < 3 {
+            if Task.isCancelled { return [] }
+            pages += 1
+            let response = try await RecommendationsAPI.getFeed(
+                exclude: Array(seenFYPIds),
+                filter: filter
+            )
+            if Task.isCancelled { return [] }
+            if response.results.isEmpty { break }
+            for movie in response.results {
+                seenFYPIds.insert(movie.tmdbId)
+            }
+            matched = response.results.filter {
+                filter.matches(mediaType: $0.mediaType, year: $0.year)
+            }
+            if response.results.count < 20 { break }
+        }
+        return matched
     }
 
     func loadMoreFYP() async {
@@ -42,12 +69,8 @@ extension HomeView {
         let batchNum = (seenFYPIds.count / 20) + 1
         Analytics.feedLoadMore(source: .fyp, batchNum: batchNum)
         do {
-            let response = try await RecommendationsAPI.getFeed(
-                exclude: Array(seenFYPIds)
-            )
-            let newMovies = response.results.filter {
-                !seenFYPIds.contains($0.tmdbId)
-            }
+            let filter = catalogFilters.current()
+            let newMovies = try await nextFilteredFeed(filter: filter)
             if !newMovies.isEmpty {
                 recommendations.append(contentsOf: newMovies)
                 for movie in newMovies {
@@ -69,8 +92,11 @@ extension HomeView {
         fypError = nil
         Analytics.feedRefreshed(source: .fyp)
         do {
-            let resp = try await RecommendationsAPI.refresh()
-            recommendations = resp.results
+            let filter = catalogFilters.current()
+            let resp = try await RecommendationsAPI.refresh(filter: filter)
+            recommendations = resp.results.filter {
+                filter.matches(mediaType: $0.mediaType, year: $0.year)
+            }
             seenFYPIds = Set(resp.results.map(\.tmdbId))
             rebuildReelMovies()
         } catch {
