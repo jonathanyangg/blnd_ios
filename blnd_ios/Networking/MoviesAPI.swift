@@ -99,6 +99,17 @@ enum MoviesAPI {
     }
 }
 
+/// TV endpoints (backend feature flag)
+enum TVAPI {
+    /// GET /tv/search — only available when the backend TV flag is enabled.
+    static func search(query: String, page: Int = 1) async throws -> TVSearchResponse {
+        try await APIClient.shared.request(
+            endpoint: "/tv/search?query=\(query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query)&page=\(page)",
+            authenticated: true
+        )
+    }
+}
+
 /// Actor endpoints
 enum ActorsAPI {
     /// POST /actors/{person_id}/like
