@@ -16,5 +16,27 @@
 		<true/>
 	</dict>
 #endif
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>nflx</string>
+		<string>aiv</string>
+		<string>primevideo</string>
+		<string>amazon</string>
+		<string>amzn</string>
+		<string>videos</string>
+		<string>appletv</string>
+		<string>hulu</string>
+		<string>max</string>
+		<string>hbomax</string>
+		<string>disneyplus</string>
+		<string>paramountplus</string>
+		<string>peacock</string>
+		<string>starz</string>
+		<string>showtime</string>
+		<string>mubi</string>
+		<string>tubitv</string>
+		<string>plutotv</string>
+		<string>crunchyroll</string>
+	</array>
 </dict>
 </plist>
