@@ -42,6 +42,30 @@ enum ImportAPI {
         return try JSONDecoder().decode(ImportSummaryResponse.self, from: data)
     }
 
+    /// Matches a note against movies. See `NotesImport` for the JSON contract.
+    static func importNotes(text: String) async throws -> NotesImportResponse {
+        try await APIClient.shared.request(
+            endpoint: "/import/notes",
+            method: "POST",
+            body: NotesImportRequestBody(text: text),
+            authenticated: true
+        )
+    }
+
+    /// Saves the chosen movies into Watched, Watchlist, or Interested.
+    static func commitNotes(
+        bucket: NotesImportBucket,
+        tmdbIds: [Int]
+    ) async throws -> NotesImportCommitResponse {
+        let body = NotesImportCommitBody(bucket: bucket.rawValue, tmdbIds: tmdbIds)
+        return try await APIClient.shared.request(
+            endpoint: "/import/notes/commit",
+            method: "POST",
+            body: body,
+            authenticated: true
+        )
+    }
+
     // MARK: - Private
 
     private static func buildBody(zipData: Data, boundary: String) -> Data {

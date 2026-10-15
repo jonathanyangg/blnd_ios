@@ -6,7 +6,14 @@ enum DeepLink: Equatable {
     case movieDetail(tmdbId: Int)
 }
 
+struct NotesImportLaunch: Identifiable {
+    let text: String
+    var id: String { text }
+}
+
 @Observable
 class DeepLinkState {
     var pending: DeepLink?
+    /// Note shared in from the Share Extension. The review screen reads this.
+    var pendingNotesText: String?
 }
