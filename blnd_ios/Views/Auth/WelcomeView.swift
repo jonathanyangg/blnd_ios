@@ -10,6 +10,7 @@ enum AuthRoute: Hashable {
     case onboardingComplete
     case findFriends
     case forgotPassword
+    case onboardingV2
 }
 
 /// Landing screen that routes to Sign Up or Login.
@@ -36,7 +37,7 @@ struct WelcomeView: View {
                 VStack(spacing: 8) {
                     AppButton(label: "Create Account") {
                         Analytics.onboardingStarted()
-                        path.append(AuthRoute.pickGenres)
+                        path.append(AuthRoute.onboardingV2)
                     }
 
                     AppButton(label: "Sign In", style: .ghost) {
@@ -66,6 +67,8 @@ struct WelcomeView: View {
                     FindFriendsView(path: $path)
                 case .forgotPassword:
                     ForgotPasswordView(path: $path)
+                case .onboardingV2:
+                    OnboardingV2View(path: $path)
                 }
             }
         }
