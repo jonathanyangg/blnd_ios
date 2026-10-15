@@ -207,6 +207,91 @@ struct WhereToWatchTests {
         #expect(watch.offers(.watchNow).first?.logoPath == "/a.jpg")
     }
 
+    @Test func liveMovieRentUsesTheClickRedirect() throws {
+        let response = try JSONDecoder().decode(
+            StreamingAvailabilityResponse.self,
+            from: Data(
+                """
+                {
+                  "tmdb_id": 550,
+                  "country": "us",
+                  "options": [],
+                  "where_to_watch": {
+                    "country": "US",
+                    "attribution": "JustWatch",
+                    "link": "https://www.themoviedb.org/movie/550-fight-club/watch?locale=US",
+                    "flatrate": [],
+                    "rent": [{
+                      "provider_id": 10,
+                      "provider_name": "Amazon Video",
+                      "logo_path": "/jn6TLbtaTZntTRX9UYucHJvpQx1.png",
+                      "web_url": "https://www.amazon.com/s?k=Fight%20Club%201999&i=instant-video",
+                      "app_url": "aiv://aiv/search?phrase=Fight%20Club%201999",
+                      "click_url": "http://127.0.0.1:8020/out/10/movie/550",
+                      "ios_link": "aiv://aiv/search?phrase=Fight%20Club%201999"
+                    }],
+                    "buy": []
+                  }
+                }
+                """.utf8
+            )
+        )
+        let watch = try #require(response.whereToWatch)
+        #expect(watch.attribution == "JustWatch")
+        let plan = try #require(watch.offers(.rent).first?.openPlan(kind: .rent, apiBase: apiBase))
+        #expect(plan.schemeLink == nil)
+        #expect(plan.appLink == nil)
+        #expect(plan.webLink.absoluteString == "http://127.0.0.1:8020/out/10/movie/550")
+        #expect(!plan.webLink.absoluteString.contains("tag="))
+    }
+
+    @Test func liveTvNetflixWatchNowUsesWebUrl() throws {
+        let response = try JSONDecoder().decode(
+            StreamingAvailabilityResponse.self,
+            from: Data(
+                """
+                {
+                  "tmdb_id": 1396,
+                  "country": "us",
+                  "options": [],
+                  "where_to_watch": {
+                    "country": "US",
+                    "attribution": "JustWatch",
+                    "link": "https://www.themoviedb.org/tv/1396-breaking-bad/watch?locale=US",
+                    "flatrate": [{
+                      "provider_id": 8,
+                      "provider_name": "Netflix",
+                      "logo_path": "/netflix.png",
+                      "web_url": "https://www.themoviedb.org/tv/1396-breaking-bad/watch?locale=US",
+                      "app_url": null,
+                      "click_url": null,
+                      "ios_link": null
+                    }],
+                    "rent": [],
+                    "buy": [{
+                      "provider_id": 10,
+                      "provider_name": "Amazon Video",
+                      "logo_path": "/prime.png",
+                      "web_url": "https://www.amazon.com/s?k=Breaking%20Bad%202008&i=instant-video",
+                      "app_url": "aiv://aiv/search?phrase=Breaking%20Bad%202008",
+                      "click_url": "http://127.0.0.1:8020/out/10/tv/1396",
+                      "ios_link": "aiv://aiv/search?phrase=Breaking%20Bad%202008"
+                    }]
+                  }
+                }
+                """.utf8
+            )
+        )
+        let watch = try #require(response.whereToWatch)
+        let netflix = try #require(watch.offers(.watchNow).first?.openPlan(kind: .watchNow, apiBase: apiBase))
+        #expect(netflix.appLink == nil)
+        #expect(netflix.schemeLink == nil)
+        #expect(netflix.webLink.host == "www.themoviedb.org")
+        let amazon = try #require(watch.offers(.buy).first?.openPlan(kind: .buy, apiBase: apiBase))
+        #expect(amazon.schemeLink == nil)
+        #expect(amazon.webLink.path == "/out/10/tv/1396")
+    }
+
     @Test func declaredSchemesMatchThePlist() throws {
         let plistURL = URL(filePath: #filePath)
             .deletingLastPathComponent()
