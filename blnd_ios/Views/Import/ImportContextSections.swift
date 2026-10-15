@@ -3,123 +3,83 @@ import SwiftUI
 // MARK: - View Sections
 
 extension ImportContextView {
-    // MARK: - Question
-
-    var questionContent: some View {
-        VStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Do you use Letterboxd?")
-                    .font(.system(size: 26, weight: .bold))
-                    .foregroundStyle(.white)
-
-                Text("We can import your watched movies and ratings.")
-                    .font(.system(size: 15))
-                    .foregroundStyle(AppTheme.textMuted)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.top, 32)
-            .padding(.horizontal, 24)
-
-            Spacer()
-
-            AppButton(label: "Yes") { answerUsesLetterboxd(true) }
-                .accessibilityIdentifier("import.question.yes")
-                .padding(.horizontal, 24)
-                .padding(.bottom, 8)
-
-            AppButton(label: "No", style: .ghost) { answerUsesLetterboxd(false) }
-                .accessibilityIdentifier("import.question.no")
-                .padding(.horizontal, 24)
-                .padding(.bottom, 16)
-        }
-        .background(AppTheme.background)
-        .transition(.opacity)
-    }
-
-    // MARK: - Instructions
-
     var instructionsContent: some View {
         VStack(spacing: 0) {
             ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: 20) {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Import from Letterboxd")
+                        Text("Bring your Letterboxd movies")
                             .font(.system(size: 26, weight: .bold))
                             .foregroundStyle(.white)
 
-                        Text("Bring your watched movies and ratings into blnd.")
+                        Text("Export them from Letterboxd first, then upload the file here.")
                             .font(.system(size: 15))
                             .foregroundStyle(AppTheme.textMuted)
                     }
-                    .padding(.top, 32)
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 32)
+                    .padding(.top, 8)
+                    .accessibilityIdentifier("import.guide")
 
-                    VStack(spacing: 0) {
-                        stepRow(
-                            number: 1,
-                            title: "Sign in",
-                            desc: "Log in to your Letterboxd account in the browser"
-                        )
-                        stepDivider()
-                        stepRow(
-                            number: 2,
-                            title: "Export data",
-                            desc: "Tap the \"Export Your Data\" button on the settings page"
-                        )
-                        stepDivider()
-                        stepRow(
-                            number: 3,
-                            title: "Done",
-                            desc: "We'll import your ratings automatically"
-                        )
-                    }
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 32)
-
-                    privacyNote
+                    exportStep
+                    uploadStep
                 }
-            }
-
-            AppButton(label: "Continue") {
-                showWebView = true
-            }
-            .accessibilityIdentifier("import.continue")
-            .padding(.horizontal, 24)
-            .padding(.bottom, onSkip == nil ? 16 : 8)
-
-            if let onSkip {
-                AppButton(label: "Skip", style: .ghost) {
-                    onSkip()
-                }
-                .accessibilityIdentifier("import.skip")
                 .padding(.horizontal, 24)
-                .padding(.bottom, 16)
+                .padding(.top, 24)
+                .padding(.bottom, 12)
             }
+
+            skipForNowButton
         }
         .background(AppTheme.background)
         .navigationBarBackButtonHidden(false)
     }
 
-    // MARK: - Loading
+    var exportStep: some View {
+        stepCard(
+            number: 1,
+            symbol: "arrow.up.doc",
+            title: "Export from Letterboxd",
+            note: "Sign in, tap Export Your Data, and look for the .zip in Files."
+        ) {
+            AppButton(label: "Open Letterboxd") { openLetterboxdExportPage() }
+                .accessibilityIdentifier("import.export")
+        }
+    }
+
+    var uploadStep: some View {
+        stepCard(
+            number: 2,
+            symbol: "tray.and.arrow.down",
+            title: "Upload to blnd",
+            note: "Choose the .zip, or watched.csv or ratings.csv."
+        ) {
+            AppButton(label: "Choose a file") { showFileImporter = true }
+                .accessibilityIdentifier("import.upload")
+        }
+    }
 
     var loadingContent: some View {
         VStack(spacing: 16) {
             Spacer()
+            Image(systemName: "film.stack")
+                .font(.system(size: 40, weight: .light))
+                .foregroundStyle(.white)
+                .accessibilityHidden(true)
             ProgressView()
                 .tint(.white)
                 .scaleEffect(1.1)
-            Text("Importing your movies...")
+            Text("Importing your movies")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(.white)
+            Text("This can take a minute.")
                 .font(.system(size: 15))
                 .foregroundStyle(AppTheme.textMuted)
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(AppTheme.background)
+        .accessibilityIdentifier("import.progress")
         .transition(.opacity)
     }
-
-    // MARK: - Results
 
     func resultsContent(summary: ImportSummaryResponse) -> some View {
         VStack(spacing: 0) {
@@ -142,7 +102,35 @@ extension ImportContextView {
         .transition(.opacity)
     }
 
-    // MARK: - Error
+    func fileErrorContent(message: String) -> some View {
+        VStack(spacing: 0) {
+            Spacer()
+            VStack(spacing: 14) {
+                Image(systemName: "doc.questionmark")
+                    .font(.system(size: 40, weight: .light))
+                    .foregroundStyle(.white)
+                    .accessibilityHidden(true)
+                Text("We couldn't use that file")
+                    .font(.system(size: 22, weight: .bold))
+                    .foregroundStyle(.white)
+                    .accessibilityIdentifier("import.wrongFile")
+                Text(message)
+                    .font(.system(size: 15))
+                    .foregroundStyle(AppTheme.textMuted)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 24)
+            }
+            Spacer()
+            AppButton(label: "Choose another file") { chooseAnotherFile() }
+                .accessibilityIdentifier("import.chooseAgain")
+                .padding(.horizontal, 24)
+                .padding(.bottom, 8)
+            skipForNowButton
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(AppTheme.background)
+        .transition(.opacity)
+    }
 
     func errorContent(message: String) -> some View {
         VStack(spacing: 0) {
@@ -151,7 +139,7 @@ extension ImportContextView {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .font(.system(size: 40))
                     .foregroundStyle(.red)
-                Text("Import Failed")
+                Text("Import failed")
                     .font(.system(size: 22, weight: .bold))
                     .foregroundStyle(.white)
                 Text(message)
@@ -165,12 +153,10 @@ extension ImportContextView {
                 AppButton(label: "Back", style: .ghost) {
                     withAnimation {
                         viewState = .instructions
-                        capturedZipData = nil
+                        zipData = nil
                     }
                 }
-                AppButton(label: "Try Again") {
-                    startUpload()
-                }
+                AppButton(label: "Try Again") { startUpload() }
             }
             .padding(.horizontal, 24)
             .padding(.bottom, 16)
@@ -181,54 +167,59 @@ extension ImportContextView {
     }
 }
 
-// MARK: - Helpers
-
 extension ImportContextView {
-    func stepRow(number: Int, title: String, desc: String) -> some View {
+    func stepCard<Action: View>(
+        number: Int,
+        symbol: String,
+        title: String,
+        note: String,
+        @ViewBuilder action: () -> Action
+    ) -> some View {
         HStack(alignment: .top, spacing: 14) {
-            Text("\(number)")
-                .font(.system(size: 13, weight: .bold))
-                .foregroundStyle(.black)
-                .frame(width: 24, height: 24)
-                .background(.white)
-                .clipShape(Circle())
-
-            VStack(alignment: .leading, spacing: 3) {
+            stepIllustration(symbol, number: number)
+            VStack(alignment: .leading, spacing: 10) {
                 Text(title)
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.system(size: 17, weight: .semibold))
                     .foregroundStyle(.white)
-                Text(desc)
+                Text(note)
                     .font(.system(size: 14))
                     .foregroundStyle(AppTheme.textMuted)
-                    .lineSpacing(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                action()
             }
-            Spacer()
         }
-        .padding(.vertical, 14)
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(AppTheme.card)
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cornerRadiusMedium))
     }
 
-    func stepDivider() -> some View {
-        Divider()
-            .overlay(AppTheme.border)
-            .padding(.leading, 38)
+    func stepIllustration(_ symbol: String, number: Int) -> some View {
+        ZStack(alignment: .topLeading) {
+            Image(systemName: symbol)
+                .font(.system(size: 22, weight: .medium))
+                .foregroundStyle(.white)
+                .frame(width: 52, height: 52)
+                .background(AppTheme.cardSecondary)
+                .clipShape(RoundedRectangle(cornerRadius: 14))
+            Text("\(number)")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(.black)
+                .frame(width: 18, height: 18)
+                .background(.white)
+                .clipShape(Circle())
+                .offset(x: -6, y: -6)
+        }
+        .padding(.top, 6)
+        .padding(.leading, 6)
+        .accessibilityHidden(true)
     }
 
-    var privacyNote: some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: "info.circle")
-                .font(.system(size: 14))
-                .foregroundStyle(AppTheme.textDim)
-                .padding(.top, 1)
-
-            Text(
-                "Your Letterboxd credentials are never stored. "
-                    + "The browser session is discarded after import."
-            )
-            .font(.system(size: 13))
-            .foregroundStyle(AppTheme.textDim)
-            .lineSpacing(2)
-        }
-        .padding(.horizontal, 24)
+    var skipForNowButton: some View {
+        AppButton(label: "Skip for now", style: .ghost) { skipForNow() }
+            .accessibilityIdentifier("import.skip")
+            .padding(.horizontal, 24)
+            .padding(.bottom, 16)
     }
 
     func resultHeader(summary: ImportSummaryResponse) -> some View {
@@ -236,21 +227,54 @@ extension ImportContextView {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 44))
                 .foregroundStyle(.green)
-                .padding(.top, 60)
+                .padding(.top, 48)
+                .accessibilityHidden(true)
 
-            Text("Import Complete")
-                .font(.system(size: 24, weight: .bold))
+            Text("All set")
+                .font(.system(size: 26, weight: .bold))
                 .foregroundStyle(.white)
 
-            VStack(spacing: 4) {
-                Text("\(summary.imported)")
-                    .font(.system(size: 56, weight: .bold))
-                    .foregroundStyle(.white)
-                Text("movies imported")
-                    .font(.system(size: 15))
-                    .foregroundStyle(AppTheme.textMuted)
+            HStack(spacing: 28) {
+                importStat(
+                    count: summary.imported,
+                    singular: "movie",
+                    plural: "movies",
+                    symbol: "film",
+                    identifier: "import.movies"
+                )
+                importStat(
+                    count: importedRatings,
+                    singular: "rating",
+                    plural: "ratings",
+                    symbol: "star",
+                    identifier: "import.ratings"
+                )
             }
         }
+    }
+
+    func importStat(
+        count: Int,
+        singular: String,
+        plural: String,
+        symbol: String,
+        identifier: String
+    ) -> some View {
+        VStack(spacing: 4) {
+            Image(systemName: symbol)
+                .font(.system(size: 16, weight: .medium))
+                .foregroundStyle(AppTheme.textMuted)
+            Text("\(count)")
+                .font(.system(size: 40, weight: .bold))
+                .foregroundStyle(.white)
+            Text(count == 1 ? singular : plural)
+                .font(.system(size: 15))
+                .foregroundStyle(AppTheme.textMuted)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+        }
+        .accessibilityIdentifier(identifier)
+        .accessibilityLabel("\(count) \(count == 1 ? singular : plural)")
     }
 
     @ViewBuilder

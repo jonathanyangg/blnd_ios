@@ -401,7 +401,8 @@ private extension SearchView {
                             year: movie.yearString,
                             posterPath: movie.posterPath,
                             width: cardWidth,
-                            height: cardWidth * 1.5
+                            height: cardWidth * 1.5,
+                            mediaType: movie.mediaType
                         )
                     }
                     .buttonStyle(.plain)
