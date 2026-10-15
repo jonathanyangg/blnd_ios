@@ -22,6 +22,9 @@ enum UITestLaunch {
         case onboardFriends
         case onboardFeed
         case reelTutorial
+        case notifications
+        case notificationsPrivacy
+        case notificationsError
     }
 
     static var screen: Screen? {
@@ -112,6 +115,18 @@ struct UITestHost: View {
             OnboardingV2View(path: .constant(NavigationPath()), preview: .friends)
         case .reelTutorial:
             HomeView()
+        case .notifications:
+            NavigationStack {
+                ActivityFeedView(preview: ActivityPreview.sample())
+            }
+        case .notificationsPrivacy:
+            NavigationStack {
+                NotificationsSettingsView(preview: NotificationPrivacyPrefs())
+            }
+        case .notificationsError:
+            NavigationStack {
+                ActivityFeedView(forcedError: "No internet connection")
+            }
         }
     }
 }

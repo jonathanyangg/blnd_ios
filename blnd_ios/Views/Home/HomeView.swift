@@ -39,6 +39,7 @@ struct HomeView: View {
     @State var lastScrollOffset: CGFloat = 0
     @State var deepLinkTmdbId: Int?
     @State var catalogFilters = CatalogFilterStore.shared
+    @State var deepLinkCommentsId: Int?
 
     /// Show the reel coach once. The key matches `ReelTutorialStore`.
     @AppStorage(ReelTutorialStore.seenKey) private var hasSeenTutorial = false
@@ -106,17 +107,14 @@ struct HomeView: View {
             .navigationDestination(item: $deepLinkTmdbId) { tmdbId in
                 MovieDetailView(tmdbId: tmdbId, source: .notification)
             }
+            .navigationDestination(item: $deepLinkCommentsId) { tmdbId in
+                MovieCommentsView(tmdbId: tmdbId, movieTitle: "Comments")
+            }
             .onChange(of: deepLinkState.pending) { _, newValue in
-                if case let .movieDetail(tmdbId) = newValue {
-                    deepLinkTmdbId = tmdbId
-                    deepLinkState.pending = nil
-                }
+                consumeHomeLink(newValue)
             }
             .onAppear {
-                if case let .movieDetail(tmdbId) = deepLinkState.pending {
-                    deepLinkTmdbId = tmdbId
-                    deepLinkState.pending = nil
-                }
+                consumeHomeLink(deepLinkState.pending)
             }
             .overlay(alignment: .top) {
                 if let toast = toastMessage {
@@ -275,6 +273,19 @@ struct HomeView: View {
                     }
                 }
             }
+        }
+    }
+
+    private func consumeHomeLink(_ link: DeepLink?) {
+        switch link {
+        case let .movieDetail(tmdbId):
+            deepLinkTmdbId = tmdbId
+            deepLinkState.pending = nil
+        case let .comments(tmdbId):
+            deepLinkCommentsId = tmdbId
+            deepLinkState.pending = nil
+        default:
+            break
         }
     }
 }

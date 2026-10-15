@@ -54,7 +54,7 @@ struct MainTabView: View {
                 tabState.openNotifications = true
             case .groupDetail:
                 tabState.selectedTab = 1
-            case .movieDetail:
+            case .movieDetail, .comments:
                 tabState.selectedTab = 0
             }
         }
