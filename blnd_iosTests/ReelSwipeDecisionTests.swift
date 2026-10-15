@@ -1,4 +1,5 @@
 @testable import blnd_ios
+import Foundation
 import Testing
 
 struct ReelSwipeDecisionTests {
