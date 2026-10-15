@@ -47,9 +47,28 @@ extension MovieDetailView {
         .padding(.horizontal, 24)
     }
 
+    var whereToWatchSection: some View {
+        WhereToWatchSection(
+            payload: whereToWatch,
+            isLoading: watchLoading,
+            failed: watchFailed,
+            isPremium: authState.isPremium
+        ) { offer, kind in
+            Task { await WatchLinkOpener.open(offer, kind: kind) }
+        }
+    }
+
+    var bestWatchNow: WatchOffer? {
+        whereToWatch?.offers(.watchNow).first
+    }
+
     var actionButtonsRow: some View {
         HStack(spacing: 10) {
-            Button { showStreamingSheet = true } label: {
+            Button {
+                guard let offer = bestWatchNow else { return }
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                Task { await WatchLinkOpener.open(offer, kind: .watchNow) }
+            } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "play.circle.fill")
                         .font(.system(size: 14, weight: .semibold))
@@ -63,7 +82,9 @@ extension MovieDetailView {
                 .clipShape(
                     RoundedRectangle(cornerRadius: AppTheme.cornerRadiusMedium)
                 )
+                .opacity(bestWatchNow == nil && !watchLoading ? 0.45 : 1)
             }
+            .disabled(bestWatchNow == nil && !watchLoading)
 
             Button { showWatchlistSheet = true } label: {
                 HStack(spacing: 6) {
@@ -283,11 +304,41 @@ extension MovieDetailView {
     /// Pull-to-refresh: reloads the movie (incl. comment count), watched/rating,
     /// hidden, and friends state without flashing the loading spinner.
     func refreshAll() async {
+        if mediaType == .tv {
+            await loadWhereToWatch(showLoading: false)
+            return
+        }
         async let movie: () = fetchMovie(showLoading: false)
+        async let watch: () = loadWhereToWatch(showLoading: false)
         async let watched: () = checkWatchedStatus()
         async let hidden: () = checkHiddenStatus()
         async let friends: () = loadFriendsWhoWatched()
-        _ = await (movie, watched, hidden, friends)
+        _ = await (movie, watch, watched, hidden, friends)
+    }
+
+    /// `showLoading` is false on pull-to-refresh so a failure keeps the offers
+    /// already on screen.
+    func loadWhereToWatch(showLoading: Bool = true) async {
+        if showLoading {
+            watchLoading = true
+            watchFailed = false
+        }
+        defer { watchLoading = false }
+        let type = mediaType ?? movie?.mediaType ?? .movie
+        do {
+            let response = try await MoviesAPI.getStreaming(
+                tmdbId: tmdbId,
+                mediaType: type
+            )
+            whereToWatch = response.whereToWatch
+            watchFailed = response.whereToWatch == nil
+        } catch is CancellationError {
+            return
+        } catch {
+            guard whereToWatch == nil else { return }
+            whereToWatch = nil
+            watchFailed = true
+        }
     }
 
     func checkWatchedStatus() async {
