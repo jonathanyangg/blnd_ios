@@ -173,7 +173,11 @@ struct WhereToWatchTests {
             .deletingLastPathComponent()
             .deletingLastPathComponent()
             .appending(path: "blnd-ios-Info.plist")
-        let data = try Data(contentsOf: plistURL)
+        // The source plist is preprocessed (#if DEBUG), so drop directive lines before parsing.
+        let raw = try String(contentsOf: plistURL, encoding: .utf8)
+        let data = Data(raw.split(separator: "\n", omittingEmptySubsequences: false)
+            .filter { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("#") }
+            .joined(separator: "\n").utf8)
         let plist = try PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any]
         let declared = try #require(plist?["LSApplicationQueriesSchemes"] as? [String])
         #expect(Set(declared) == StreamingOption.querySchemes)
