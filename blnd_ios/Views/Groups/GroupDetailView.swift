@@ -220,7 +220,7 @@ struct GroupDetailView: View {
             isEditingName = true
         } label: {
             HStack(spacing: 6) {
-                Text(group.name)
+                Text(group.displayTitle)
                     .font(.system(size: 17, weight: .bold))
                     .foregroundStyle(.white)
                     .lineLimit(1)

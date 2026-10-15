@@ -9,6 +9,7 @@ struct GroupsListView: View {
     @State private var showCreateGroup = false
     @State private var deepLinkGroupId: Int?
     @State private var searchQuery = ""
+    @State private var resolvedNames: [Int: [String]] = [:]
 
     var body: some View {
         NavigationStack {
@@ -80,14 +81,17 @@ struct GroupsListView: View {
                         .padding(.horizontal, 40)
                         .padding(.top, 60)
                     } else {
-                        let filtered = searchQuery.trimmingCharacters(in: .whitespaces).isEmpty
+                        let query = searchQuery.trimmingCharacters(in: .whitespaces)
+                        let filtered = query.isEmpty
                             ? groups
-                            : groups.filter { $0.name.localizedCaseInsensitiveContains(searchQuery) }
+                            : groups.filter {
+                                title(for: $0).localizedCaseInsensitiveContains(query)
+                            }
                         ForEach(filtered) { group in
                             NavigationLink {
                                 GroupDetailView(groupId: group.id)
                             } label: {
-                                GroupCardRow(group: group)
+                                GroupCardRow(group: group, title: title(for: group))
                             }
                             .buttonStyle(.plain)
                         }
@@ -130,6 +134,7 @@ struct GroupsListView: View {
         do {
             let result = try await GroupsAPI.listGroups()
             groups = result.groups
+            resolvedNames = await GroupsAPI.memberNamesForUnnamedGroups(groups)
         } catch is CancellationError {
             return
         } catch {
@@ -139,17 +144,22 @@ struct GroupsListView: View {
         }
         isLoading = false
     }
+
+    private func title(for group: GroupResponse) -> String {
+        group.displayTitle(resolvedNames: resolvedNames[group.id] ?? [])
+    }
 }
 
 // MARK: - Group Card Row
 
 private struct GroupCardRow: View {
     let group: GroupResponse
+    let title: String
 
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text(group.name)
+                Text(title)
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(.white)
                 Text("\(group.memberCount) members")

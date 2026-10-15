@@ -13,6 +13,7 @@ struct WatchlistPickerSheet: View {
     @State private var saveError: UserFacingError?
     @State private var saveRetry: (() -> Void)?
     @State private var searchQuery = ""
+    @State private var resolvedNames: [Int: [String]] = [:]
 
     // Tracks current checked state for personal + each group
     @State private var personalChecked = false
@@ -28,7 +29,9 @@ struct WatchlistPickerSheet: View {
 
     private var filteredGroups: [GroupResponse] {
         guard !trimmedQuery.isEmpty else { return groups }
-        return groups.filter { $0.name.lowercased().contains(trimmedQuery) }
+        return groups.filter {
+            title(for: $0).lowercased().contains(trimmedQuery)
+        }
     }
 
     private var showPersonalSection: Bool {
@@ -179,7 +182,7 @@ struct WatchlistPickerSheet: View {
                         ForEach(visibleGroups) { group in
                             checkRow(
                                 icon: "person.3.fill",
-                                label: group.name,
+                                label: title(for: group),
                                 subtitle: "\(group.memberCount) members",
                                 checked: groupChecked[group.id] ?? false
                             ) {
@@ -239,6 +242,10 @@ struct WatchlistPickerSheet: View {
         }
     }
 
+    private func title(for group: GroupResponse) -> String {
+        group.displayTitle(resolvedNames: resolvedNames[group.id] ?? [])
+    }
+
     // MARK: - Data
 
     private func loadState() async {
@@ -246,6 +253,7 @@ struct WatchlistPickerSheet: View {
 
         // Use cached groups + only fetch group watchlist status from API
         groups = await cache.fetchGroups()
+        resolvedNames = await GroupsAPI.memberNamesForUnnamedGroups(groups)
         personalChecked = cache.isWatchlisted(tmdbId) || isWatched
         initialPersonal = personalChecked
 
