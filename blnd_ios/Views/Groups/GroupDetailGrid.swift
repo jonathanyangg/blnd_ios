@@ -16,6 +16,8 @@ extension GroupDetailView {
                             cardWidth: cardWidth,
                             cardHeight: cardHeight
                         )
+                    case .timeline:
+                        EmptyView()
                     case .watchlist:
                         watchlistGrid(
                             cardWidth: cardWidth,
@@ -33,7 +35,7 @@ extension GroupDetailView {
     private var gridScrollBinding: Binding<Int?> {
         switch selectedTab {
         case .blendPicks: $blendCurrentId
-        case .watchlist: $watchlistCurrentId
+        case .timeline, .watchlist: $watchlistCurrentId
         }
     }
 

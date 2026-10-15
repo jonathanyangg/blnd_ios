@@ -21,6 +21,7 @@ struct MovieDetailView: View {
     @State var isHidden = false
     @State var showHideConfirm = false
     @State var showCommentsSheet = false
+    @State var showLogSheet = false
     @State var overviewExpanded = false
     @State var whereToWatch: WhereToWatch?
     @State var watchLoading = true
@@ -211,6 +212,7 @@ struct MovieDetailView: View {
                 .padding(.bottom, 20)
 
             detailRatingBar
+            watchedWithRow
             actionButtonsRow
             whereToWatchSection
             FriendsWhoWatchedSection(friends: friendsWhoWatched)

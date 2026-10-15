@@ -36,6 +36,7 @@ extension GroupDetailView {
             watchlist = watchlistData.results.filter {
                 filter.matches(mediaType: $0.mediaType, year: $0.year)
             }
+            timelineReload += 1
         } catch {
             let copy = UserFacingError.capture(error, screen: "Blend")
             if case APIError.rateLimited = error {

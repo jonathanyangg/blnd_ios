@@ -37,13 +37,7 @@ struct BlndApp: App {
                     ZStack {
                         AppTheme.background
                             .ignoresSafeArea()
-                        ContentView()
-                            .environment(authState)
-                            .environment(onboardingState)
-                            .environment(deepLinkState)
-                            .onAppear {
-                                appDelegate.deepLinkState = deepLinkState
-                            }
+                        root
                     }
                 }
             }
@@ -55,5 +49,28 @@ struct BlndApp: App {
                 }
             }
         }
+    }
+
+    private var mainContent: some View {
+        ContentView()
+            .environment(authState)
+            .environment(onboardingState)
+            .environment(deepLinkState)
+            .onAppear {
+                appDelegate.deepLinkState = deepLinkState
+            }
+    }
+
+    @ViewBuilder
+    private var root: some View {
+        #if DEBUG
+            if TimelinePreview.isEnabled {
+                TimelinePreviewHost()
+            } else {
+                mainContent
+            }
+        #else
+            mainContent
+        #endif
     }
 }
