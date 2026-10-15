@@ -116,7 +116,7 @@ final class TrailerPlayer {
                 playerVars: {
                     playsinline: 1,
                     autoplay: 1,
-                    controls: 2,
+                    controls: 0,
                     rel: 0,
                     showinfo: 0,
                     modestbranding: 1,
@@ -262,6 +262,7 @@ struct ReelTrailerView: UIViewRepresentable {
     func updateUIView(_ container: UIView, context: Context) {
         let trailerWebView = TrailerPlayer.shared.webView
 
+        trailerWebView.isUserInteractionEnabled = false
         if trailerWebView.superview != container {
             trailerWebView.removeFromSuperview()
             trailerWebView.frame = container.bounds
