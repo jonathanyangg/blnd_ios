@@ -217,7 +217,9 @@ final class TrailerPlayer {
             for action: WKNavigationAction,
             windowFeatures: WKWindowFeatures
         ) -> WKWebView? {
-            if let url = action.request.url {
+            // Only a real tap may leave the app. Embed popups (ads, end screens)
+            // were opening Safari on their own and leaving the feed hung.
+            if action.navigationType == .linkActivated, let url = action.request.url {
                 UIApplication.shared.open(url)
             }
             return nil
@@ -240,8 +242,10 @@ final class TrailerPlayer {
                     || host.contains("youtu.be")
             ) && !host.contains("youtube-nocookie.com")
 
-            if isYouTubeNav {
+            if isYouTubeNav, action.navigationType == .linkActivated {
                 UIApplication.shared.open(url)
+                decisionHandler(.cancel)
+            } else if isYouTubeNav {
                 decisionHandler(.cancel)
             } else {
                 decisionHandler(.allow)
