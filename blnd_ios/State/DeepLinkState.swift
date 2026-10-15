@@ -4,6 +4,7 @@ enum DeepLink: Equatable {
     case friendRequests
     case groupDetail(groupId: Int)
     case movieDetail(tmdbId: Int)
+    case comments(tmdbId: Int)
 }
 
 @Observable

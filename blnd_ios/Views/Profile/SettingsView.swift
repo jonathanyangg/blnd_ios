@@ -81,7 +81,7 @@ struct SettingsView: View {
                             destination = .account
                         }
                         Divider().background(AppTheme.cardSecondary)
-                        settingsRow("Notifications", icon: "bell") {
+                        settingsRow("Notifications & Privacy", icon: "bell") {
                             destination = .notifications
                         }
                         Divider().background(AppTheme.cardSecondary)

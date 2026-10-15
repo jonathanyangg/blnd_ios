@@ -21,16 +21,22 @@ struct BlndApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ZStack {
-                AppTheme.background
-                    .ignoresSafeArea()
-                ContentView()
-                    .environment(authState)
-                    .environment(onboardingState)
-                    .environment(deepLinkState)
-                    .onAppear {
-                        appDelegate.deepLinkState = deepLinkState
+            Group {
+                if let screen = UITestLaunch.screen {
+                    UITestHost(screen: screen)
+                } else {
+                    ZStack {
+                        AppTheme.background
+                            .ignoresSafeArea()
+                        ContentView()
+                            .environment(authState)
+                            .environment(onboardingState)
+                            .environment(deepLinkState)
+                            .onAppear {
+                                appDelegate.deepLinkState = deepLinkState
+                            }
                     }
+                }
             }
             .preferredColorScheme(.dark)
         }
