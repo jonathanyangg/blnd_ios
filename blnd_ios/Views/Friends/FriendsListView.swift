@@ -1,97 +1,64 @@
 import SwiftUI
 
 struct FriendsListView: View {
-    @Environment(TabState.self) private var tabState
-    @Environment(DeepLinkState.self) private var deepLinkState
     @State private var friends: [FriendResponse] = []
-    @State private var pendingRequests: PendingRequestsResponse?
     @State private var isLoading = true
     @State private var errorMessage: String?
     @State private var showAddFriend = false
-    @State private var selectedTab = 0
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 0) {
-                    // Header
-                    HStack {
-                        Text("Friends")
-                            .font(.system(size: 32, weight: .bold))
+        ScrollView {
+            VStack(spacing: 0) {
+                // Header
+                HStack {
+                    Text("Friends")
+                        .font(.system(size: 32, weight: .bold))
+                        .foregroundStyle(.white)
+                    Spacer()
+                    Button {
+                        showAddFriend = true
+                    } label: {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 22, weight: .medium))
                             .foregroundStyle(.white)
-                        Spacer()
-                        Button {
-                            showAddFriend = true
-                        } label: {
-                            Image(systemName: "magnifyingglass")
-                                .font(.system(size: 22, weight: .medium))
-                                .foregroundStyle(.white)
-                        }
                     }
-                    .padding(.top, 20)
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 16)
+                }
+                .padding(.top, 20)
+                .padding(.horizontal, 24)
+                .padding(.bottom, 16)
 
-                    // Tabs: Friends / Requests
-                    FriendsTabPicker(
-                        selectedTab: $selectedTab,
-                        requestCount: incomingCount
-                    )
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 16)
-
-                    if isLoading {
-                        ProgressView()
-                            .tint(.white)
-                            .padding(.top, 40)
-                    } else if let error = errorMessage {
-                        ErrorStateView(message: error) {
-                            Task { await loadData() }
-                        }
+                if isLoading {
+                    ProgressView()
+                        .tint(.white)
                         .padding(.top, 40)
-                    } else if selectedTab == 0 {
-                        friendsTab
-                    } else {
-                        requestsTab
+                } else if let error = errorMessage {
+                    ErrorStateView(message: error) {
+                        Task { await loadData() }
                     }
-                }
-            }
-            .background(AppTheme.background)
-            .sheet(isPresented: $showAddFriend) {
-                NavigationStack {
-                    AddFriendView()
-                }
-                .presentationBackground(AppTheme.background)
-            }
-            .task { await loadData() }
-            .refreshable {
-                UserActionCache.shared.invalidateFriends()
-                await loadData()
-            }
-            .onChange(of: showAddFriend) {
-                if !showAddFriend {
-                    UserActionCache.shared.invalidateFriends()
-                    Task { await loadData() }
-                }
-            }
-            .onChange(of: deepLinkState.pending) { _, newValue in
-                if case .friendRequests = newValue {
-                    selectedTab = 1
-                    deepLinkState.pending = nil
-                }
-            }
-            .onAppear {
-                if case .friendRequests = deepLinkState.pending {
-                    selectedTab = 1
-                    deepLinkState.pending = nil
+                    .padding(.top, 40)
+                } else {
+                    friendsTab
                 }
             }
         }
-        .id(tabState.navigationReset)
-    }
-
-    private var incomingCount: Int {
-        pendingRequests?.incoming.count ?? 0
+        .background(AppTheme.background)
+        .sheet(isPresented: $showAddFriend) {
+            NavigationStack {
+                AddFriendView()
+            }
+            .presentationBackground(AppTheme.background)
+        }
+        .task { await loadData() }
+        .refreshable {
+            UserActionCache.shared.invalidateFriends()
+            await loadData()
+        }
+        .onChange(of: showAddFriend) {
+            if !showAddFriend {
+                UserActionCache.shared.invalidateFriends()
+                Task { await loadData() }
+            }
+        }
     }
 
     // MARK: - Friends Tab
@@ -120,90 +87,6 @@ struct FriendsListView: View {
         }
     }
 
-    // MARK: - Requests Tab
-
-    @ViewBuilder
-    private var requestsTab: some View {
-        let incoming = pendingRequests?.incoming ?? []
-        let outgoing = pendingRequests?.outgoing ?? []
-
-        if incoming.isEmpty, outgoing.isEmpty {
-            emptyState(
-                icon: "envelope",
-                title: "No pending requests",
-                subtitle: "Friend requests will appear here"
-            )
-        } else {
-            if !incoming.isEmpty {
-                sectionHeader("Incoming")
-                ForEach(incoming) { request in
-                    NavigationLink {
-                        FriendProfileView(
-                            friend: FriendResponse(
-                                friendshipId: nil,
-                                id: request.requester.id,
-                                username: request.requester
-                                    .username,
-                                displayName: request.requester
-                                    .displayName,
-                                avatarUrl: request.requester
-                                    .avatarUrl
-                            )
-                        )
-                    } label: {
-                        IncomingRequestRow(
-                            request: request
-                        ) {
-                            await handleAccept(request)
-                        } onReject: {
-                            await handleReject(request)
-                        }
-                    }
-                    .buttonStyle(.plain)
-
-                    Divider()
-                        .background(AppTheme.cardSecondary)
-                        .padding(.horizontal, 24)
-                }
-            }
-
-            if !outgoing.isEmpty {
-                sectionHeader("Sent")
-                ForEach(outgoing) { request in
-                    OutgoingRequestRow(
-                        request: request,
-                        destination: FriendProfileView(
-                            friend: FriendResponse(
-                                friendshipId: nil,
-                                id: request.addressee.id,
-                                username: request.addressee.username,
-                                displayName: request.addressee.displayName,
-                                avatarUrl: request.addressee.avatarUrl
-                            )
-                        )
-                    ) {
-                        await handleWithdraw(request)
-                    }
-
-                    Divider()
-                        .background(AppTheme.cardSecondary)
-                        .padding(.horizontal, 24)
-                }
-            }
-        }
-    }
-
-    private func sectionHeader(_ title: String) -> some View {
-        Text(title)
-            .font(.system(size: 13, weight: .semibold))
-            .foregroundStyle(AppTheme.textMuted)
-            .textCase(.uppercase)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 24)
-            .padding(.top, 8)
-            .padding(.bottom, 8)
-    }
-
     private func emptyState(
         icon: String,
         title: String,
@@ -230,101 +113,10 @@ struct FriendsListView: View {
         let cache = UserActionCache.shared
         await cache.fetchFriends()
         friends = cache.friends
-        pendingRequests = cache.pendingRequests
-        if friends.isEmpty, pendingRequests == nil, !cache.didLoadFriends {
+        if friends.isEmpty, !cache.didLoadFriends {
             errorMessage = "Could not load friends"
         }
         isLoading = false
-    }
-
-    private func handleAccept(_ request: FriendRequestResponse) async {
-        do {
-            _ = try await FriendsService.acceptRequest(
-                friendshipId: request.id
-            )
-            Analytics.friendRequestAccepted()
-            await loadData()
-            await tabState.refreshPendingCount()
-        } catch { /* Non-critical — list will refresh on next pull */ }
-    }
-
-    private func handleReject(_ request: FriendRequestResponse) async {
-        do {
-            _ = try await FriendsService.rejectRequest(
-                friendshipId: request.id
-            )
-            Analytics.friendRequestRejected()
-            await loadData()
-            await tabState.refreshPendingCount()
-        } catch { /* Non-critical — list will refresh on next pull */ }
-    }
-
-    private func handleWithdraw(_ request: FriendRequestResponse) async {
-        do {
-            try await FriendsService.withdrawRequest(
-                friendshipId: request.id
-            )
-            await loadData()
-        } catch { /* Non-critical — list will refresh on next pull */ }
-    }
-}
-
-// MARK: - Tab Picker
-
-private struct FriendsTabPicker: View {
-    @Binding var selectedTab: Int
-    let requestCount: Int
-
-    var body: some View {
-        HStack(spacing: 0) {
-            tabButton("Friends", index: 0, badge: nil)
-            tabButton(
-                "Requests",
-                index: 1,
-                badge: requestCount > 0 ? requestCount : nil
-            )
-        }
-        .background(AppTheme.card)
-        .clipShape(RoundedRectangle(cornerRadius: 10))
-    }
-
-    private func tabButton(
-        _ title: String,
-        index: Int,
-        badge: Int?
-    ) -> some View {
-        Button {
-            withAnimation(.easeInOut(duration: 0.2)) {
-                selectedTab = index
-            }
-        } label: {
-            HStack(spacing: 6) {
-                Text(title)
-                    .font(.system(size: 14, weight: .medium))
-                if let badge {
-                    Text("\(badge)")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(.black)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(.white)
-                        .clipShape(Capsule())
-                }
-            }
-            .foregroundStyle(
-                selectedTab == index ? .white : AppTheme.textMuted
-            )
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 10)
-            .background(
-                selectedTab == index
-                    ? AppTheme.cardSecondary
-                    : Color.clear
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-        }
-        .buttonStyle(.plain)
-        .padding(2)
     }
 }
 
@@ -356,7 +148,7 @@ private struct FriendRow: View {
 
 // MARK: - Incoming Request Row
 
-private struct IncomingRequestRow: View {
+struct IncomingRequestRow: View {
     let request: FriendRequestResponse
     let onAccept: () async -> Void
     let onReject: () async -> Void
@@ -421,7 +213,7 @@ private struct IncomingRequestRow: View {
 
 // MARK: - Outgoing Request Row
 
-private struct OutgoingRequestRow<Destination: View>: View {
+struct OutgoingRequestRow<Destination: View>: View {
     let request: FriendRequestResponse
     let destination: Destination
     let onWithdraw: () async -> Void
