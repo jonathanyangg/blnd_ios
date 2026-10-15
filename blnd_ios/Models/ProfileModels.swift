@@ -81,6 +81,8 @@ struct PublicWatchedMovieResponse: Decodable, Identifiable {
     let title: String
     let posterPath: String?
     let rating: Double?
+    let year: Int?
+    let mediaType: MediaType?
 
     /// Identifiable conformance via tmdbId
     var id: Int {
@@ -91,7 +93,8 @@ struct PublicWatchedMovieResponse: Decodable, Identifiable {
         case tmdbId = "tmdb_id"
         case title
         case posterPath = "poster_path"
-        case rating
+        case rating, year
+        case mediaType = "media_type"
     }
 }
 

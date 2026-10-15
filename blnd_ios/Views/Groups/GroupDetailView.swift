@@ -26,6 +26,7 @@ struct GroupDetailView: View {
     @State var isEditingName = false
     @State var editedName = ""
     @Namespace var tabNamespace
+    @State var catalogFilters = CatalogFilterStore.shared
     @Environment(\.dismiss) var dismiss
     @Environment(TabState.self) var tabState
 
@@ -66,7 +67,9 @@ struct GroupDetailView: View {
         .navigationBarBackButtonHidden()
         .toolbar(.hidden, for: .navigationBar)
         .swipeBackGesture()
-        .task { await loadAll() }
+        .task(id: catalogFilters.filter) {
+            await loadAll(forceRefresh: group != nil)
+        }
         .refreshable { await loadAll(forceRefresh: true) }
         .sheet(isPresented: $showMembers) {
             membersSheet
@@ -155,7 +158,14 @@ struct GroupDetailView: View {
 
             groupTabPicker
                 .padding(.horizontal, 24)
-                .padding(.bottom, 4)
+                .padding(.bottom, 8)
+
+            HStack {
+                CatalogFilterButton()
+                Spacer()
+            }
+            .padding(.horizontal, 24)
+            .padding(.bottom, 8)
 
             Divider().overlay(AppTheme.border)
         }

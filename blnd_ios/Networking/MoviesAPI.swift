@@ -6,7 +6,8 @@ enum MoviesAPI {
     static func discover(
         genres: [String] = [],
         withCast: Int? = nil,
-        exclude: Set<Int> = []
+        exclude: Set<Int> = [],
+        filter: CatalogFilter = CatalogFilter()
     ) async throws -> MovieSearchResult {
         var params: [String] = []
         if !genres.isEmpty {
@@ -20,7 +21,10 @@ enum MoviesAPI {
         if !exclude.isEmpty {
             params.append("exclude=\(exclude.map(String.init).joined(separator: ","))")
         }
-        let endpoint = "/movies/discover?\(params.joined(separator: "&"))"
+        let base = params.isEmpty
+            ? "/movies/discover"
+            : "/movies/discover?\(params.joined(separator: "&"))"
+        let endpoint = filter.appending(to: base)
         return try await APIClient.shared.request(
             endpoint: endpoint,
             authenticated: true
@@ -36,30 +40,41 @@ enum MoviesAPI {
         )
     }
 
-    static func search(query: String, page: Int = 1) async throws -> MovieSearchResult {
+    static func search(
+        query: String,
+        page: Int = 1,
+        filter: CatalogFilter = CatalogFilter()
+    ) async throws -> MovieSearchResult {
         let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query
         return try await APIClient.shared.request(
-            endpoint: "/movies/search?query=\(encoded)&page=\(page)",
+            endpoint: filter.appending(to: "/movies/search?query=\(encoded)&page=\(page)"),
             authenticated: true
         )
     }
 
-    static func trending(exclude: Set<Int> = []) async throws -> MovieSearchResult {
+    static func trending(
+        exclude: Set<Int> = [],
+        filter: CatalogFilter = CatalogFilter()
+    ) async throws -> MovieSearchResult {
         var endpoint = "/movies/trending"
         if !exclude.isEmpty {
             endpoint += "?exclude=\(exclude.map(String.init).joined(separator: ","))"
         }
         return try await APIClient.shared.request(
-            endpoint: endpoint,
+            endpoint: filter.appending(to: endpoint),
             authenticated: true
         )
     }
 
-    static func topRated(exclude: Set<Int> = []) async throws -> MovieSearchResult {
+    static func topRated(
+        exclude: Set<Int> = [],
+        filter: CatalogFilter = CatalogFilter()
+    ) async throws -> MovieSearchResult {
         var endpoint = "/movies/top-rated"
         if !exclude.isEmpty {
             endpoint += "?exclude=\(exclude.map(String.init).joined(separator: ","))"
         }
+        endpoint = filter.appending(to: endpoint)
         return try await APIClient.shared.request(
             endpoint: endpoint,
             authenticated: true
@@ -153,11 +168,12 @@ enum RecommendationsAPI {
     /// POST /recommendations/me/feed — infinite scroll feed with exclude list
     static func getFeed(
         exclude: [Int] = [],
-        limit: Int = 20
+        limit: Int = 20,
+        filter: CatalogFilter = CatalogFilter()
     ) async throws -> RecommendationsResponse {
         let body = FeedRequest(exclude: exclude, limit: limit)
         return try await APIClient.shared.request(
-            endpoint: "/recommendations/me/feed",
+            endpoint: filter.appending(to: "/recommendations/me/feed"),
             method: "POST",
             body: body,
             authenticated: true
@@ -167,11 +183,12 @@ enum RecommendationsAPI {
     static func semanticSearch(
         query: String,
         limit: Int = 30,
-        exclude: [Int] = []
+        exclude: [Int] = [],
+        filter: CatalogFilter = CatalogFilter()
     ) async throws -> SemanticSearchResponse {
         let body = SemanticSearchRequest(query: query, limit: limit, exclude: exclude)
         return try await APIClient.shared.request(
-            endpoint: "/recommendations/semantic-discover",
+            endpoint: filter.appending(to: "/recommendations/semantic-discover"),
             method: "POST",
             body: body,
             authenticated: true
@@ -188,9 +205,12 @@ enum RecommendationsAPI {
         )
     }
 
-    static func refresh(limit: Int = 60) async throws -> RecommendationsResponse {
+    static func refresh(
+        limit: Int = 60,
+        filter: CatalogFilter = CatalogFilter()
+    ) async throws -> RecommendationsResponse {
         try await APIClient.shared.request(
-            endpoint: "/recommendations/me/refresh?limit=\(limit)",
+            endpoint: filter.appending(to: "/recommendations/me/refresh?limit=\(limit)"),
             method: "POST",
             authenticated: true
         )

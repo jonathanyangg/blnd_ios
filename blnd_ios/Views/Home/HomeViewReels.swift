@@ -17,6 +17,12 @@ extension HomeView {
                     Task { await loadForYou() }
                 }
                 Spacer()
+            } else if fypReelMovies.isEmpty, catalogFilters.filter.isActive {
+                Spacer()
+                Text("Nothing matches this filter")
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(AppTheme.textMuted)
+                Spacer()
             } else {
                 ReelsFeedView(
                     movies: fypReelMovies,

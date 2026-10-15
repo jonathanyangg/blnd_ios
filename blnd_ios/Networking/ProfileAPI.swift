@@ -16,7 +16,8 @@ enum ProfileAPI {
         limit: Int = 20,
         offset: Int = 0,
         query: String? = nil,
-        sort: MovieSortOption? = nil
+        sort: MovieSortOption? = nil,
+        filter: CatalogFilter = CatalogFilter()
     ) async throws -> PublicWatchedListResponse {
         var endpoint = "/auth/users/\(userId)/watched?limit=\(limit)&offset=\(offset)"
         if let query, !query.isEmpty {
@@ -25,6 +26,7 @@ enum ProfileAPI {
         if let sort {
             endpoint += "&sort=\(sort.rawValue)"
         }
+        endpoint = filter.appending(to: endpoint)
         return try await APIClient.shared.request(
             endpoint: endpoint,
             authenticated: true

@@ -35,11 +35,12 @@ enum GroupsAPI {
     static func getFeed(
         groupId: Int,
         exclude: [Int] = [],
-        limit: Int = 20
+        limit: Int = 20,
+        filter: CatalogFilter = CatalogFilter()
     ) async throws -> GroupRecommendationsResponse {
         let body = GroupFeedRequest(exclude: exclude, limit: limit)
         return try await APIClient.shared.request(
-            endpoint: "/groups/\(groupId)/recommendations/feed",
+            endpoint: filter.appending(to: "/groups/\(groupId)/recommendations/feed"),
             method: "POST",
             body: body,
             authenticated: true
@@ -50,11 +51,13 @@ enum GroupsAPI {
     static func getWatchlist(
         groupId: Int,
         limit: Int = 20,
-        offset: Int = 0
+        offset: Int = 0,
+        filter: CatalogFilter = CatalogFilter()
     ) async throws -> WatchlistResponse {
         try await APIClient.shared.request(
-            endpoint: "/groups/\(groupId)/watchlist"
-                + "?limit=\(limit)&offset=\(offset)",
+            endpoint: filter.appending(
+                to: "/groups/\(groupId)/watchlist?limit=\(limit)&offset=\(offset)"
+            ),
             authenticated: true
         )
     }

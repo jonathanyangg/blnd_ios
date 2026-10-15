@@ -36,6 +36,7 @@ struct HomeView: View {
     @State var showStickySearch = false
     @State var lastScrollOffset: CGFloat = 0
     @State var deepLinkTmdbId: Int?
+    @State var catalogFilters = CatalogFilterStore.shared
 
     /// Show tutorial overlay on first launch only
     @AppStorage("hasSeenReelsTutorial") private var hasSeenTutorial = false
@@ -46,12 +47,17 @@ struct HomeView: View {
                 homeHeader
                 if viewMode == .reels {
                     reelsFeed
-                        .task { await loadForYou() }
                         .allowsHitTesting(hasSeenTutorial || isLoadingFYP || fypReelMovies.isEmpty)
                 } else {
                     gridFeed
-                        .task { await loadForYou() }
                 }
+            }
+            .task(id: catalogFilters.filter) {
+                recommendations = []
+                seenFYPIds = []
+                fypReelMovies = []
+                fypCurrentId = nil
+                await loadForYou()
             }
             .background(AppTheme.background)
             .fullScreenCover(isPresented: $showSearch) {
@@ -162,7 +168,14 @@ struct HomeView: View {
             }
             .padding(.top, 8)
             .padding(.horizontal, 24)
-            .padding(.bottom, 16)
+            .padding(.bottom, 12)
+
+            HStack {
+                CatalogFilterButton()
+                Spacer()
+            }
+            .padding(.horizontal, 24)
+            .padding(.bottom, 10)
 
             homeTabPicker()
                 .padding(.horizontal, 24)

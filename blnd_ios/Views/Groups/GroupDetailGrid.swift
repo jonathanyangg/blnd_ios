@@ -71,7 +71,8 @@ extension GroupDetailView {
                                 width: cardWidth,
                                 height: cardHeight,
                                 scorePercent: movie
-                                    .scorePercent
+                                    .scorePercent,
+                                mediaType: movie.mediaType
                             )
                         }
                         .buttonStyle(.plain)
@@ -121,7 +122,8 @@ extension GroupDetailView {
                                 width: cardWidth,
                                 height: cardHeight,
                                 scorePercent: item
-                                    .matchPercent
+                                    .matchPercent,
+                                mediaType: item.mediaType
                             )
                         }
                         .buttonStyle(.plain)

@@ -85,6 +85,7 @@ struct GroupRecMovieResponse: Decodable, Identifiable {
     let backdropPath: String?
     let matchScore: Double
     let commentCount: Int?
+    let mediaType: MediaType?
 
     var id: Int {
         tmdbId
@@ -119,6 +120,7 @@ struct GroupRecMovieResponse: Decodable, Identifiable {
         case backdropPath = "backdrop_path"
         case matchScore = "match_score"
         case commentCount = "comment_count"
+        case mediaType = "media_type"
     }
 }
 

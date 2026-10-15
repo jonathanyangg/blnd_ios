@@ -120,7 +120,8 @@ extension HomeView {
                 posterPath: movie.posterPath,
                 width: cardWidth,
                 height: cardHeight,
-                scorePercent: movie.scorePercent
+                scorePercent: movie.scorePercent,
+                mediaType: movie.mediaType
             )
         }
         .buttonStyle(.plain)

@@ -13,21 +13,29 @@ extension GroupDetailView {
             async let groupResult = GroupsAPI.getGroup(
                 groupId: groupId
             )
+            let filter = catalogFilters.current()
             async let recsResult = GroupsAPI.getFeed(
-                groupId: groupId
+                groupId: groupId,
+                filter: filter
             )
             async let watchlistResult = GroupsAPI.getWatchlist(
-                groupId: groupId
+                groupId: groupId,
+                filter: filter
             )
 
             let (groupData, recsData, watchlistData) = try await (
                 groupResult, recsResult, watchlistResult
             )
+            guard !Task.isCancelled else { return }
             group = groupData
-            recommendations = recsData.results
             seenRecIds = Set(recsData.results.map(\.tmdbId))
-            groupReelMovies = recsData.results.map { ReelMovie(from: $0) }
-            watchlist = watchlistData.results
+            recommendations = recsData.results.filter {
+                filter.matches(mediaType: $0.mediaType, year: $0.year)
+            }
+            groupReelMovies = recommendations.map { ReelMovie(from: $0) }
+            watchlist = watchlistData.results.filter {
+                filter.matches(mediaType: $0.mediaType, year: $0.year)
+            }
         } catch {
             if case APIError.rateLimited = error {
                 showToast(
@@ -48,12 +56,17 @@ extension GroupDetailView {
         let batchNum = (seenRecIds.count / 20) + 1
         Analytics.feedLoadMore(source: .blend, batchNum: batchNum)
         do {
+            let filter = catalogFilters.current()
             let response = try await GroupsAPI.getFeed(
                 groupId: groupId,
-                exclude: Array(seenRecIds)
+                exclude: Array(seenRecIds),
+                filter: filter
             )
+            for movie in response.results {
+                seenRecIds.insert(movie.tmdbId)
+            }
             let newMovies = response.results.filter {
-                !seenRecIds.contains($0.tmdbId)
+                filter.matches(mediaType: $0.mediaType, year: $0.year)
             }
             if !newMovies.isEmpty {
                 recommendations.append(contentsOf: newMovies)
