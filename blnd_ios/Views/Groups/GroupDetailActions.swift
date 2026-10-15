@@ -28,6 +28,7 @@ extension GroupDetailView {
             seenRecIds = Set(recsData.results.map(\.tmdbId))
             groupReelMovies = recsData.results.map { ReelMovie(from: $0) }
             watchlist = watchlistData.results
+            timelineReload += 1
         } catch {
             if case APIError.rateLimited = error {
                 showToast(
