@@ -8,6 +8,10 @@ struct OnboardingV2Tests {
         #expect(OnboardingTaste.canContinue(count: 5))
     }
 
+    @Test func newAppleUserContinuesInOnboardingV2() {
+        #expect(AppleNewUserHandoff.afterUsername == .onboardingV2)
+    }
+
     @Test func swipeRightIsInterestedAndLeftIsNeutral() {
         #expect(TutorialSwipe.decision(translation: CGFloat(80)) == .interested)
         #expect(TutorialSwipe.decision(translation: CGFloat(-80)) == .notForMe)

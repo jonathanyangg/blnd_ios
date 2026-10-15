@@ -105,12 +105,13 @@ struct ChooseUsernameView: View {
                 phoneNumber: phone.isEmpty ? nil : phone
             )
 
-            // Both calls succeeded — navigate to completion
+            // Both calls succeeded. The v2 account gate continues in place.
+            // A brand-new Apple sign-in starts Onboarding v2 from Welcome.
             authState.phase = .onboardingPending
             if let onAccountReady {
                 onAccountReady()
             } else {
-                path.append(AuthRoute.onboardingComplete)
+                onboardingState.continueWithV2 = true
             }
         } catch {
             isLoading = false

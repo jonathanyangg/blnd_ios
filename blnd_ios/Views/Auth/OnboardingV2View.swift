@@ -119,18 +119,12 @@ struct OnboardingV2View: View {
         .background(AppTheme.background)
         .navigationBarBackButtonHidden()
         .sheet(isPresented: $showImport) {
-            NavigationStack {
-                LetterboxdImportHook.screen()
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button("Close") { showImport = false }
-                        }
-                    }
-            }
+            BringMoviesEntry.screen { showImport = false }
         }
         .sheet(isPresented: $showBlend) {
             CreateGroupView()
         }
+        .onAppear { onboardingState.continueWithV2 = false }
         .onChange(of: step) { _, _ in
             drag = 0
             reaction = nil
@@ -384,12 +378,15 @@ struct OnboardingV2View: View {
 
     private var letterboxdPage: some View {
         VStack(alignment: .leading, spacing: 12) {
-            tutorialTitle("Bring Letterboxd", subtitle: "Optional. Import the ratings you already have, or skip it.")
+            tutorialTitle(
+                "Bring your movies",
+                subtitle: "Optional. Open the import hub for Letterboxd, or skip it."
+            )
             Button {
                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
                 showImport = true
             } label: {
-                actionLabel("Import from Letterboxd", systemImage: "square.and.arrow.down")
+                actionLabel("Open import hub", systemImage: "square.and.arrow.down")
             }
             .accessibilityIdentifier("tutorial.letterboxd")
             Spacer()

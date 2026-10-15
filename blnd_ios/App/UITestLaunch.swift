@@ -17,6 +17,7 @@ enum UITestLaunch {
         case tutorialBlends
         case tutorialNow
         case tutorialLetterboxd
+        case onboardImportHub
         case tutorialTaste
         case onboardFriends
         case onboardFeed
@@ -89,6 +90,8 @@ struct UITestHost: View {
             OnboardingV2View(path: .constant(NavigationPath()), preview: .now)
         case .tutorialLetterboxd:
             OnboardingV2View(path: .constant(NavigationPath()), preview: .letterboxd)
+        case .onboardImportHub:
+            BringMoviesEntry.screen {}
         case .tutorialTaste:
             OnboardingV2View(path: .constant(NavigationPath()), preview: .taste)
         case .onboardFriends:
