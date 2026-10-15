@@ -57,8 +57,41 @@ struct MovieImportFlow: View {
                     )
                 }
         }
+        .onAppear(perform: openScreenshotRouteIfNeeded)
+    }
+
+    /// Debug launches can open a later step directly so the simulator can shoot it.
+    private func openScreenshotRouteIfNeeded() {
+        #if DEBUG
+        let arguments = ProcessInfo.processInfo.arguments
+        let showsLetterboxd = arguments.contains("UI_TEST_LETTERBOXD_PROGRESS")
+            || arguments.contains("UI_TEST_LETTERBOXD_SUCCESS")
+            || arguments.contains("UI_TEST_LETTERBOXD_WRONG_FILE")
+        if showsLetterboxd {
+            router.open(.letterboxd)
+        }
+        #endif
     }
 }
+
+#if DEBUG
+/// Opens the movie hub immediately, then Find Friends when the test skips or finishes.
+struct MovieImportUITestHost: View {
+    @State private var showFriends = false
+    @State private var path = NavigationPath()
+
+    var body: some View {
+        if showFriends {
+            FindFriendsView(path: $path)
+        } else {
+            MovieImportFlow(
+                onComplete: { showFriends = true },
+                onSkip: { showFriends = true }
+            )
+        }
+    }
+}
+#endif
 
 @ViewBuilder
 func movieImportScreen(

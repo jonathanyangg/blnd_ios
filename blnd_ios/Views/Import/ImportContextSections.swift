@@ -270,6 +270,8 @@ extension ImportContextView {
             Text(count == 1 ? singular : plural)
                 .font(.system(size: 15))
                 .foregroundStyle(AppTheme.textMuted)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
         }
         .accessibilityIdentifier(identifier)
         .accessibilityLabel("\(count) \(count == 1 ? singular : plural)")

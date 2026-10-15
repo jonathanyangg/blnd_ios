@@ -1,5 +1,6 @@
 @testable import blnd_ios
 import Foundation
+import SwiftUI
 import Testing
 
 struct BlndIOSTests {
@@ -7,7 +8,7 @@ struct BlndIOSTests {
         #expect(AuthRoute.nextAfterLetterboxdImport == AuthRoute.findFriends)
     }
 
-    @Test func hubSkipLeavesImport() {
+    @Test @MainActor func hubSkipLeavesImport() {
         var skipped = false
         let hub = BringMoviesHub(router: MovieImportStackRouter(), onSkip: { skipped = true })
 
@@ -16,7 +17,7 @@ struct BlndIOSTests {
         #expect(skipped)
     }
 
-    @Test func photosAndNotesShareTheReviewRoute() {
+    @Test @MainActor func photosAndNotesShareTheReviewRoute() {
         let router = MovieImportStackRouter()
         router.open(.notesReview(NotesImportDraft(source: .photos, text: "Heat", imageCount: 2)))
         router.open(.notesReview(NotesImportDraft(source: .paste, text: "Heat", imageCount: 0)))

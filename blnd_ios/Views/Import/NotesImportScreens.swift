@@ -78,7 +78,9 @@ struct PhotoImportView: View {
                 message = "Those photos didn't open. Try different ones."
                 return
             }
-            let text = try NotesTextRecognizer.text(in: images)
+            let text = try await Task.detached(priority: .userInitiated) {
+                try NotesTextRecognizer.text(in: images)
+            }.value
             let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !trimmed.isEmpty else {
                 message = "We couldn't read any words in those photos. Try a clearer screenshot."
