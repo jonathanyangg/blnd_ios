@@ -318,6 +318,26 @@ extension ReelCardView {
         }
     }
 
+    // MARK: - Watchlist Button
+
+    var watchlistButton: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "bookmark")
+                .font(.system(size: 13))
+            Text("Add to watchlist")
+                .font(.system(size: 14, weight: .medium))
+            Spacer()
+        }
+        .foregroundStyle(AppTheme.textMuted)
+        .padding(.vertical, 8)
+        .contentShape(Rectangle())
+        .highPriorityGesture(
+            TapGesture().onEnded {
+                onRequestWatchlist?()
+            }
+        )
+    }
+
     // MARK: - Comments Button
 
     var commentsButton: some View {

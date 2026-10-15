@@ -196,6 +196,34 @@ enum RecommendationsAPI {
         )
     }
 
+    /// POST /recommendations/{tmdb_id}/interested — positive taste signal.
+    /// Does not add the movie to a watchlist.
+    static func markInterested(tmdbId: Int) async throws {
+        try await APIClient.shared.requestVoid(
+            endpoint: "/recommendations/\(tmdbId)/interested",
+            method: "POST",
+            authenticated: true
+        )
+    }
+
+    /// POST /recommendations/{tmdb_id}/not-for-me — weak negative. Not a hide.
+    static func markNotForMe(tmdbId: Int) async throws {
+        try await APIClient.shared.requestVoid(
+            endpoint: "/recommendations/\(tmdbId)/not-for-me",
+            method: "POST",
+            authenticated: true
+        )
+    }
+
+    /// DELETE /recommendations/{tmdb_id}/not-for-me — undo that signal.
+    static func unmarkNotForMe(tmdbId: Int) async throws {
+        try await APIClient.shared.requestVoid(
+            endpoint: "/recommendations/\(tmdbId)/not-for-me",
+            method: "DELETE",
+            authenticated: true
+        )
+    }
+
     /// POST /recommendations/{tmdb_id}/hide — exclude from future recs
     static func hideMovie(
         tmdbId: Int

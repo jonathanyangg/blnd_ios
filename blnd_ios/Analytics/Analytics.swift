@@ -13,6 +13,7 @@ enum Analytics {
         static let watchlistAdded = "watchlist_added"
         static let watchlistRemoved = "watchlist_removed"
         static let movieHidden = "movie_hidden"
+        static let movieInterested = "movie_interested"
         static let movieDetailViewed = "movie_detail_viewed"
         static let trailerPlayed = "trailer_played"
         static let trailerCompleted = "trailer_completed"
@@ -147,6 +148,13 @@ enum Analytics {
     static func movieHidden(tmdbId: Int) {
         PostHogSDK.shared.capture(
             EventName.movieHidden,
+            properties: ["tmdb_id": tmdbId]
+        )
+    }
+
+    static func movieInterested(tmdbId: Int) {
+        PostHogSDK.shared.capture(
+            EventName.movieInterested,
             properties: ["tmdb_id": tmdbId]
         )
     }

@@ -2,7 +2,6 @@ import SwiftUI
 
 struct ReelsFeedView: View {
     let movies: [ReelMovie]
-    var groupContext: ReelCardView.GroupContext?
     var feed: Analytics.FeedSource = .fyp
     var isTabVisible: Bool = true
     var onLoadMore: (() async -> Void)?
@@ -13,9 +12,7 @@ struct ReelsFeedView: View {
     @State private var toastMessage: String?
     @State private var toastTask: Task<Void, Never>?
     @State private var watchlistTmdbId: Int?
-    @State private var addedToWatchlist: Set<Int> = []
-    @State private var lastWatchlistedTmdbId: Int?
-    @State private var lastHiddenTmdbId: Int?
+    @State private var lastNotForMeTmdbId: Int?
     @State private var detailMovie: ReelMovie?
     @State private var selectedFriend: FriendResponse?
 
@@ -41,20 +38,25 @@ struct ReelsFeedView: View {
                             movie: movie,
                             isActive: movie.tmdbId == currentId
                                 && isTabVisible,
-                            groupContext: groupContext,
                             position: index,
                             feed: feed,
-                            onWatchlistAdded: { msg in
-                                if msg.contains("Won't show") {
-                                    lastHiddenTmdbId = movie.tmdbId
-                                } else {
-                                    addedToWatchlist.insert(
-                                        movie.tmdbId
-                                    )
-                                    lastWatchlistedTmdbId = movie.tmdbId
+                            onSwipeResult: { result in
+                                switch result {
+                                case .hidden:
+                                    lastNotForMeTmdbId = movie.tmdbId
+                                    showToast("Won't show again")
+                                    advanceToNext(from: movie.tmdbId)
+                                case .interested:
+                                    showToast("Interested")
+                                    advanceToNext(from: movie.tmdbId)
+                                case .interestFailed:
+                                    showToast("Couldn't save interest")
+                                case .notForMeFailed:
+                                    showToast("Couldn't save that")
                                 }
-                                showToast(msg)
-                                advanceToNext(from: movie.tmdbId)
+                            },
+                            onRequestWatchlist: {
+                                watchlistTmdbId = movie.tmdbId
                             },
                             onRated: { _ in },
                             onShowDetail: {
@@ -133,8 +135,8 @@ struct ReelsFeedView: View {
             WatchlistPickerSheet(
                 tmdbId: item.tmdbId,
                 isWatched: false,
-                isInPersonalWatchlist: addedToWatchlist
-                    .contains(item.tmdbId)
+                isInPersonalWatchlist: UserActionCache.shared
+                    .isWatchlisted(item.tmdbId)
             ) { _ in }
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
@@ -170,22 +172,17 @@ struct ReelsFeedView: View {
     }
 
     private func toastActionLabel(_ toast: String) -> String? {
-        if toast.contains("Watchlist") { return "Change" }
         if toast.contains("Won't show") { return "Undo" }
         return nil
     }
 
     private func handleToastAction(_ toast: String) {
         toastMessage = nil
-        if toast.contains("Watchlist") {
-            if let id = lastWatchlistedTmdbId {
-                watchlistTmdbId = id
-            }
-        } else if toast.contains("Won't show"), let id = lastHiddenTmdbId {
+        if toast.contains("Won't show"), let id = lastNotForMeTmdbId {
             Task {
-                try? await RecommendationsAPI.unhideMovie(tmdbId: id)
+                try? await RecommendationsAPI.unmarkNotForMe(tmdbId: id)
             }
-            lastHiddenTmdbId = nil
+            lastNotForMeTmdbId = nil
         }
     }
 }

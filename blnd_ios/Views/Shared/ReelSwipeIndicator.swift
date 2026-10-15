@@ -17,16 +17,13 @@ struct ReelSwipeIndicator: View {
         VStack(spacing: 6) {
             Image(
                 systemName: isLeft
-                    ? "hand.thumbsdown.fill"
-                    : "bookmark.fill"
+                    ? "eye.slash"
+                    : "heart"
             )
             .font(.system(size: 30, weight: .medium))
-            .foregroundStyle(
-                crossed ? (isLeft ? .red : .blue)
-                    : .white
-            )
+            .foregroundStyle(.white)
 
-            Text(isLeft ? "Not for me" : "Watchlist")
+            Text(isLeft ? "Not for me" : "Interested")
                 .font(.system(
                     size: 12, weight: .semibold
                 ))
