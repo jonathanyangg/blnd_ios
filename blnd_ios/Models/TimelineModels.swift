@@ -251,45 +251,34 @@ struct TimelineSection: Identifiable {
 }
 
 enum TimelineGrouping {
-    /// Newest month first. Undated entries sit in a final "No date" section.
+    /// Groups a newest-first page into months without reshuffling the server order.
+    /// The API already sorts by diary date, then created time. A later page only
+    /// appends older rows, including more rows for the month already on screen.
     static func sections(from entries: [TimelineEntry], calendar: Calendar = .current) -> [TimelineSection] {
-        let dated = entries.map { ($0, TimelineDate.dayParts(of: $0, calendar: calendar)) }
-        var buckets: [String: (order: Int, title: String, rows: [(TimelineEntry, TimelineDay?)])] = [:]
+        var monthOrder: [String] = []
+        var buckets: [String: (title: String, rows: [TimelineEntry])] = [:]
 
-        for (entry, day) in dated {
+        for entry in entries {
+            let day = TimelineDate.dayParts(of: entry, calendar: calendar)
             let key: String
             let title: String
-            let order: Int
             if let day {
                 key = String(format: "%04d-%02d", day.year, day.month)
                 title = "\(TimelineDate.monthName(day.month)) \(day.year)"
-                order = day.year * 100 + day.month
             } else {
                 key = "undated"
                 title = "No date"
-                order = -1
             }
-            var bucket = buckets[key] ?? (order, title, [])
-            bucket.rows.append((entry, day))
-            buckets[key] = bucket
+            if buckets[key] == nil {
+                monthOrder.append(key)
+                buckets[key] = (title, [])
+            }
+            buckets[key]?.rows.append(entry)
         }
 
-        return buckets.map { key, bucket in
-            let rows = bucket.rows.sorted { lhs, rhs in
-                let left = lhs.1.map { $0.year * 10_000 + $0.month * 100 + $0.day } ?? -1
-                let right = rhs.1.map { $0.year * 10_000 + $0.month * 100 + $0.day } ?? -1
-                if left != right { return left > right }
-                let leftId = lhs.0.logId ?? -1
-                let rightId = rhs.0.logId ?? -1
-                if leftId != rightId { return leftId > rightId }
-                return lhs.0.id > rhs.0.id
-            }
-            return TimelineSection(id: key, title: bucket.title, entries: rows.map(\.0))
-        }
-        .sorted { lhs, rhs in
-            let left = buckets[lhs.id]?.order ?? -1
-            let right = buckets[rhs.id]?.order ?? -1
-            return left > right
+        return monthOrder.map { key in
+            let bucket = buckets[key]!
+            return TimelineSection(id: key, title: bucket.title, entries: bucket.rows)
         }
     }
 }

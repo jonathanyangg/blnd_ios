@@ -70,11 +70,18 @@ struct TimelineTests {
         let september = entry(logId: 3, title: "Sept", date: "2026-09-18", tmdb: 3)
         let undated = entry(logId: 4, title: "Unknown", date: "nope", tmdb: 4)
 
-        let sections = TimelineGrouping.sections(from: [september, undated, octoberEarlier, october])
+        let sections = TimelineGrouping.sections(from: [october, octoberEarlier, september, undated])
 
         #expect(sections.map(\.title) == ["October 2026", "September 2026", "No date"])
         #expect(sections[0].entries.map(\.media.title) == ["Late", "Early"])
         #expect(sections[2].entries.map(\.media.title) == ["Unknown"])
+    }
+
+    @Test func sameDayKeepsServerOrder() {
+        let show = entry(logId: 1, title: "Severance", date: "2026-10-15", tmdb: 1, type: .tv)
+        let movie = entry(logId: 99, title: "Whiplash", date: "2026-10-15", tmdb: 2)
+        let titles = TimelineGrouping.sections(from: [show, movie])[0].entries.map(\.media.title)
+        #expect(titles == ["Severance", "Whiplash"])
     }
 
     @Test func diaryDateWinsOverCreatedAt() {
