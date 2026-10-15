@@ -3,7 +3,6 @@ import SwiftUI
 struct AddGroupMemberSheet: View {
     let groupId: Int
     var existingMemberIds: Set<String> = []
-    var memberCount: Int = 0
     let onMemberAdded: (GroupDetailResponse) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -15,8 +14,6 @@ struct AddGroupMemberSheet: View {
     @State private var addedIds: Set<String> = []
     @State private var errorMessage: UserFacingError?
     @State private var showPaywall = false
-
-    private let freeGroupCap = 8
 
     @FocusState private var isFieldFocused: Bool
 
@@ -182,12 +179,6 @@ struct AddGroupMemberSheet: View {
     }
 
     private func addFriend(_ friend: FriendResponse) async {
-        let currentCount = memberCount + addedIds.count
-        if currentCount >= freeGroupCap, !authState.isPremium {
-            showPaywall = true
-            return
-        }
-
         addingId = friend.id
         errorMessage = nil
         do {
