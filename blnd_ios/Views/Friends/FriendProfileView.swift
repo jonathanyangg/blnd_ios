@@ -28,7 +28,10 @@ struct FriendProfileView: View {
 
     @State var publicProfile: PublicProfileResponse?
     @State var watchedMovies: [PublicWatchedMovieResponse] = []
+    @State var watchedFetchedCount = 0
     @State var watchedTotal = 0
+    @State var catalogFilters = CatalogFilterStore.shared
+    @State var watchedRequest = 0
     @State var isLoading = true
     @State var isLoadingMore = false
     @State var watchedGated = false
@@ -197,6 +200,7 @@ extension FriendProfileView {
                 tasteSection
             }
         }
+        .onChange(of: catalogFilters.filter) { Task { await reloadWatched() } }
         .onChange(of: showFriendsList) {
             if showFriendsList {
                 Task { await loadFriends() }
@@ -255,6 +259,9 @@ extension FriendProfileView {
             }
 
             Spacer()
+            if selectedTab == .watched {
+                CatalogFilterButton()
+            }
         }
         .frame(maxWidth: .infinity)
     }
@@ -395,7 +402,7 @@ extension FriendProfileView {
     private func failedProfile(_ message: String) -> some View {
         VStack(spacing: 0) {
             profileHeader
-            ErrorStateView(message: message) {
+            ErrorStateView(message: UserFacingError.client(.server, message: message)) {
                 Task { await loadData() }
             }
             .padding(.top, 32)
@@ -409,7 +416,7 @@ extension FriendProfileView {
                 .tint(.white)
                 .padding(.top, 40)
         } else if let watchedError {
-            ErrorStateView(message: watchedError) {
+            ErrorStateView(message: UserFacingError.client(.server, message: watchedError)) {
                 Task { await reloadWatched() }
             }
             .padding(.top, 24)
@@ -441,7 +448,7 @@ extension FriendProfileView {
             Image(systemName: "film")
                 .font(.system(size: 36))
                 .foregroundStyle(AppTheme.textMuted)
-            Text("No watched movies yet")
+            Text(catalogFilters.filter.isActive ? "Nothing matches this filter" : "No watched movies yet")
                 .font(.system(size: 14))
                 .foregroundStyle(AppTheme.textMuted)
                 .multilineTextAlignment(.center)
@@ -457,7 +464,11 @@ extension FriendProfileView {
                     NavigationLink {
                         MovieDetailView(tmdbId: movie.tmdbId, title: movie.title, source: .friendProfile)
                     } label: {
-                        PosterTile(posterPath: movie.posterPath, rating: movie.rating)
+                        PosterTile(
+                            posterPath: movie.posterPath,
+                            rating: movie.rating,
+                            mediaType: movie.mediaType
+                        )
                     }
                     .buttonStyle(.plain)
                     .id(movie.tmdbId)

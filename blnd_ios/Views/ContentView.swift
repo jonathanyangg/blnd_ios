@@ -40,6 +40,8 @@ struct ContentView: View {
             NavigationStack {
                 notesImportReview(text: NotesImportPreviewLaunch.sampleText)
             }
+        } else if ProcessInfo.processInfo.arguments.contains("-showCatalogFilter") {
+            CatalogFilterScreenshotHost()
         } else if ProcessInfo.processInfo.arguments.contains("UI_TEST_LETTERBOXD_IMPORT") {
             MovieImportUITestHost()
         } else {

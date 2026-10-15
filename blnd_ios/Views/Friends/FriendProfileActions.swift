@@ -29,25 +29,42 @@ extension FriendProfileView {
         isLoading = false
     }
 
-    /// 403 means the viewer is not friends yet. Any other failure is retryable.
+    /// 403 or a not-friends message means the viewer is not friends yet.
     private func fetchWatched() async {
+        watchedRequest += 1
+        let request = watchedRequest
+        watchedError = nil
         do {
+            let filter = catalogFilters.current()
             let watchedResult = try await ProfileAPI.getPublicWatched(
                 userId: friend.id,
                 limit: 20,
                 offset: 0,
-                sort: watchedSort
+                sort: watchedSort,
+                filter: filter
             )
-            watchedMovies = watchedResult.results
+            guard request == watchedRequest else { return }
+            watchedFetchedCount = watchedResult.results.count
+            watchedMovies = watchedResult.results.filter {
+                filter.matches(mediaType: $0.mediaType, year: $0.year)
+            }
             watchedTotal = watchedResult.total
             watchedGated = false
-            watchedError = nil
         } catch is CancellationError {
             return
-        } catch let APIError.badRequest(message) where message == "Not friends with this user" {
-            watchedGated = true
-            watchedError = nil
+        } catch let error as APIError {
+            guard request == watchedRequest else { return }
+            if case let .badRequest(info) = error,
+               info.code == "NOT_FRIENDS"
+                || info.raw.localizedCaseInsensitiveContains("not friends") {
+                watchedGated = true
+                watchedError = nil
+            } else {
+                watchedGated = false
+                watchedError = error.localizedDescription
+            }
         } catch {
+            guard request == watchedRequest else { return }
             watchedGated = false
             watchedError = error.localizedDescription
         }
@@ -56,14 +73,22 @@ extension FriendProfileView {
     func loadMoreWatched() async {
         guard !isLoadingMore, watchedMovies.count < watchedTotal else { return }
         isLoadingMore = true
+        let request = watchedRequest
         do {
+            let filter = catalogFilters.current()
             let next = try await ProfileAPI.getPublicWatched(
                 userId: friend.id,
                 limit: 20,
-                offset: watchedMovies.count,
-                sort: watchedSort
+                offset: watchedFetchedCount,
+                sort: watchedSort,
+                filter: filter
             )
-            watchedMovies.append(contentsOf: next.results)
+            if request == watchedRequest {
+                watchedFetchedCount += next.results.count
+                watchedMovies.append(contentsOf: next.results.filter {
+                    filter.matches(mediaType: $0.mediaType, year: $0.year)
+                })
+            }
         } catch is CancellationError {
             return
         } catch { /* Non-critical — pagination stops */ }
@@ -73,7 +98,29 @@ extension FriendProfileView {
     func reloadWatched() async {
         guard !watchedGated else { return }
         watchedError = nil
-        await fetchWatched()
+        watchedRequest += 1
+        let request = watchedRequest
+        do {
+            let filter = catalogFilters.current()
+            let result = try await ProfileAPI.getPublicWatched(
+                userId: friend.id,
+                limit: 20,
+                offset: 0,
+                sort: watchedSort,
+                filter: filter
+            )
+            guard request == watchedRequest else { return }
+            watchedFetchedCount = result.results.count
+            watchedMovies = result.results.filter {
+                filter.matches(mediaType: $0.mediaType, year: $0.year)
+            }
+            watchedTotal = result.total
+        } catch is CancellationError {
+            return
+        } catch {
+            guard request == watchedRequest else { return }
+            watchedError = error.localizedDescription
+        }
     }
 
     func loadTaste() async {

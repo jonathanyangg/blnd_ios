@@ -3,6 +3,7 @@ import SwiftUI
 struct PosterTile: View {
     let posterPath: String?
     let rating: Double?
+    var mediaType: MediaType? = nil
 
     var body: some View {
         // Fit, not fill. A LazyVGrid proposes a huge height, and
@@ -49,6 +50,20 @@ struct PosterTile: View {
             .padding(.vertical, 3)
             .background(.black.opacity(0.55), in: Capsule())
             .padding(4)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay(alignment: .topLeading) {
+            if mediaType == .tv {
+                Text("TV")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(.black.opacity(0.7))
+                    .clipShape(Capsule())
+                    .padding(4)
+                    .accessibilityIdentifier("tv-show-badge")
+            }
         }
     }
 }

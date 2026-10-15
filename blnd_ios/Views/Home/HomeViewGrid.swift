@@ -44,6 +44,14 @@ extension HomeView {
                 errorView(message: error) {
                     Task { await loadForYou() }
                 }
+            } else if recommendations.isEmpty, catalogFilters.filter.media == .tv {
+                CatalogFilterNotice(title: "TV recommendations are coming soon")
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 40)
+            } else if recommendations.isEmpty, catalogFilters.filter.isActive {
+                CatalogFilterNotice(title: "Nothing matches this filter")
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 40)
             } else {
                 movieGrid(
                     cardWidth: cardWidth,
@@ -111,7 +119,8 @@ extension HomeView {
                 posterPath: movie.posterPath,
                 width: cardWidth,
                 height: cardHeight,
-                scorePercent: movie.scorePercent
+                scorePercent: movie.scorePercent,
+                mediaType: movie.mediaType
             )
         }
         .buttonStyle(.plain)

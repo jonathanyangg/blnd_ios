@@ -31,17 +31,24 @@ struct DiscoverSectionView: View {
     @State var seenIds: Set<Int> = []
     @State var hasMorePages = true
     @State var isLoadingMore = false
+    @State var catalogFilters = CatalogFilterStore.shared
 
     var body: some View {
         VStack(spacing: 0) {
             filterHeader
-            if viewMode == .reels {
+            if catalogFilters.filter.media == .tv {
+                CatalogFilterNotice(title: "TV recommendations are coming soon")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if viewMode == .reels {
                 reelsFeed
             } else {
                 gridFeed
             }
         }
-        .task { await loadMovies() }
+        .task(id: catalogFilters.filter) {
+            resetPagination()
+            await loadMovies(forceRefresh: true)
+        }
     }
 
     // MARK: - Shared Filter Header
@@ -164,7 +171,8 @@ struct DiscoverSectionView: View {
             posterPath: movie.posterPath,
             width: cardWidth,
             height: cardHeight,
-            scorePercent: movie.matchPercent
+            scorePercent: movie.matchPercent,
+            mediaType: movie.mediaType
         )
         .overlay(alignment: .topLeading) {
             if activeFilter == .trending {

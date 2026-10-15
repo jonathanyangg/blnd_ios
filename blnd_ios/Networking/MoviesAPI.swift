@@ -6,7 +6,8 @@ enum MoviesAPI {
     static func discover(
         genres: [String] = [],
         withCast: Int? = nil,
-        exclude: Set<Int> = []
+        exclude: Set<Int> = [],
+        filter: CatalogFilter = CatalogFilter()
     ) async throws -> MovieSearchResult {
         var params: [String] = []
         if !genres.isEmpty {
@@ -20,7 +21,10 @@ enum MoviesAPI {
         if !exclude.isEmpty {
             params.append("exclude=\(exclude.map(String.init).joined(separator: ","))")
         }
-        let endpoint = "/movies/discover?\(params.joined(separator: "&"))"
+        let base = params.isEmpty
+            ? "/movies/discover"
+            : "/movies/discover?\(params.joined(separator: "&"))"
+        let endpoint = filter.appending(to: base)
         return try await APIClient.shared.request(
             endpoint: endpoint,
             authenticated: true
@@ -36,30 +40,41 @@ enum MoviesAPI {
         )
     }
 
-    static func search(query: String, page: Int = 1) async throws -> MovieSearchResult {
+    static func search(
+        query: String,
+        page: Int = 1,
+        filter: CatalogFilter = CatalogFilter()
+    ) async throws -> MovieSearchResult {
         let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query
         return try await APIClient.shared.request(
-            endpoint: "/movies/search?query=\(encoded)&page=\(page)",
+            endpoint: filter.appending(to: "/movies/search?query=\(encoded)&page=\(page)"),
             authenticated: true
         )
     }
 
-    static func trending(exclude: Set<Int> = []) async throws -> MovieSearchResult {
+    static func trending(
+        exclude: Set<Int> = [],
+        filter: CatalogFilter = CatalogFilter()
+    ) async throws -> MovieSearchResult {
         var endpoint = "/movies/trending"
         if !exclude.isEmpty {
             endpoint += "?exclude=\(exclude.map(String.init).joined(separator: ","))"
         }
         return try await APIClient.shared.request(
-            endpoint: endpoint,
+            endpoint: filter.appending(to: endpoint),
             authenticated: true
         )
     }
 
-    static func topRated(exclude: Set<Int> = []) async throws -> MovieSearchResult {
+    static func topRated(
+        exclude: Set<Int> = [],
+        filter: CatalogFilter = CatalogFilter()
+    ) async throws -> MovieSearchResult {
         var endpoint = "/movies/top-rated"
         if !exclude.isEmpty {
             endpoint += "?exclude=\(exclude.map(String.init).joined(separator: ","))"
         }
+        endpoint = filter.appending(to: endpoint)
         return try await APIClient.shared.request(
             endpoint: endpoint,
             authenticated: true
@@ -110,11 +125,74 @@ enum MoviesAPI {
 
 /// TV endpoints (backend feature flag)
 enum TVAPI {
-    /// GET /tv/search — only available when the backend TV flag is enabled.
-    static func search(query: String, page: Int = 1) async throws -> TVSearchResponse {
-        try await APIClient.shared.request(
-            endpoint: "/tv/search?query=\(query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query)&page=\(page)",
+    /// GET /tv/search. Years are sent. The path already means TV, so media_type is omitted.
+    static func search(
+        query: String,
+        page: Int = 1,
+        filter: CatalogFilter = CatalogFilter()
+    ) async throws -> TVSearchResponse {
+        let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query
+        return try await APIClient.shared.request(
+            endpoint: filter.yearsOnly.appending(to: "/tv/search?query=\(encoded)&page=\(page)"),
             authenticated: true
+        )
+    }
+}
+
+enum CatalogSearch {
+    /// Movies stay on `/movies/search`. TV uses `/tv/search`. All calls both and merges.
+    static func search(
+        query: String,
+        page: Int = 1,
+        filter: CatalogFilter
+    ) async throws -> [MovieResponse] {
+        let years = filter.yearsOnly
+        switch filter.media {
+        case .movies:
+            return try await MoviesAPI.search(query: query, page: page, filter: years).results
+        case .tv:
+            let shows = try await TVAPI.search(query: query, page: page, filter: years)
+            return shows.results.map { MovieResponse(show: $0) }
+        case .all:
+            async let movies = MoviesAPI.search(query: query, page: page, filter: years)
+            async let shows = TVAPI.search(query: query, page: page, filter: years)
+            let movieRows = try await movies.results
+            let showRows: [MovieResponse]
+            do {
+                showRows = try await shows.results.map { MovieResponse(show: $0) }
+            } catch APIError.notFound {
+                showRows = []
+            }
+            return merge(movies: movieRows, shows: showRows)
+        }
+    }
+
+    static func merge(movies: [MovieResponse], shows: [MovieResponse]) -> [MovieResponse] {
+        var seen = Set<Int>()
+        return (movies + shows).filter { seen.insert($0.tmdbId).inserted }
+    }
+}
+
+extension MovieResponse {
+    init(show: TVShowResponse) {
+        self.init(
+            tmdbId: show.tmdbId,
+            title: show.title,
+            year: show.year,
+            overview: show.overview,
+            posterPath: show.posterPath,
+            genres: [],
+            runtime: nil,
+            voteAverage: nil,
+            trailerUrl: nil,
+            director: nil,
+            cast: [],
+            tagline: nil,
+            backdropPath: nil,
+            imdbId: nil,
+            matchScore: nil,
+            commentCount: nil,
+            mediaType: show.mediaType
         )
     }
 }
@@ -162,11 +240,12 @@ enum RecommendationsAPI {
     /// POST /recommendations/me/feed — infinite scroll feed with exclude list
     static func getFeed(
         exclude: [Int] = [],
-        limit: Int = 20
+        limit: Int = 20,
+        filter: CatalogFilter = CatalogFilter()
     ) async throws -> RecommendationsResponse {
         let body = FeedRequest(exclude: exclude, limit: limit)
         return try await APIClient.shared.request(
-            endpoint: "/recommendations/me/feed",
+            endpoint: filter.appending(to: "/recommendations/me/feed"),
             method: "POST",
             body: body,
             authenticated: true
@@ -176,11 +255,12 @@ enum RecommendationsAPI {
     static func semanticSearch(
         query: String,
         limit: Int = 30,
-        exclude: [Int] = []
+        exclude: [Int] = [],
+        filter: CatalogFilter = CatalogFilter()
     ) async throws -> SemanticSearchResponse {
         let body = SemanticSearchRequest(query: query, limit: limit, exclude: exclude)
         return try await APIClient.shared.request(
-            endpoint: "/recommendations/semantic-discover",
+            endpoint: filter.appending(to: "/recommendations/semantic-discover"),
             method: "POST",
             body: body,
             authenticated: true
@@ -197,9 +277,12 @@ enum RecommendationsAPI {
         )
     }
 
-    static func refresh(limit: Int = 60) async throws -> RecommendationsResponse {
+    static func refresh(
+        limit: Int = 60,
+        filter: CatalogFilter = CatalogFilter()
+    ) async throws -> RecommendationsResponse {
         try await APIClient.shared.request(
-            endpoint: "/recommendations/me/refresh?limit=\(limit)",
+            endpoint: filter.appending(to: "/recommendations/me/refresh?limit=\(limit)"),
             method: "POST",
             authenticated: true
         )
@@ -254,13 +337,18 @@ enum RecommendationsAPI {
     }
 
     /// GET /recommendations/now — one movie and a reason.
-    /// `exclude` is the re-roll list of tmdb ids.
+    /// `exclude` is the re-roll list of tmdb ids. The catalog filter is applied too.
     static func findNow(
         genre: String?,
-        exclude: [Int]
+        exclude: [Int],
+        filter: CatalogFilter = CatalogFilter()
     ) async throws -> NowPickResponse {
         try await APIClient.shared.request(
-            endpoint: NowPickQuery.endpoint(genre: genre, exclude: exclude),
+            endpoint: FindNowCatalogFilter.endpoint(
+                genre: genre,
+                exclude: exclude,
+                filter: filter
+            ),
             authenticated: true
         )
     }

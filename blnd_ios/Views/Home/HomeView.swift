@@ -38,6 +38,7 @@ struct HomeView: View {
     @State var showStickySearch = false
     @State var lastScrollOffset: CGFloat = 0
     @State var deepLinkTmdbId: Int?
+    @State var catalogFilters = CatalogFilterStore.shared
 
     /// Show the reel coach once. The key matches `ReelTutorialStore`.
     @AppStorage(ReelTutorialStore.seenKey) private var hasSeenTutorial = false
@@ -74,8 +75,14 @@ struct HomeView: View {
                         }
                 } else {
                     gridFeed
-                        .task { await loadForYou() }
                 }
+            }
+            .task(id: catalogFilters.filter) {
+                recommendations = []
+                seenFYPIds = []
+                fypReelMovies = []
+                fypCurrentId = nil
+                await loadForYou()
             }
             .background(AppTheme.background)
             .fullScreenCover(isPresented: $showSearch) {
@@ -168,6 +175,12 @@ struct HomeView: View {
                         .font(.system(size: 18))
                         .foregroundStyle(.white)
                     }
+                    Button { showFindNow = true } label: {
+                        Image(systemName: "sparkle")
+                            .font(.system(size: 20))
+                            .foregroundStyle(.white)
+                    }
+                    .accessibilityIdentifier("find-movie-now-button")
                     Button { showSearch = true } label: {
                         Image(systemName: "magnifyingglass")
                             .font(.system(size: 20))
@@ -200,6 +213,13 @@ struct HomeView: View {
             .accessibilityIdentifier("find-movie-now.entry")
             .padding(.horizontal, 20)
             .padding(.bottom, 10)
+
+            HStack {
+                CatalogFilterButton()
+                Spacer()
+            }
+            .padding(.horizontal, 24)
+            .padding(.bottom, 8)
 
             homeTabPicker()
                 .padding(.horizontal, 20)

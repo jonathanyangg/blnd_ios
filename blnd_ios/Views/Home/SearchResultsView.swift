@@ -85,6 +85,7 @@ struct SearchView: View {
                 ForEach(SearchSegment.allCases) { item in
                     modeChip(item.rawValue, segment: item)
                 }
+                CatalogFilterButton()
             }
             .padding(.horizontal, 24)
         }
@@ -297,20 +298,28 @@ private extension SearchView {
 
     func searchAll(query: String) async {
         isLoading = true
-        async let movieCall = MoviesAPI.search(query: query)
-        async let tvCall = TVAPI.search(query: query)
+        let filter = CatalogFilterStore.shared.current()
+        let years = filter.yearsOnly
         async let actorCall = MoviesAPI.searchPerson(query: query)
         async let userCall = AuthAPI.searchUsers(query: query)
-        let movies = try? await movieCall
-        let shows = try? await tvCall
+        let movies = filter.media == .tv
+            ? nil
+            : try? await MoviesAPI.search(query: query, filter: years)
+        let shows = filter.media == .movies
+            ? nil
+            : try? await TVAPI.search(query: query, filter: years)
         let actors = try? await actorCall
         let users = try? await userCall
         guard debouncedQuery == query else {
             isLoading = false
             return
         }
-        results = movies?.results ?? []
-        tvResults = shows?.results ?? []
+        results = (movies?.results ?? []).filter {
+            filter.matches(mediaType: $0.mediaType ?? .movie, year: $0.year)
+        }
+        tvResults = (shows?.results ?? []).filter {
+            filter.matches(mediaType: .tv, year: $0.year)
+        }
         actorResults = actors?.results ?? []
         userResults = users?.results ?? []
         hasSearched = true

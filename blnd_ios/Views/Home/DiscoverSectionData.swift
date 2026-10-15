@@ -41,10 +41,15 @@ extension DiscoverSectionView {
         errorMessage = nil
         seenIds = []
         do {
-            let response = try await fetchBatch(exclude: [])
-            movies = response.results
+            let filter = catalogFilters.current()
+            let response = try await fetchBatch(exclude: [], filter: filter)
+            guard !Task.isCancelled else { return }
             seenIds = Set(response.results.map(\.tmdbId))
-            discoverReelMovies = response.results.map { ReelMovie(from: $0) }
+            let visible = response.results.filter {
+                filter.matches(mediaType: $0.mediaType, year: $0.year)
+            }
+            movies = visible
+            discoverReelMovies = visible.map { ReelMovie(from: $0) }
             hasMorePages = !response.results.isEmpty
         } catch {
             if !Task.isCancelled {
@@ -61,17 +66,19 @@ extension DiscoverSectionView {
         let batchNum = (seenIds.count / 20) + 1
         Analytics.feedLoadMore(source: .discover, batchNum: batchNum)
         do {
-            let response = try await fetchBatch(exclude: seenIds)
-            let newMovies = response.results.filter {
-                !seenIds.contains($0.tmdbId)
+            let filter = catalogFilters.current()
+            let response = try await fetchBatch(exclude: seenIds, filter: filter)
+            for movie in response.results {
+                seenIds.insert(movie.tmdbId)
             }
-            if newMovies.isEmpty {
+            let newMovies = response.results.filter {
+                filter.matches(mediaType: $0.mediaType, year: $0.year)
+            }
+            if response.results.isEmpty || response.results.count < 20 {
                 hasMorePages = false
-            } else {
+            }
+            if !newMovies.isEmpty {
                 movies.append(contentsOf: newMovies)
-                for movie in newMovies {
-                    seenIds.insert(movie.tmdbId)
-                }
                 discoverReelMovies.append(
                     contentsOf: newMovies.map { ReelMovie(from: $0) }
                 )
@@ -85,25 +92,28 @@ extension DiscoverSectionView {
     }
 
     func fetchBatch(
-        exclude: Set<Int>
+        exclude: Set<Int>,
+        filter: CatalogFilter
     ) async throws -> MovieSearchResult {
         // Actor filter overrides to discover endpoint
         if let actor = selectedActor {
             return try await MoviesAPI.discover(
                 genres: activeFilter == .genre ? Array(selectedGenres) : [],
                 withCast: actor.id,
-                exclude: exclude
+                exclude: exclude,
+                filter: filter
             )
         }
         switch activeFilter {
         case .trending:
-            return try await MoviesAPI.trending(exclude: exclude)
+            return try await MoviesAPI.trending(exclude: exclude, filter: filter)
         case .topRated:
-            return try await MoviesAPI.topRated(exclude: exclude)
+            return try await MoviesAPI.topRated(exclude: exclude, filter: filter)
         case .genre:
             return try await MoviesAPI.discover(
                 genres: Array(selectedGenres),
-                exclude: exclude
+                exclude: exclude,
+                filter: filter
             )
         }
     }
