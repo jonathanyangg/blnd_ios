@@ -10,6 +10,11 @@ struct MovieCard: View {
     var glow: Bool = false
     var gradientAngle: Int = 135
     var scorePercent: Int?
+    var mediaType: MediaType?
+
+    var isTV: Bool {
+        mediaType == .tv
+    }
 
     private var displayTitle: String? {
         guard let title else { return nil }
@@ -77,6 +82,19 @@ struct MovieCard: View {
                 }
             }
             .shadow(color: glow ? .white.opacity(0.13) : .clear, radius: glow ? 12 : 0)
+            .overlay(alignment: .topLeading) {
+                if isTV {
+                    Text("TV")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(.black.opacity(0.7))
+                        .clipShape(Capsule())
+                        .padding(6)
+                        .accessibilityIdentifier("tv-show-badge")
+                }
+            }
 
             if let displayTitle {
                 Text(displayTitle)

@@ -2,6 +2,43 @@ import Foundation
 
 // MARK: - Requests
 
+enum MediaType: String, Codable {
+    case movie
+    case tv
+}
+
+// MARK: - TV (/tv/search)
+
+struct TVShowResponse: Codable, Identifiable {
+    let tmdbId: Int
+    let title: String
+    let year: Int?
+    let overview: String?
+    let posterPath: String?
+    let mediaType: MediaType
+
+    var id: Int {
+        tmdbId
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case tmdbId = "tmdb_id"
+        case title, year, overview
+        case posterPath = "poster_path"
+        case mediaType = "media_type"
+    }
+}
+
+struct TVSearchResponse: Decodable {
+    let results: [TVShowResponse]
+    let totalResults: Int
+
+    enum CodingKeys: String, CodingKey {
+        case results
+        case totalResults = "total_results"
+    }
+}
+
 struct FeedRequest: Encodable {
     let exclude: [Int]
     let limit: Int
@@ -132,6 +169,7 @@ struct MovieResponse: Codable, Identifiable {
     let imdbId: String?
     let matchScore: Double?
     let commentCount: Int?
+    let mediaType: MediaType?
 
     var id: Int {
         tmdbId
@@ -169,6 +207,7 @@ struct MovieResponse: Codable, Identifiable {
         case imdbId = "imdb_id"
         case matchScore = "match_score"
         case commentCount = "comment_count"
+        case mediaType = "media_type"
     }
 }
 
