@@ -199,12 +199,10 @@ struct AddGroupMemberSheet: View {
             )
             addedIds.insert(friend.id)
             onMemberAdded(updated)
-        } catch let APIError.badRequest(message) {
-            if message.contains("Upgrade") || message.contains("blnd+") {
-                showPaywall = true
-            } else {
-                errorMessage = message
-            }
+        } catch let error as APIError where error.opensPaywall {
+            showPaywall = true
+        } catch let APIError.badRequest(message, _) {
+            errorMessage = message
         } catch {
             errorMessage = error.localizedDescription
         }
