@@ -92,6 +92,28 @@ struct RefreshSessionTests {
         }
     }
 
+    @Test func checkSession401SignsOut() async {
+        let snapshot = KeychainSnapshot.capture()
+        let previousSession = APIClient.shared.session
+        APIClient.shared.session = RefreshHTTPStub.install(.always(.status(401)))
+        KeychainManager.save(key: "accessToken", string: "old-access")
+        KeychainManager.save(key: "refreshToken", string: "old-refresh")
+        KeychainManager.save(key: "userId", string: "old-user")
+        let auth = AuthState()
+        auth.phase = .authenticated
+        defer {
+            APIClient.shared.session = previousSession
+            snapshot.restore()
+        }
+
+        await auth.checkSession(retryDelays: [0, 0, 0])
+        await waitUntilSignedOut()
+
+        #expect(auth.phase == .unauthenticated)
+        #expect(KeychainManager.readString(key: "accessToken") == nil)
+        #expect(KeychainManager.readString(key: "refreshToken") == nil)
+    }
+
     @Test func failedCheckKeepsSignedInSession() async {
         await check(
             refresh: .always(.status(503)),
