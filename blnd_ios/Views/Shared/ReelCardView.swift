@@ -24,6 +24,7 @@ struct ReelCardView: View {
     @State var showStreamingSheet = false
     @State var showCommentsSheet = false
     @State var showWatchedBySheet = false
+    @State var showLogSheet = false
     @State var friendsLoadTask: Task<Void, Never>?
     @State var mediaBottomY: CGFloat = 0
     @State var selectedCastMember: CastMember?
@@ -87,6 +88,7 @@ struct ReelCardView: View {
                 commentsButton
                 watchedByRow
                 inlineRatingBar
+                watchedWithButton
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 12)
@@ -147,6 +149,20 @@ struct ReelCardView: View {
                 tmdbId: movie.tmdbId,
                 movieTitle: movie.title
             )
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+            .presentationBackground(AppTheme.card)
+        }
+        .sheet(isPresented: $showLogSheet) {
+            RateMovieSheet(
+                title: movie.title,
+                year: movie.yearString,
+                tmdbId: movie.tmdbId,
+                posterPath: movie.posterPath,
+                existingRating: UserActionCache.shared.rating(for: movie.tmdbId)
+            ) { newRating in
+                onRated?(newRating)
+            }
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
             .presentationBackground(AppTheme.card)
