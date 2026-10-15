@@ -10,7 +10,9 @@ struct ContentView: View {
 
     var body: some View {
         Group {
-            if authState.isCheckingSession {
+            if showsPaywallScreenshot {
+                PaywallView(source: .manual)
+            } else if authState.isCheckingSession {
                 launchScreen
             } else {
                 switch authState.phase {
@@ -52,6 +54,15 @@ struct ContentView: View {
                 UIApplication.shared.registerForRemoteNotifications()
             }
         }
+    }
+
+    /// Debug-only. Launch with `-PaywallScreenshot` to capture the paywall.
+    private var showsPaywallScreenshot: Bool {
+        #if DEBUG
+        ProcessInfo.processInfo.arguments.contains("-PaywallScreenshot")
+        #else
+        false
+        #endif
     }
 
     /// Splash screen shown during cold-launch session resolution.
