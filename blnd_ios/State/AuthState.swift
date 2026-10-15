@@ -50,8 +50,17 @@ class AuthState {
         }
 
         // Proactively refresh tokens before checking session.
-        // Non-fatal — if this fails, AuthAPI.me() will trigger reactive retry.
-        try? await APIClient.shared.refreshTokens()
+        // 401 rejects the session. Anything else keeps the tokens and falls
+        // through to /auth/me, which retries below.
+        do {
+            try await APIClient.shared.refreshTokens()
+        } catch APIError.unauthorized {
+            phase = .unauthenticated
+            isCheckingSession = false
+            return
+        } catch {
+            // 403, 500, 503, or a network error. Tokens stay in the Keychain.
+        }
 
         do {
             let user = try await AuthAPI.me()

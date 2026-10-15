@@ -50,26 +50,7 @@ private actor TokenRefresher {
         }
 
         let task = Task<Void, Error> {
-            guard let token = KeychainManager.readString(
-                key: "refreshToken"
-            ) else {
-                throw APIError.unauthorized
-            }
-            let body = RefreshTokenRequest(refreshToken: token)
-            let response: LoginResponse =
-                try await APIClient.shared.request(
-                    endpoint: "/auth/refresh",
-                    method: "POST",
-                    body: body
-                )
-            KeychainManager.save(
-                key: "accessToken",
-                string: response.accessToken
-            )
-            KeychainManager.save(
-                key: "refreshToken",
-                string: response.refreshToken
-            )
+            try await self.refreshWithRetries()
         }
         activeTask = task
 
@@ -79,6 +60,26 @@ private actor TokenRefresher {
         } catch {
             activeTask = nil
             throw error
+        }
+    }
+
+    /// One immediate retry for a transient refresh failure. 401 is not retried.
+    /// `checkSession` still backs off if the retry also fails.
+    private func refreshWithRetries() async throws {
+        do {
+            try await APIClient.shared.refreshOnce()
+        } catch let error as APIError where Self.isTransient(error) {
+            try await APIClient.shared.refreshOnce()
+        }
+    }
+
+    /// 403, 500, and 503 are `.serverError`. Transport failures are `.networkError`.
+    private static func isTransient(_ error: APIError) -> Bool {
+        switch error {
+        case .serverError, .networkError:
+            true
+        default:
+            false
         }
     }
 }
@@ -96,11 +97,67 @@ final class APIClient: @unchecked Sendable {
     private let decoder = JSONDecoder()
     private let tokenRefresher = TokenRefresher()
 
+    /// HTTP session. Tests replace this to fake `/auth/refresh`.
+    var session: URLSession = .shared
+
     /// Proactively refresh the access + refresh token pair.
     /// No-op if no refresh token exists (user not logged in).
+    /// A 401 from the refresh call signs the user out. 403, 500, 503, and
+    /// network errors keep the stored tokens and retry.
     func refreshTokens() async throws {
         guard KeychainManager.readString(key: "refreshToken") != nil else { return }
-        try await tokenRefresher.refresh()
+        try await refreshOrSignOut()
+    }
+
+    /// Runs the refresh call. 401 posts a forced logout. Transient failures
+    /// are retried inside the refresher, then surfaced without deleting tokens.
+    private func refreshOrSignOut() async throws {
+        do {
+            try await tokenRefresher.refresh()
+        } catch APIError.unauthorized {
+            NotificationCenter.default.post(
+                name: Self.forceLogoutNotification,
+                object: nil
+            )
+            throw APIError.unauthorized
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            throw APIError.refreshUnavailable
+        }
+    }
+
+    /// POST /auth/refresh once and store the rotated tokens on success.
+    ///
+    /// - Throws: `.unauthorized` for 401, `.serverError` for 403/500/503,
+    ///   `.networkError` when the transport fails.
+    fileprivate func refreshOnce() async throws {
+        guard let token = KeychainManager.readString(key: "refreshToken") else {
+            throw APIError.unauthorized
+        }
+        let (http, data) = try await performRequest(
+            endpoint: "/auth/refresh",
+            method: "POST",
+            body: RefreshTokenRequest(refreshToken: token),
+            authenticated: false
+        )
+        switch http.statusCode {
+        case 200 ..< 300:
+            let response: LoginResponse
+            do {
+                response = try decoder.decode(LoginResponse.self, from: data)
+            } catch {
+                throw APIError.decodingError
+            }
+            KeychainManager.save(key: "accessToken", string: response.accessToken)
+            KeychainManager.save(key: "refreshToken", string: response.refreshToken)
+        case 401:
+            throw APIError.unauthorized
+        case 403, 500, 503:
+            throw APIError.serverError(http.statusCode)
+        default:
+            throw mapError(status: http.statusCode, data: data)
+        }
     }
 
     func request<T: Decodable>(
@@ -144,22 +201,9 @@ final class APIClient: @unchecked Sendable {
             return (http, data)
         }
 
-        do {
-            try await tokenRefresher.refresh()
-        } catch APIError.unauthorized {
-            // The refresh token itself was rejected - the session is truly
-            // dead. Sign out.
-            NotificationCenter.default.post(
-                name: Self.forceLogoutNotification,
-                object: nil
-            )
-            throw APIError.unauthorized
-        } catch {
-            // Transient refresh failure (server waking up, bad network, 5xx).
-            // Keep the stored tokens and surface a retryable error instead of
-            // deleting the session.
-            throw APIError.refreshUnavailable
-        }
+        // 401 signs out. 403, 500, 503, and network errors retry, then keep
+        // the stored tokens if the refresh still fails.
+        try await refreshOrSignOut()
 
         return try await performRequest(
             endpoint: endpoint, method: method,
@@ -192,7 +236,7 @@ final class APIClient: @unchecked Sendable {
         let data: Data
         let response: URLResponse
         do {
-            (data, response) = try await URLSession.shared.data(for: request)
+            (data, response) = try await session.data(for: request)
         } catch is CancellationError {
             throw CancellationError()
         } catch let urlError as URLError where urlError.code == .cancelled {
