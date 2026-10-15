@@ -80,7 +80,9 @@ struct ChooseUsernameView: View {
                 authorizationCode: onboardingState.appleAuthCode
             )
 
-            // Save tokens to Keychain so completeOnboarding can authenticate
+            // Save tokens to Keychain so completeOnboarding can authenticate.
+            // Bump first so a check that started earlier cannot log this session out.
+            authState.bumpSessionGeneration()
             KeychainManager.save(key: "accessToken", string: oauthResponse.accessToken)
             KeychainManager.save(key: "refreshToken", string: oauthResponse.refreshToken)
             KeychainManager.save(key: "userId", string: oauthResponse.userId)
