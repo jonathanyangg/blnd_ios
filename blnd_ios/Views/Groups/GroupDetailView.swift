@@ -2,6 +2,7 @@ import SwiftUI
 
 enum GroupTab: String, CaseIterable {
     case blendPicks = "Blend Picks"
+    case timeline = "Timeline"
     case watchlist = "Watchlist"
 }
 
@@ -23,6 +24,7 @@ struct GroupDetailView: View {
     @State var viewMode: ViewMode = .reels
     @State var toastMessage: String?
     @State var toastTask: Task<Void, Never>?
+    @State var timelineReload = 0
     @State var isEditingName = false
     @State var editedName = ""
     @Namespace var tabNamespace
@@ -56,6 +58,17 @@ struct GroupDetailView: View {
                     Task { await loadAll(forceRefresh: true) }
                 }
                 Spacer()
+            } else if selectedTab == .timeline {
+                WatchTimelineScreen(
+                    source: .blend(groupId),
+                    showsViewer: true,
+                    emptyTitle: "No shared history yet",
+                    emptyMessage: "Movies this blend watches will land here, with who they watched them with.",
+                    unavailableTitle: "Timeline isn't available yet",
+                    unavailableMessage: "Shared history will show up here once the server update ships.",
+                    detailSource: .grid,
+                    reloadToken: timelineReload
+                )
             } else if viewMode == .reels {
                 reelsFeed
             } else {
@@ -133,19 +146,23 @@ struct GroupDetailView: View {
 
                     Spacer(minLength: 8)
 
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            viewMode = viewMode == .reels ? .grid : .reels
+                    if selectedTab == .timeline {
+                        Color.clear.frame(width: 28, height: 28)
+                    } else {
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                viewMode = viewMode == .reels ? .grid : .reels
+                            }
+                        } label: {
+                            Image(
+                                systemName: viewMode == .reels
+                                    ? "square.grid.2x2"
+                                    : "rectangle.stack"
+                            )
+                            .font(.system(size: 16))
+                            .foregroundStyle(.white)
+                            .frame(width: 28, height: 28)
                         }
-                    } label: {
-                        Image(
-                            systemName: viewMode == .reels
-                                ? "square.grid.2x2"
-                                : "rectangle.stack"
-                        )
-                        .font(.system(size: 16))
-                        .foregroundStyle(.white)
-                        .frame(width: 28, height: 28)
                     }
                 }
                 .padding(.horizontal, 16)
