@@ -8,9 +8,18 @@ struct ReelSwipeDecisionTests {
         #expect(decision == .interested)
     }
 
-    @Test func leftSwipeHides() {
+    @Test func leftSwipeIsNotForMe() {
         let decision = reelSwipeDecision(deltaX: -121, deltaY: 10, threshold: 120)
-        #expect(decision == .hide)
+        #expect(decision == .notForMe)
+    }
+
+    @Test func errorEnvelopeUsesMessageAndStringDetail() {
+        let body = Data(
+            """
+            {"error":{"code":"NOT_FOUND","message":"Movie not marked not for me"},"detail":"Movie not marked not for me"}
+            """.utf8
+        )
+        #expect(apiErrorMessage(from: body) == "Movie not marked not for me")
     }
 
     @Test func verticalDragIsIgnored() {
