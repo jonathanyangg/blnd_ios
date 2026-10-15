@@ -9,6 +9,7 @@ private enum ProfileTab: String, CaseIterable {
 struct ProfileView: View {
     @Environment(AuthState.self) private var authState
     @Environment(TabState.self) private var tabState
+    @Environment(DeepLinkState.self) private var deepLinkState
     @State private var showSettings = false
     @State private var showImportContext = false
     @State private var showNotifications = false
@@ -106,6 +107,12 @@ struct ProfileView: View {
                     // Refresh unread count when coming back from notifications
                     Task { await loadUnreadCount() }
                 }
+            }
+            .onChange(of: deepLinkState.pending) { _, link in
+                openNotificationsIfNeeded(link)
+            }
+            .onAppear {
+                openNotificationsIfNeeded(deepLinkState.pending)
             }
             .onChange(of: watchedSort) { Task { await loadWatched() } }
             .onChange(of: watchlistSort) { Task { await loadWatchlist() } }
@@ -457,6 +464,12 @@ extension ProfileView {
         isLoadingWatchlist = false
     }
 
+    private func openNotificationsIfNeeded(_ link: DeepLink?) {
+        guard case .friendRequests = link else { return }
+        showNotifications = true
+        deepLinkState.pending = nil
+    }
+
     func loadUnreadCount() async {
         do {
             let response = try await NotificationAPI.getInbox(limit: 1)
@@ -493,4 +506,5 @@ extension ProfileView {
     ProfileView()
         .environment(AuthState())
         .environment(TabState())
+        .environment(DeepLinkState())
 }

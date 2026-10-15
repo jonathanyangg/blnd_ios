@@ -1,98 +1,151 @@
 import SwiftUI
 
 struct NotificationsSettingsView: View {
-    @State private var friendRequests = true
-    @State private var groupInvites = true
-    @State private var recommendations = true
-    @State private var friendActivity = true
-    @State private var commentReplies = true
-    @State private var isLoading = true
-    @State private var error: String?
+    private let isPreview: Bool
+    @State private var prefs: NotificationPrivacyPrefs
+    @State private var loadError: String?
+    @State private var saveError: String?
+
+    init(preview: NotificationPrivacyPrefs? = nil) {
+        isPreview = preview != nil
+        _prefs = State(initialValue: preview ?? NotificationPrefsStore.load())
+    }
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 16) {
-                if isLoading {
-                    ProgressView()
-                        .tint(.white)
-                        .frame(maxWidth: .infinity, minHeight: 200)
-                } else if let error {
-                    errorSection(error)
-                } else {
-                    preferencesSection
-                    systemSettingsHint
-                }
+            VStack(alignment: .leading, spacing: 22) {
+                if let loadError { note(loadError) }
+                if let saveError { note(saveError) }
+                sharingCard
+                channelSection(
+                    "Friends' ratings",
+                    inApp: \.friendRatings,
+                    push: \.friendRatings
+                )
+                channelSection(
+                    "Blend activity",
+                    inApp: \.blendActivity,
+                    push: \.blendActivity
+                )
+                channelSection(
+                    "Comments and likes",
+                    inApp: \.commentsLikes,
+                    push: \.commentsLikes
+                )
+                channelSection(
+                    "Watched-with tags",
+                    inApp: \.watchedWith,
+                    push: \.watchedWith
+                )
+                channelSection(
+                    "Recommendations",
+                    inApp: \.recommendations,
+                    push: \.recommendations
+                )
+                systemSettings
             }
             .padding(.horizontal, 24)
             .padding(.top, 20)
+            .padding(.bottom, 32)
         }
         .background(AppTheme.background)
         .navigationBarBackButtonHidden()
         .swipeBackGesture()
+        .toolbarBackground(AppTheme.background, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
         .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                BackButton()
-            }
+            ToolbarItem(placement: .navigationBarLeading) { BackButton() }
             ToolbarItem(placement: .principal) {
-                Text("Notifications")
-                    .font(.system(size: 22, weight: .bold))
+                Text("Notifications & Privacy")
+                    .font(.system(size: 16, weight: .bold))
                     .foregroundStyle(.white)
+                    .lineLimit(1)
             }
         }
-        .task {
-            await loadPreferences()
-        }
+        .task { await load() }
+        .accessibilityIdentifier("notifications-privacy")
     }
 
-    // MARK: - Sections
-
-    private var preferencesSection: some View {
-        VStack(spacing: 0) {
-            toggleRow(
-                label: "Friend Requests",
-                subtitle: "When someone sends you a friend request",
-                isOn: $friendRequests
-            ) {
-                await updatePreference(friendRequests: friendRequests)
+    private var sharingCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Share my ratings in friends' notifications")
+                .font(.system(size: 16))
+                .foregroundStyle(.white)
+                .fixedSize(horizontal: false, vertical: true)
+            Picker("Share my ratings", selection: shareBinding) {
+                ForEach(ShareAudience.allCases, id: \.self) { audience in
+                    Text(audience.label).tag(audience)
+                }
             }
-            Divider().background(AppTheme.cardSecondary)
-            toggleRow(
-                label: "Blend Invites",
-                subtitle: "When someone adds you to a blend",
-                isOn: $groupInvites
-            ) {
-                await updatePreference(groupInvites: groupInvites)
-            }
-            Divider().background(AppTheme.cardSecondary)
-            toggleRow(
-                label: "Recommendations",
-                subtitle: "Weekly digest of new recommendations",
-                isOn: $recommendations
-            ) {
-                await updatePreference(recommendations: recommendations)
-            }
-            Divider().background(AppTheme.cardSecondary)
-            toggleRow(
-                label: "Friend Activity",
-                subtitle: "When a friend rates a movie 4+ stars",
-                isOn: $friendActivity
-            ) {
-                await updatePreference(friendActivity: friendActivity)
-            }
-            Divider().background(AppTheme.cardSecondary)
-            toggleRow(
-                label: "Comment Replies",
-                subtitle: "When someone replies to your comment",
-                isOn: $commentReplies
-            ) {
-                await updatePreference(commentReplies: commentReplies)
-            }
+            .pickerStyle(.segmented)
         }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(AppTheme.card)
         .clipShape(RoundedRectangle(cornerRadius: AppTheme.cornerRadiusLarge))
     }
 
-    private var systemSettingsHint: some View {
+    private var shareBinding: Binding<ShareAudience> {
+        Binding(
+            get: { prefs.shareRatings },
+            set: { audience in
+                Task { await update { $0.shareRatings = audience } }
+            }
+        )
+    }
+
+    private func channelSection(
+        _ title: String,
+        inApp: WritableKeyPath<ChannelPrefs, Bool>,
+        push: WritableKeyPath<ChannelPrefs, Bool>
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(AppTheme.textMuted)
+                .padding(.leading, 4)
+            VStack(spacing: 0) {
+                toggle(
+                    "In-app",
+                    subtitle: "Show in your notification center",
+                    isOn: prefs.inApp[keyPath: inApp]
+                ) { value in
+                    await update { $0.inApp[keyPath: inApp] = value }
+                }
+                Divider().background(AppTheme.cardSecondary)
+                toggle("Push", subtitle: "Alert on this phone", isOn: prefs.push[keyPath: push]) { value in
+                    await update { $0.push[keyPath: push] = value }
+                }
+            }
+            .background(AppTheme.card)
+            .clipShape(RoundedRectangle(cornerRadius: AppTheme.cornerRadiusLarge))
+        }
+    }
+
+    private func toggle(
+        _ title: String,
+        subtitle: String,
+        isOn: Bool,
+        set: @escaping (Bool) async -> Void
+    ) -> some View {
+        Toggle(isOn: Binding(
+            get: { isOn },
+            set: { value in Task { await set(value) } }
+        )) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 16))
+                    .foregroundStyle(.white)
+                Text(subtitle)
+                    .font(.system(size: 12))
+                    .foregroundStyle(AppTheme.textDim)
+            }
+        }
+        .tint(.green)
+        .padding(16)
+    }
+
+    private var systemSettings: some View {
         Button {
             if let url = URL(string: UIApplication.openSettingsURLString) {
                 UIApplication.shared.open(url)
@@ -114,94 +167,45 @@ struct NotificationsSettingsView: View {
         }
     }
 
-    private func errorSection(_ message: String) -> some View {
-        VStack(spacing: 12) {
-            Text(message)
-                .font(.system(size: 14))
-                .foregroundStyle(AppTheme.textMuted)
-                .multilineTextAlignment(.center)
-            Button("Retry") {
-                Task { await loadPreferences() }
-            }
-            .font(.system(size: 14, weight: .medium))
-            .foregroundStyle(.white)
-        }
-        .frame(maxWidth: .infinity, minHeight: 200)
+    private func note(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 13))
+            .foregroundStyle(AppTheme.textMuted)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
-    // MARK: - Toggle Row
-
-    private func toggleRow(
-        label: String,
-        subtitle: String,
-        isOn: Binding<Bool>,
-        onChange: @escaping () async -> Void
-    ) -> some View {
-        Toggle(isOn: Binding(
-            get: { isOn.wrappedValue },
-            set: { newValue in
-                isOn.wrappedValue = newValue
-                Task { await onChange() }
-            }
-        )) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(label)
-                    .font(.system(size: 16))
-                    .foregroundStyle(.white)
-                Text(subtitle)
-                    .font(.system(size: 12))
-                    .foregroundStyle(AppTheme.textDim)
-            }
-        }
-        .tint(.green)
-        .padding(16)
-    }
-
-    // MARK: - API
-
-    private func loadPreferences() async {
-        isLoading = true
-        error = nil
+    private func load() async {
+        guard !isPreview else { return }
         do {
-            let prefs = try await NotificationAPI.getPreferences()
-            friendRequests = prefs.friendRequests
-            groupInvites = prefs.groupInvites
-            recommendations = prefs.recommendations
-            friendActivity = prefs.friendActivity
-            commentReplies = prefs.commentReplies
-            isLoading = false
+            let server = try await NotificationAPI.getPreferences()
+            guard !Task.isCancelled else { return }
+            prefs = prefs.applying(server: server)
+            NotificationPrefsStore.save(prefs)
+            loadError = nil
         } catch {
-            self.error = "Could not load notification preferences."
-            isLoading = false
+            guard !Task.isCancelled else { return }
+            loadError = FriendlyCopy.refreshSettings
         }
     }
 
-    // swiftlint:disable discouraged_optional_boolean
-    private func updatePreference(
-        friendRequests: Bool? = nil,
-        groupInvites: Bool? = nil,
-        recommendations: Bool? = nil,
-        friendActivity: Bool? = nil,
-        commentReplies: Bool? = nil
-    ) async {
-        // swiftlint:enable discouraged_optional_boolean
-        let request = UpdatePreferencesRequest(
-            friendRequests: friendRequests,
-            groupInvites: groupInvites,
-            recommendations: recommendations,
-            friendActivity: friendActivity,
-            commentReplies: commentReplies
-        )
+    private func update(_ change: (inout NotificationPrivacyPrefs) -> Void) async {
+        let previous = prefs
+        var next = prefs
+        change(&next)
+        prefs = next
+        NotificationPrefsStore.save(prefs)
+        guard !isPreview else { return }
         do {
-            let prefs = try await NotificationAPI.updatePreferences(request)
-            self.friendRequests = prefs.friendRequests
-            self.groupInvites = prefs.groupInvites
-            self.recommendations = prefs.recommendations
-            self.friendActivity = prefs.friendActivity
-            self.commentReplies = prefs.commentReplies
+            let server = try await NotificationAPI.updatePreferences(prefs.asRequest())
+            guard !Task.isCancelled else { return }
+            prefs = prefs.applying(server: server)
+            NotificationPrefsStore.save(prefs)
+            saveError = nil
         } catch {
-            // Revert toggle on failure by reloading
-            await loadPreferences()
+            guard !Task.isCancelled else { return }
+            prefs = previous
+            NotificationPrefsStore.save(previous)
+            saveError = FriendlyCopy.saveSettings
         }
     }
 }

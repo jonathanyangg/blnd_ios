@@ -56,15 +56,37 @@ enum NotificationAPI {
         )
     }
 
-    /// PATCH /notifications/preferences — update notification preference toggles (partial)
+    /// PATCH /notifications/preferences — update notification preference toggles (partial).
+    /// Sends the richer body first. A 4xx means this server only stores the five booleans.
     static func updatePreferences(
         _ prefs: UpdatePreferencesRequest
     ) async throws -> NotificationPreferences {
-        try await APIClient.shared.request(
+        do {
+            return try await sendPreferences(prefs, includeExtensions: true)
+        } catch APIError.badRequest {
+            return try await sendPreferences(prefs, includeExtensions: false)
+        }
+    }
+
+    private static func sendPreferences(
+        _ prefs: UpdatePreferencesRequest,
+        includeExtensions: Bool
+    ) async throws -> NotificationPreferences {
+        let body = PreferencePatch(request: prefs, includeExtensions: includeExtensions)
+        return try await APIClient.shared.request(
             endpoint: "/notifications/preferences",
             method: "PATCH",
-            body: prefs,
+            body: body,
             authenticated: true
         )
+    }
+}
+
+private struct PreferencePatch: Encodable {
+    let request: UpdatePreferencesRequest
+    let includeExtensions: Bool
+
+    func encode(to encoder: Encoder) throws {
+        try request.encode(to: encoder, includeExtensions: includeExtensions)
     }
 }
