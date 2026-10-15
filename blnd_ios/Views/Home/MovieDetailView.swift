@@ -65,22 +65,17 @@ struct MovieDetailView: View {
                         showHideConfirm = true
                     }
                 } label: {
-                    Image(
-                        systemName: isHidden
-                            ? "hand.thumbsdown.fill"
-                            : "hand.thumbsdown"
-                    )
-                    .font(.system(size: 16))
-                    .foregroundStyle(
-                        isHidden ? .red : AppTheme.textMuted
-                    )
+                    Image(systemName: isHidden ? "eye.slash.fill" : "eye.slash")
+                        .font(.system(size: 16))
+                        .foregroundStyle(AppTheme.textMuted)
                 }
+                .accessibilityLabel(isHidden ? "Hidden" : "Not for me")
                 .confirmationDialog(
-                    "Not interested?",
+                    "Not for me?",
                     isPresented: $showHideConfirm,
                     titleVisibility: .visible
                 ) {
-                    Button("Not for me", role: .destructive) {
+                    Button("Not for me") {
                         Task { await hideMovie() }
                     }
                 } message: {

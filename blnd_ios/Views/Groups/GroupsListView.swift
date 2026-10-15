@@ -21,12 +21,17 @@ struct GroupsListView: View {
                             .foregroundStyle(.white)
                         Spacer()
                         Button {
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
                             showCreateGroup = true
                         } label: {
-                            Image(systemName: "plus")
-                                .font(.system(size: 22, weight: .medium))
-                                .foregroundStyle(.white)
+                            Text("New")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundStyle(.black)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 8)
+                                .background(.white, in: Capsule())
                         }
+                        .accessibilityLabel("Create a blend")
                     }
                     .padding(.top, 20)
                     .padding(.horizontal, 24)
@@ -48,17 +53,31 @@ struct GroupsListView: View {
                         }
                         .padding(.top, 40)
                     } else if groups.isEmpty {
-                        VStack(spacing: 8) {
+                        VStack(spacing: 12) {
                             Image(systemName: "person.3")
                                 .font(.system(size: 36))
                                 .foregroundStyle(AppTheme.textDim)
                             Text("No blends yet")
                                 .font(.system(size: 17, weight: .semibold))
                                 .foregroundStyle(.white)
-                            Text("Blend your taste with friends to find movies together")
+                            Text("Start a blend, then invite friends to pick movies together.")
                                 .font(.system(size: 14))
                                 .foregroundStyle(AppTheme.textMuted)
+                                .multilineTextAlignment(.center)
+                            Button {
+                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                showCreateGroup = true
+                            } label: {
+                                Text("Create a blend")
+                                    .font(.system(size: 15, weight: .semibold))
+                                    .foregroundStyle(.black)
+                                    .padding(.horizontal, 18)
+                                    .padding(.vertical, 10)
+                                    .background(.white, in: Capsule())
+                            }
+                            .padding(.top, 4)
                         }
+                        .padding(.horizontal, 40)
                         .padding(.top, 60)
                     } else {
                         let filtered = searchQuery.trimmingCharacters(in: .whitespaces).isEmpty
