@@ -20,13 +20,26 @@ enum TimelinePreview {
         else { return .diary }
         return screen
     }
+
+    static var liveBase: String? { argument(after: "-TimelineLive") }
+    static var liveToken: String? { argument(after: "-TimelineToken") }
+
+    private static func argument(after flag: String) -> String? {
+        let args = ProcessInfo.processInfo.arguments
+        guard let index = args.firstIndex(of: flag), args.indices.contains(index + 1) else { return nil }
+        return args[index + 1]
+    }
 }
 
 struct TimelinePreviewHost: View {
     var body: some View {
         switch TimelinePreview.screen {
         case .diary:
-            diaryScreen
+            if let base = TimelinePreview.liveBase, let token = TimelinePreview.liveToken {
+                TimelineLiveDiary(base: base, token: token)
+            } else {
+                diaryScreen
+            }
         case .blend:
             blendScreen
         case .log:
@@ -127,12 +140,77 @@ struct TimelinePreviewHost: View {
     }
 }
 
+private struct TimelineLiveDiary: View {
+    let base: String
+    let token: String
+    @State private var entries: [TimelineEntry] = []
+    @State private var failure: String?
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if let failure {
+                    ErrorStateView(message: failure)
+                } else if entries.isEmpty {
+                    ProgressView().tint(.white)
+                } else {
+                    WatchTimelineScreen(
+                        source: .preview(entries),
+                        embedsInParentScroll: false,
+                        emptyTitle: "Your diary is empty",
+                        emptyMessage: "Movies you watch will show up here."
+                    )
+                }
+            }
+            .background(AppTheme.background)
+            .navigationTitle("Diary")
+            .navigationBarTitleDisplayMode(.inline)
+        }
+        .task { await load() }
+    }
+
+    private func load() async {
+        var cursor: String?
+        var page = 0
+        var collected: [TimelineEntry] = []
+        do {
+            while page < 3 {
+                var items = [URLQueryItem(name: "limit", value: "8")]
+                if let cursor { items.append(URLQueryItem(name: "cursor", value: cursor)) }
+                var components = URLComponents(string: base + "/tracking/timeline")
+                components?.queryItems = items
+                guard let url = components?.url else { throw APIError.invalidURL }
+                var request = URLRequest(url: url)
+                request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+                let (data, response) = try await URLSession.shared.data(for: request)
+                let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+                guard (200 ..< 300).contains(status) else {
+                    throw APIError.badRequest(APIErrorEnvelope.message(from: data) ?? "Request failed (\(status))")
+                }
+                let decoded = try JSONDecoder().decode(TimelinePage.self, from: data)
+                collected.append(contentsOf: decoded.results)
+                cursor = decoded.nextCursor
+                page += 1
+                if cursor == nil { break }
+            }
+            entries = collected
+        } catch {
+            failure = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+}
+
 enum TimelinePreviewData {
-    static let alex = WatchCompanion(userId: "alex", username: "alex", displayName: "Alex", avatarUrl: nil)
-    static let sam = WatchCompanion(userId: "sam", username: "sam", displayName: "Sam", avatarUrl: nil)
-    static let jordan = WatchCompanion(userId: "jordan", username: "jordan", displayName: "Jordan", avatarUrl: nil)
-    static let maya = WatchCompanion(userId: "maya", username: "maya", displayName: "Maya", avatarUrl: nil)
-    static let chris = WatchCompanion(userId: "chris", username: "chris", displayName: "Chris", avatarUrl: nil)
+    static let alex = TimelinePerson(id: "alex", name: "Alex", avatar: nil)
+    static let sam = TimelinePerson(id: "sam", name: "Sam", avatar: nil)
+    static let jordan = TimelinePerson(id: "jordan", name: "Jordan", avatar: nil)
+    static let maya = TimelinePerson(id: "maya", name: "Maya", avatar: nil)
+    static let chris = TimelinePerson(id: "chris", name: "Chris", avatar: nil)
+    static let jonathan = TimelinePerson(id: "jonathan", name: "Jonathan", avatar: nil)
+
+    static func media(_ tmdbId: Int, _ title: String, year: Int, type: MediaType = .movie) -> TimelineMedia {
+        TimelineMedia(tmdbId: tmdbId, title: title, poster: nil, year: year, mediaType: type)
+    }
 
     static let friends: [FriendResponse] = [
         FriendResponse(friendshipId: 1, id: "alex", username: "alex", displayName: "Alex", avatarUrl: nil),
@@ -142,35 +220,64 @@ enum TimelinePreviewData {
 
     static let diary: [TimelineEntry] = [
         TimelineEntry(
-            id: 1, tmdbId: 101, title: "Paper Cities", year: 2024, rating: 4.5,
-            watchedDate: "2026-10-12", watchedWith: [alex, sam]
+            logId: 1,
+            createdAt: "2026-10-12T18:04:11.352080Z",
+            date: "2026-10-12",
+            rating: 4.5,
+            media: media(101, "Paper Cities", year: 2024),
+            user: jonathan,
+            watchedWith: [alex, sam]
         ),
         TimelineEntry(
-            id: 2, tmdbId: 102, title: "Northern Lights", year: 2022, rating: 5,
-            watchedDate: "2026-10-03", watchedWith: [jordan]
+            logId: 2,
+            createdAt: "2026-10-03T02:00:00.000000Z",
+            date: "2026-10-03",
+            rating: 5,
+            media: media(102, "Northern Lights", year: 2022, type: .tv),
+            user: jonathan,
+            watchedWith: [jordan]
         ),
         TimelineEntry(
-            id: 3, tmdbId: 103, title: "The Quiet Year", year: 2021, rating: 3.5,
-            watchedDate: "2026-09-18", watchedWith: [alex, sam, jordan]
+            logId: 3,
+            date: "2026-09-18",
+            rating: 3.5,
+            media: media(103, "The Quiet Year", year: 2021),
+            user: jonathan,
+            watchedWith: [alex, sam, jordan]
         ),
         TimelineEntry(
-            id: 4, tmdbId: 104, title: "Golden Hour", year: 2019, rating: 4,
-            watchedDate: "2026-09-02"
+            logId: 4,
+            date: "2026-09-02",
+            rating: 4,
+            media: media(104, "Golden Hour", year: 2019),
+            user: jonathan
         ),
     ]
 
     static let blend: [TimelineEntry] = [
         TimelineEntry(
-            id: 11, tmdbId: 201, title: "Velvet Storm", year: 2023, rating: 4,
-            watchedDate: "2026-10-11", watchedWith: [alex, sam], watchedBy: maya
+            logId: 11,
+            date: "2026-10-11",
+            rating: 4,
+            media: media(201, "Velvet Storm", year: 2023),
+            user: maya,
+            watchedWith: [alex, sam]
         ),
         TimelineEntry(
-            id: 12, tmdbId: 202, title: "Silver Linings", year: 2018, rating: 4.5,
-            watchedDate: "2026-10-02", watchedWith: [jordan], watchedBy: chris
+            logId: 12,
+            date: "2026-10-02",
+            rating: 4.5,
+            media: media(202, "Silver Linings", year: 2018, type: .tv),
+            user: chris,
+            watchedWith: [jordan]
         ),
         TimelineEntry(
-            id: 13, tmdbId: 203, title: "Lost Frequency", year: 2020, rating: 3,
-            watchedDate: "2026-08-22", watchedWith: [sam], watchedBy: alex
+            logId: 13,
+            date: "2026-08-22",
+            rating: 3,
+            media: media(203, "Lost Frequency", year: 2020),
+            user: alex,
+            watchedWith: [sam]
         ),
     ]
 }

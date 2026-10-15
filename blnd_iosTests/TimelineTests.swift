@@ -3,12 +3,24 @@ import Foundation
 import Testing
 
 struct TimelineTests {
-    private func person(_ name: String, displayName: String? = nil) -> WatchCompanion {
-        WatchCompanion(
-            userId: name.lowercased(),
-            username: name.lowercased(),
-            displayName: displayName ?? name,
-            avatarUrl: nil
+    private func person(_ name: String, id: String? = nil) -> TimelinePerson {
+        TimelinePerson(id: id ?? name.lowercased(), name: name, avatar: nil)
+    }
+
+    private func entry(
+        logId: Int?,
+        title: String,
+        date: String?,
+        createdAt: String? = nil,
+        tmdb: Int,
+        type: MediaType = .movie
+    ) -> TimelineEntry {
+        TimelineEntry(
+            logId: logId,
+            createdAt: createdAt,
+            date: date,
+            media: TimelineMedia(tmdbId: tmdb, title: title, poster: nil, year: nil, mediaType: type),
+            user: person("You")
         )
     }
 
@@ -23,72 +35,141 @@ struct TimelineTests {
         #expect(line == "with Alex, Sam & Jordan")
     }
 
-    @Test func diaryLineUsesUsernameWhenDisplayNameIsBlank() {
+    @Test func diaryLineSkipsBlankNames() {
         let line = DiaryCopy.watchedWithLine([
-            person("alex", displayName: "   "),
+            TimelinePerson(id: "a", name: "   ", avatar: nil),
             person("Sam"),
         ])
-        #expect(line == "with alex & Sam")
+        #expect(line == "with Sam")
     }
 
     @Test func diaryLineIsNilWithoutPeople() {
         #expect(DiaryCopy.watchedWithLine([]) == nil)
     }
 
+    @Test func pickerStopsAtFifty() {
+        var selected = Set((1 ... 50).map(String.init))
+        let blocked = DiaryCopy.toggle("51", in: selected)
+        #expect(blocked.hitCap)
+        #expect(blocked.selected.count == 50)
+
+        let removed = DiaryCopy.toggle("1", in: selected)
+        #expect(!removed.hitCap)
+        #expect(removed.selected.count == 49)
+
+        selected = []
+        let cleared = DiaryCopy.toggle("1", in: selected)
+        #expect(cleared.selected == ["1"])
+        let empty = DiaryCopy.toggle("1", in: cleared.selected)
+        #expect(empty.selected.isEmpty)
+    }
+
     @Test func groupingOrdersMonthsAndLeavesUndatedLast() {
-        let october = TimelineEntry(id: 1, tmdbId: 1, title: "Late", watchedDate: "2026-10-12")
-        let octoberEarlier = TimelineEntry(id: 2, tmdbId: 2, title: "Early", watchedDate: "2026-10-02")
-        let september = TimelineEntry(id: 3, tmdbId: 3, title: "Sept", watchedDate: "2026-09-18")
-        let undated = TimelineEntry(id: 4, tmdbId: 4, title: "Unknown", watchedDate: "nope")
+        let october = entry(logId: 1, title: "Late", date: "2026-10-12", tmdb: 1)
+        let octoberEarlier = entry(logId: 2, title: "Early", date: "2026-10-02", tmdb: 2)
+        let september = entry(logId: 3, title: "Sept", date: "2026-09-18", tmdb: 3)
+        let undated = entry(logId: 4, title: "Unknown", date: "nope", tmdb: 4)
 
         let sections = TimelineGrouping.sections(from: [september, undated, octoberEarlier, october])
 
         #expect(sections.map(\.title) == ["October 2026", "September 2026", "No date"])
-        #expect(sections[0].entries.map(\.title) == ["Late", "Early"])
-        #expect(sections[2].entries.map(\.title) == ["Unknown"])
+        #expect(sections[0].entries.map(\.media.title) == ["Late", "Early"])
+        #expect(sections[2].entries.map(\.media.title) == ["Unknown"])
     }
 
-    @Test func watchedDateWinsOverCreatedAt() {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
-        let entry = TimelineEntry(
-            id: 1,
-            tmdbId: 1,
+    @Test func diaryDateWinsOverCreatedAt() {
+        let row = entry(
+            logId: 1,
             title: "Paper Cities",
-            watchedDate: "2026-10-12",
-            createdAt: "2026-01-01T00:00:00Z"
+            date: "2026-10-12",
+            createdAt: "2026-01-01T00:00:00.000000Z",
+            tmdb: 1
         )
-        let day = TimelineDate.dayParts(of: entry, calendar: calendar)
-        #expect(day == TimelineDay(year: 2026, month: 10, day: 12))
+        #expect(TimelineDate.dayParts(of: row) == TimelineDay(year: 2026, month: 10, day: 12))
     }
 
-    @Test func decodeTimelinePageDefaultsMissingCompanions() throws {
+    @Test func fractionalCreatedAtParsesWhenDateIsMissing() {
+        let stamp = "2026-10-15T08:14:59.352080Z"
+        let instant = TimelineDate.parseTimestamp(stamp)
+        #expect(instant != nil)
+        let row = entry(logId: 9, title: "Late Show", date: nil, createdAt: stamp, tmdb: 9)
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(secondsFromGMT: 0)!
+        #expect(TimelineDate.dayParts(of: row, calendar: utc) == TimelineDay(year: 2026, month: 10, day: 15))
+    }
+
+    @Test func decodeTimelinePageMatchesContract() throws {
         let json = """
         {
           "results": [
             {
-              "id": 7,
-              "tmdb_id": 550,
-              "title": "Paper Cities",
+              "id": 42,
+              "created_at": "2026-10-15T08:14:59.352080Z",
+              "date": "2026-10-12",
               "rating": 4.5,
-              "watched_date": "2026-10-12",
+              "media": {
+                "tmdb_id": 8810,
+                "title": "Paper Cities",
+                "poster": "/paper.jpg",
+                "year": 2024,
+                "media_type": "tv"
+              },
+              "user": {"id": "u1", "name": "Maya", "avatar": null},
               "watched_with": [
-                {"user_id": "a", "username": "alex", "display_name": "Alex"}
+                {"id": "a", "name": "Alex", "avatar": null},
+                {"id": "s", "name": "Sam", "avatar": null}
               ]
+            },
+            {
+              "date": "2026-09-01",
+              "rating": null,
+              "media": {
+                "tmdb_id": 7,
+                "title": "No Id Yet",
+                "poster": null,
+                "year": null,
+                "media_type": "movie"
+              },
+              "user": {"id": "u2", "name": "Chris", "avatar": null}
             }
           ],
-          "total": 1
+          "next_cursor": null
         }
         """
         let page = try JSONDecoder().decode(TimelinePage.self, from: Data(json.utf8))
-        #expect(page.total == 1)
-        #expect(page.results[0].watchedWith.first?.name == "Alex")
-        #expect(page.results[0].watchedBy == nil)
-        #expect(DiaryCopy.watchedWithLine(page.results[0].watchedWith) == "with Alex")
+        #expect(page.nextCursor == nil)
+        #expect(page.results[0].logId == 42)
+        #expect(page.results[0].createdAt == "2026-10-15T08:14:59.352080Z")
+        #expect(page.results[0].media.isTV)
+        #expect(page.results[0].media.poster == "/paper.jpg")
+        #expect(page.results[0].user.name == "Maya")
+        #expect(DiaryCopy.watchedWithLine(page.results[0].watchedWith) == "with Alex & Sam")
+        #expect(page.results[1].logId == nil)
+        #expect(page.results[1].createdAt == nil)
+        #expect(page.results[1].watchedWith.isEmpty)
+        #expect(!page.results[1].media.isTV)
     }
 
-    @Test func missingEndpointMapsToUnavailable() {
-        #expect(TimelineLoadFailure.from(APIError.notFound) == .unavailable)
-        #expect(TimelineLoadFailure.from(APIError.badRequest("nope")) == .message("nope"))
+    @Test func decodeWatchedWithResponse() throws {
+        let json = """
+        {"watched_with":[{"id":"a","name":"Alex","avatar":null}]}
+        """
+        let response = try JSONDecoder().decode(WatchedWithResponse.self, from: Data(json.utf8))
+        #expect(response.watchedWith.first?.id == "a")
+        #expect(response.watchedWith.first?.name == "Alex")
+    }
+
+    @Test func cursorPageStopsWhenNextCursorIsNull() throws {
+        let json = #"{"results":[],"next_cursor":"abc"}"#
+        let page = try JSONDecoder().decode(TimelinePage.self, from: Data(json.utf8))
+        #expect(page.nextCursor == "abc")
+    }
+
+    @Test func errorEnvelopeMessage() {
+        let body = #"{"error":{"code":"NOT_FOUND","message":"Group not found"},"detail":"Group not found"}"#
+        #expect(APIErrorEnvelope.message(from: Data(body.utf8)) == "Group not found")
+        #expect(TimelineLoadFailure.from(APIError.notFound(nil)) == .unavailable)
+        #expect(TimelineLoadFailure.from(APIError.notFound("Group not found")) == .message("Group not found"))
+        #expect(TimelineLoadFailure.from(APIError.badRequest("Invalid cursor")) == .message("Invalid cursor"))
     }
 }

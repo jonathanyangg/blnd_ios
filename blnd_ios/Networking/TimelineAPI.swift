@@ -2,30 +2,32 @@ import Foundation
 
 /// Timeline and watched-with calls.
 ///
-/// These routes are not on the backend yet. A 404 is surfaced as a friendly
-/// unavailable state instead of a broken screen.
+/// Pages use a cursor. Pass `cursor` from the previous `next_cursor`, and stop
+/// when `next_cursor` is null. There is no offset.
 ///
-/// - `GET /tracking/timeline?limit=&offset=`
-/// - `GET /auth/users/{user_id}/timeline?limit=&offset=`
-/// - `GET /groups/{group_id}/timeline?limit=&offset=`
+/// - `GET /tracking/timeline?cursor=`
+/// - `GET /auth/users/{user_id}/timeline?cursor=`
+/// - `GET /groups/{group_id}/timeline?cursor=`
 /// - `GET /tracking/{tmdb_id}/watched-with`
-/// - `PUT /tracking/{tmdb_id}/watched-with` with `{ "user_ids": ["..."] }`
+/// - `PUT /tracking/{tmdb_id}/watched-with` with `{ "user_ids": [...] }` (max 50; `[]` clears)
 enum TimelineAPI {
-    static func own(limit: Int = 24, offset: Int = 0) async throws -> TimelinePage {
-        try await page(endpoint: "/tracking/timeline", limit: limit, offset: offset)
+    static let pageSize = 20
+
+    static func own(cursor: String? = nil) async throws -> TimelinePage {
+        try await page(endpoint: "/tracking/timeline", cursor: cursor)
     }
 
-    static func user(_ userId: String, limit: Int = 24, offset: Int = 0) async throws -> TimelinePage {
+    static func user(_ userId: String, cursor: String? = nil) async throws -> TimelinePage {
         let encoded = userId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? userId
-        return try await page(endpoint: "/auth/users/\(encoded)/timeline", limit: limit, offset: offset)
+        return try await page(endpoint: "/auth/users/\(encoded)/timeline", cursor: cursor)
     }
 
-    static func blend(_ groupId: Int, limit: Int = 24, offset: Int = 0) async throws -> TimelinePage {
-        try await page(endpoint: "/groups/\(groupId)/timeline", limit: limit, offset: offset)
+    static func blend(_ groupId: Int, cursor: String? = nil) async throws -> TimelinePage {
+        try await page(endpoint: "/groups/\(groupId)/timeline", cursor: cursor)
     }
 
-    /// Friends already tagged on this watch. 404 when the route is missing.
-    static func watchedWith(tmdbId: Int) async throws -> [WatchCompanion] {
+    /// People already tagged on this watch.
+    static func watchedWith(tmdbId: Int) async throws -> [TimelinePerson] {
         let response: WatchedWithResponse = try await APIClient.shared.request(
             endpoint: "/tracking/\(tmdbId)/watched-with",
             authenticated: true
@@ -33,20 +35,32 @@ enum TimelineAPI {
         return response.watchedWith
     }
 
-    /// Replace the friends tagged on this watch.
-    static func setWatchedWith(tmdbId: Int, userIds: [String]) async throws {
+    /// Replace the people tagged on this watch. `[]` clears them. More than 50 is rejected.
+    @discardableResult
+    static func setWatchedWith(tmdbId: Int, userIds: [String]) async throws -> [TimelinePerson] {
+        if userIds.count > DiaryCopy.maxCompanions {
+            throw APIError.badRequest(DiaryCopy.companionCapMessage)
+        }
         let body = SetWatchedWithRequest(userIds: userIds)
-        try await APIClient.shared.requestVoid(
+        let response: WatchedWithResponse = try await APIClient.shared.request(
             endpoint: "/tracking/\(tmdbId)/watched-with",
             method: "PUT",
             body: body,
             authenticated: true
         )
+        return response.watchedWith
     }
 
-    private static func page(endpoint: String, limit: Int, offset: Int) async throws -> TimelinePage {
-        try await APIClient.shared.request(
-            endpoint: "\(endpoint)?limit=\(limit)&offset=\(offset)",
+    private static func page(endpoint: String, cursor: String?) async throws -> TimelinePage {
+        var items = [URLQueryItem(name: "limit", value: String(pageSize))]
+        if let cursor, !cursor.isEmpty {
+            items.append(URLQueryItem(name: "cursor", value: cursor))
+        }
+        var components = URLComponents()
+        components.queryItems = items
+        let query = components.percentEncodedQuery ?? ""
+        return try await APIClient.shared.request(
+            endpoint: "\(endpoint)?\(query)",
             authenticated: true
         )
     }
