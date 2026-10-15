@@ -1,16 +1,19 @@
 import Foundation
 
-/// Pydantic 422 validation error shape
-private struct ValidationErrorDetail: Decodable {
-    let msg: String
-}
-
-private struct ValidationErrorResponse: Decodable {
-    let detail: [ValidationErrorDetail]
-}
-
-private struct APIErrorDetail: Decodable {
-    let detail: String?
+/// Message from `{error:{code,message}, detail}`. `detail` is a string.
+func apiErrorMessage(from data: Data, fallback: String = "Request failed") -> String {
+    guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+        return fallback
+    }
+    if let error = json["error"] as? [String: Any],
+       let message = error["message"] as? String,
+       !message.isEmpty {
+        return message
+    }
+    if let detail = json["detail"] as? String, !detail.isEmpty {
+        return detail
+    }
+    return fallback
 }
 
 enum APIError: LocalizedError {
@@ -18,7 +21,7 @@ enum APIError: LocalizedError {
     case unauthorized
     case refreshUnavailable
     case badRequest(String)
-    case notFound
+    case notFound(String)
     case rateLimited(detail: String?)
     case serverError(Int)
     case decodingError
@@ -30,7 +33,7 @@ enum APIError: LocalizedError {
         case .unauthorized: return "Invalid credentials"
         case .refreshUnavailable: return "Couldn't refresh your session - check your connection and try again"
         case let .badRequest(message): return message
-        case .notFound: return "Not found"
+        case let .notFound(message): return message
         case let .rateLimited(detail): return detail ?? "Too many requests, try again later"
         case let .serverError(code): return "Server error (\(code))"
         case .decodingError: return "Unexpected response format"
@@ -274,20 +277,16 @@ final class APIClient: @unchecked Sendable {
         }
     }
 
-    /// Maps HTTP status + response body to an APIError.
-    /// Handles all FastAPI error shapes:
-    ///   - 400/409: {"detail": "string"}
-    ///   - 422:     {"detail": [{"msg": "string", ...}]}
-    ///   - 429:     plain text (rate limit)
+    /// Maps HTTP status + body. Errors are `{error:{code,message}, detail}` and `detail` is a string.
     private func mapError(status: Int, data: Data) -> APIError {
         switch status {
         case 401:
             return .unauthorized
         case 404:
-            return .notFound
+            return .notFound(apiErrorMessage(from: data, fallback: "Not found"))
         case 429:
-            let detail = try? JSONDecoder().decode(APIErrorDetail.self, from: data).detail
-            return .rateLimited(detail: detail)
+            let detail = apiErrorMessage(from: data, fallback: "")
+            return .rateLimited(detail: detail.isEmpty ? nil : detail)
         case 400 ..< 500:
             return .badRequest(parseDetail(from: data))
         default:
@@ -295,25 +294,7 @@ final class APIClient: @unchecked Sendable {
         }
     }
 
-    /// Parses error detail from FastAPI response body.
-    /// Tries {"detail": "string"} first, then {"detail": {"message": "..."}},
-    /// then {"detail": [{"msg": ...}]}.
     private func parseDetail(from data: Data) -> String {
-        // Shape 1: {"detail": "Username already taken"}
-        if let obj = try? decoder.decode([String: String].self, from: data), let detail = obj["detail"] {
-            return detail
-        }
-        // Shape 2: {"detail": {"message": "...", "code": "...", ...}}
-        if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-            if let detail = json["detail"] as? [String: Any], let msg = detail["message"] as? String {
-                return msg
-            }
-        }
-        // Shape 3: {"detail": [{"msg": "String should have at most 250 characters", ...}]}
-        if let obj = try? decoder.decode(ValidationErrorResponse.self, from: data) {
-            let messages = obj.detail.map(\.msg)
-            return messages.joined(separator: ". ")
-        }
-        return "Request failed"
+        apiErrorMessage(from: data)
     }
 }

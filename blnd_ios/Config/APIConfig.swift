@@ -1,10 +1,15 @@
 import Foundation
 
 enum APIConfig {
-//    static let baseURL = "https://blnd-backend.onrender.com"
-    // swiftformat:disable docComments
-    static let baseURL = "http://192.168.7.121:8000" // local dev
-    // swiftformat:enable docComments
+    /// Production URL. Debug sets `BLND_API_BASE_URL` in the shared scheme
+    /// (localhost on the simulator). Do not hardcode a LAN address here.
+    static let baseURL: String = {
+        let override = ProcessInfo.processInfo.environment["BLND_API_BASE_URL"]
+        if let override, !override.isEmpty {
+            return override
+        }
+        return "https://blnd-backend.onrender.com"
+    }()
 
     /// Set to true before taking App Store screenshots.
     /// Blurs movie posters to avoid copyright issues.

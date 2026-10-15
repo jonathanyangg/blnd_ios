@@ -77,6 +77,13 @@
       <StoreKitConfigurationFileReference
          identifier = "../../blnd movies.storekit">
       </StoreKitConfigurationFileReference>
+      <EnvironmentVariables>
+         <EnvironmentVariable
+            key = "BLND_API_BASE_URL"
+            value = "http://localhost:8000"
+            isEnabled = "YES">
+         </EnvironmentVariable>
+      </EnvironmentVariables>
    </LaunchAction>
    <ProfileAction
       buildConfiguration = "Release"
