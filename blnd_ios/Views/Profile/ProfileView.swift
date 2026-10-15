@@ -79,7 +79,10 @@ struct ProfileView: View {
                 SettingsView()
             }
             .navigationDestination(isPresented: $showImportContext) {
-                ImportContextView()
+                MovieImportFlow(
+                    onComplete: { showImportContext = false },
+                    onSkip: { showImportContext = false }
+                )
             }
             .navigationDestination(isPresented: $showNotifications) {
                 ActivityFeedView()

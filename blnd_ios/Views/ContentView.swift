@@ -10,16 +10,21 @@ struct ContentView: View {
 
     var body: some View {
         Group {
+            #if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("UI_TEST_LETTERBOXD_IMPORT") {
+                MovieImportUITestHost()
+            } else if authState.isCheckingSession {
+                launchScreen
+            } else {
+                sessionContent
+            }
+            #else
             if authState.isCheckingSession {
                 launchScreen
             } else {
-                switch authState.phase {
-                case .unauthenticated, .onboardingPending:
-                    OnboardingView()
-                case .authenticated:
-                    MainTabView()
-                }
+                sessionContent
             }
+            #endif
         }
         .preferredColorScheme(.dark)
         .task {
@@ -40,6 +45,16 @@ struct ContentView: View {
                     try? await NotificationAPI.resetBadge()
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private var sessionContent: some View {
+        switch authState.phase {
+        case .unauthenticated, .onboardingPending:
+            OnboardingView()
+        case .authenticated:
+            MainTabView()
         }
     }
 

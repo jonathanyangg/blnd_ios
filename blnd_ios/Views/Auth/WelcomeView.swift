@@ -18,11 +18,6 @@ enum AuthRoute: Hashable {
 /// Landing screen that routes to Sign Up or Login.
 struct WelcomeView: View {
     @State private var path = NavigationPath()
-    #if DEBUG
-    private let isLetterboxdImportUITest = ProcessInfo.processInfo.arguments.contains(
-        "UI_TEST_LETTERBOXD_IMPORT"
-    )
-    #endif
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -56,13 +51,6 @@ struct WelcomeView: View {
             .padding(.horizontal, 24)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(AppTheme.background)
-            .onAppear {
-                #if DEBUG
-                if isLetterboxdImportUITest {
-                    path.append(AuthRoute.letterboxdImport)
-                }
-                #endif
-            }
             .navigationDestination(for: AuthRoute.self) { route in
                 switch route {
                 case .login:
@@ -82,8 +70,7 @@ struct WelcomeView: View {
                 case .forgotPassword:
                     ForgotPasswordView(path: $path)
                 case .letterboxdImport:
-                    ImportContextView(
-                        viewState: .question,
+                    MovieImportFlow(
                         onComplete: { path.append(AuthRoute.nextAfterLetterboxdImport) },
                         onSkip: { path.append(AuthRoute.nextAfterLetterboxdImport) }
                     )
