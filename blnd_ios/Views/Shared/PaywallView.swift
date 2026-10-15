@@ -381,6 +381,7 @@ struct PaywallView: View {
         do {
             let result = try await Purchases.shared.purchase(package: package)
             if !result.userCancelled {
+                await authState.refreshRevenueCatCustomerInfo(fallingBackTo: result.customerInfo)
                 Analytics.subscriptionStarted(
                     productId: package.storeProduct.productIdentifier
                 )
@@ -397,7 +398,8 @@ struct PaywallView: View {
     private func restore() async {
         isRestoring = true
         do {
-            _ = try await Purchases.shared.restorePurchases()
+            let info = try await Purchases.shared.restorePurchases()
+            await authState.refreshRevenueCatCustomerInfo(fallingBackTo: info)
             await authState.fetchCurrentUser()
             if authState.isPremium {
                 Analytics.subscriptionRestored()
