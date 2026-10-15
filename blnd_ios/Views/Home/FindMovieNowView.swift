@@ -185,7 +185,6 @@ struct FindMovieNowView: View {
 
     private func metaLine(_ movie: RecommendedMovieResponse) -> String? {
         var parts: [String] = []
-        if !movie.yearString.isEmpty { parts.append(movie.yearString) }
         if let runtime = movie.runtimeFormatted { parts.append(runtime) }
         if let genre = movie.genres.first?.name { parts.append(genre) }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")

@@ -11,10 +11,14 @@ enum UITestLaunch {
     }
 
     static var screen: Screen? {
+        #if DEBUG
         let args = ProcessInfo.processInfo.arguments
         guard let index = args.firstIndex(of: "-UITestScreen"),
               index + 1 < args.count else { return nil }
         return Screen(rawValue: args[index + 1])
+        #else
+        return nil
+        #endif
     }
 
     static var usesMockNow: Bool { screen != nil }
