@@ -32,7 +32,7 @@ struct GroupDetailView: View {
     var groupContext: ReelCardView.GroupContext? {
         guard let group else { return nil }
         return .init(
-            groupId: groupId, groupName: group.name
+            groupId: groupId, groupName: group.displayTitle
         )
     }
 
@@ -232,7 +232,7 @@ struct GroupDetailView: View {
             isEditingName = true
         } label: {
             HStack(spacing: 6) {
-                Text(group.name)
+                Text(group.displayTitle)
                     .font(.system(size: 17, weight: .bold))
                     .foregroundStyle(.white)
                     .lineLimit(1)
