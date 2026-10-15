@@ -6,5 +6,9 @@
 	<string>blnd needs access to your photo library to set a profile picture.</string>
 	<key>NSContactsUsageDescription</key>
 	<string>blnd sends phone numbers from your contacts to our server to find friends already on the app. We only store numbers that match existing users.</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>aiv</string>
+	</array>
 </dict>
 </plist>

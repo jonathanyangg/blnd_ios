@@ -13,6 +13,7 @@ struct SearchView: View {
     @State private var searchText = ""
     @State private var debouncedQuery = ""
     @State private var results: [MovieResponse] = []
+    @State private var tvResults: [TVShowResponse] = []
     @State private var actorResults: [PersonResult] = []
     @State private var aiResults: [SemanticSearchResultItem] = []
     @State private var isLoading = false
@@ -61,6 +62,7 @@ struct SearchView: View {
         .onChange(of: searchMode) {
             // Clear results when switching modes
             results = []
+            tvResults = []
             actorResults = []
             aiResults = []
             hasSearched = false
@@ -212,12 +214,12 @@ struct SearchView: View {
 
     private func standardResultsBody(cardWidth: CGFloat) -> some View {
         Group {
-            if isLoading, results.isEmpty, actorResults.isEmpty {
+            if isLoading, results.isEmpty, tvResults.isEmpty, actorResults.isEmpty {
                 ProgressView()
                     .tint(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.top, 40)
-            } else if hasSearched, results.isEmpty, actorResults.isEmpty {
+            } else if hasSearched, results.isEmpty, tvResults.isEmpty, actorResults.isEmpty {
                 VStack(spacing: 8) {
                     Text("No results for \"\(debouncedQuery)\"")
                         .font(.system(size: 15, weight: .medium))
@@ -235,6 +237,9 @@ struct SearchView: View {
                     }
                     if !results.isEmpty {
                         moviesSection(cardWidth: cardWidth)
+                    }
+                    if !tvResults.isEmpty {
+                        showsSection(cardWidth: cardWidth)
                     }
                 }
             } else {
@@ -381,6 +386,40 @@ private extension SearchView {
 
     // MARK: - Movies Section
 
+    func showsSection(cardWidth: CGFloat) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("TV")
+                .font(.system(size: 15, weight: .bold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 24)
+            LazyVGrid(columns: columns, spacing: 16) {
+                ForEach(tvResults) { show in
+                    NavigationLink {
+                        MovieDetailView(
+                            tmdbId: show.tmdbId,
+                            title: show.title,
+                            source: .search,
+                            mediaType: .tv
+                        )
+                    } label: {
+                        MovieCard(
+                            tmdbId: show.tmdbId,
+                            title: show.title,
+                            year: show.year.map(String.init) ?? "",
+                            posterPath: show.posterPath,
+                            width: cardWidth,
+                            height: cardWidth * 1.5,
+                            mediaType: .tv
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 24)
+        }
+        .padding(.bottom, 20)
+    }
+
     func moviesSection(cardWidth: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             if !actorResults.isEmpty {
@@ -393,7 +432,12 @@ private extension SearchView {
             LazyVGrid(columns: columns, spacing: 16) {
                 ForEach(results) { movie in
                     NavigationLink {
-                        MovieDetailView(tmdbId: movie.tmdbId, title: movie.title, source: .search)
+                        MovieDetailView(
+                            tmdbId: movie.tmdbId,
+                            title: movie.title,
+                            source: .search,
+                            mediaType: movie.mediaType
+                        )
                     } label: {
                         MovieCard(
                             tmdbId: movie.tmdbId,
@@ -420,6 +464,7 @@ private extension SearchView {
         if trimmed.isEmpty {
             debouncedQuery = ""
             results = []
+            tvResults = []
             actorResults = []
             hasSearched = false
             return
@@ -436,9 +481,12 @@ private extension SearchView {
         do {
             async let movieResponse = MoviesAPI.search(query: query)
             async let actorResponse = MoviesAPI.searchPerson(query: query)
+            async let showResponse = TVAPI.search(query: query)
             let (movies, actors) = try await (movieResponse, actorResponse)
+            let shows = (try? await showResponse)?.results ?? []
             if debouncedQuery == query {
                 results = movies.results
+                tvResults = shows
                 actorResults = actors.results
                 hasSearched = true
                 Analytics.searchPerformed(
