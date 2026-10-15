@@ -82,8 +82,7 @@ struct WelcomeView: View {
                 case .forgotPassword:
                     ForgotPasswordView(path: $path)
                 case .letterboxdImport:
-                    ImportContextView(
-                        viewState: .question,
+                    MovieImportFlow(
                         onComplete: { path.append(AuthRoute.nextAfterLetterboxdImport) },
                         onSkip: { path.append(AuthRoute.nextAfterLetterboxdImport) }
                     )
