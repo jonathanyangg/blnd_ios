@@ -13,7 +13,6 @@ struct PosterGrid<Content: View>: View {
         LazyVGrid(columns: columns, spacing: 8) {
             content()
         }
-        .scrollTargetLayout()
         .padding(.horizontal, 24)
     }
 }

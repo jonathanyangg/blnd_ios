@@ -5,6 +5,9 @@ import SwiftUI
 extension FriendProfileView {
     func loadData() async {
         isLoading = true
+        profileError = nil
+        watchedError = nil
+        watchedGated = false
 
         // Profile + mutuals always load (no friendship required)
         async let profile = ProfileAPI.getPublicProfile(userId: friend.id)
@@ -16,9 +19,18 @@ extension FriendProfileView {
             mutualCount = mutualsResult.count
         } catch is CancellationError {
             return
-        } catch { /* Non-critical */ }
+        } catch {
+            profileError = error.localizedDescription
+            isLoading = false
+            return
+        }
 
-        // Watched movies require friendship — 403 means not friends yet
+        await fetchWatched()
+        isLoading = false
+    }
+
+    /// 403 means the viewer is not friends yet. Any other failure is retryable.
+    private func fetchWatched() async {
         do {
             let watchedResult = try await ProfileAPI.getPublicWatched(
                 userId: friend.id,
@@ -28,14 +40,17 @@ extension FriendProfileView {
             )
             watchedMovies = watchedResult.results
             watchedTotal = watchedResult.total
+            watchedGated = false
+            watchedError = nil
         } catch is CancellationError {
             return
-        } catch {
-            // 403 (not friends) or any other error → show gated state
+        } catch let APIError.badRequest(message) where message == "Not friends with this user" {
             watchedGated = true
+            watchedError = nil
+        } catch {
+            watchedGated = false
+            watchedError = error.localizedDescription
         }
-
-        isLoading = false
     }
 
     func loadMoreWatched() async {
@@ -57,18 +72,8 @@ extension FriendProfileView {
 
     func reloadWatched() async {
         guard !watchedGated else { return }
-        do {
-            let result = try await ProfileAPI.getPublicWatched(
-                userId: friend.id,
-                limit: 20,
-                offset: 0,
-                sort: watchedSort
-            )
-            watchedMovies = result.results
-            watchedTotal = result.total
-        } catch is CancellationError {
-            return
-        } catch { /* Non-critical — keep current results */ }
+        watchedError = nil
+        await fetchWatched()
     }
 
     func loadTaste() async {

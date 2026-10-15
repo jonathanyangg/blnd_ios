@@ -30,13 +30,6 @@ struct GroupDetailView: View {
     @Environment(\.dismiss) var dismiss
     @Environment(TabState.self) var tabState
 
-    var groupContext: ReelCardView.GroupContext? {
-        guard let group else { return nil }
-        return .init(
-            groupId: groupId, groupName: group.name
-        )
-    }
-
     var currentUserId: String {
         KeychainManager.readString(key: "userId") ?? ""
     }

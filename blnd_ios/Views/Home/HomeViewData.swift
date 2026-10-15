@@ -31,7 +31,9 @@ extension HomeView {
 
     func loadForYou() async {
         guard recommendations.isEmpty else { return }
-        if UITestLaunch.screen == .findNowEntry {
+        if UITestLaunch.screen == .findNowEntry
+            || UITestLaunch.screen == .onboardFeed
+            || UITestLaunch.screen == .reelTutorial {
             recommendations = NowCatalog.feed
             rebuildReelMovies()
             return
@@ -40,11 +42,20 @@ extension HomeView {
         fypError = nil
         do {
             let response = try await RecommendationsAPI.getFeed()
-            recommendations = response.results
-            seenFYPIds = Set(response.results.map(\.tmdbId))
+            if response.results.isEmpty, let seeded = OnboardingFeedSeed.take() {
+                recommendations = seeded
+            } else {
+                recommendations = response.results
+                _ = OnboardingFeedSeed.take()
+            }
+            seenFYPIds = Set(recommendations.map(\.tmdbId))
             rebuildReelMovies()
         } catch {
-            if !Task.isCancelled {
+            if !Task.isCancelled, let seeded = OnboardingFeedSeed.take() {
+                recommendations = seeded
+                seenFYPIds = Set(seeded.map(\.tmdbId))
+                rebuildReelMovies()
+            } else if !Task.isCancelled {
                 handleLoadError(error)
             }
         }

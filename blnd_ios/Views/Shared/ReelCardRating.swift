@@ -13,11 +13,13 @@ extension ReelCardView {
 
             Spacer(minLength: 0)
 
-            HStack(spacing: 14) {
+            HStack(spacing: 8) {
                 ForEach(1 ... 5, id: \.self) { index in
                     ratingStar(index: index)
                 }
             }
+            .accessibilityIdentifier("reel.stars")
+            .reelTutorialFrame(.stars, active: isActive)
 
             Spacer(minLength: 0)
 
@@ -47,7 +49,7 @@ extension ReelCardView {
         } else {
             "star"
         }
-        let tint: Color = rating >= half ? .white : AppTheme.border
+        let tint: Color = rating >= half ? .white : .white.opacity(0.35)
 
         HStack(spacing: 0) {
             Color.clear
@@ -61,7 +63,7 @@ extension ReelCardView {
         }
         .overlay {
             Image(systemName: icon)
-                .font(.system(size: 32))
+                .font(.system(size: 20))
                 .foregroundStyle(tint)
                 .allowsHitTesting(false)
         }

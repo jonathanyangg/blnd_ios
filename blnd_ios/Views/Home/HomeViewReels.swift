@@ -24,7 +24,9 @@ extension HomeView {
                     isTabVisible: tabState.selectedTab == 0,
                     onLoadMore: { await loadMoreFYP() },
                     onRefresh: { await refreshFYP() },
-                    externalCurrentId: $fypCurrentId
+                    externalCurrentId: $fypCurrentId,
+                    tutorialNudge: tutorialNudge,
+                    showsTutorial: showReelTutorial
                 )
             }
         case .discover:

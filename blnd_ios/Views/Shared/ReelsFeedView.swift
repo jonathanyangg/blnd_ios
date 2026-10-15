@@ -2,12 +2,13 @@ import SwiftUI
 
 struct ReelsFeedView: View {
     let movies: [ReelMovie]
-    var groupContext: ReelCardView.GroupContext?
     var feed: Analytics.FeedSource = .fyp
     var isTabVisible: Bool = true
     var onLoadMore: (() async -> Void)?
     var onRefresh: (() async -> Void)?
     var externalCurrentId: Binding<Int?>?
+    var tutorialNudge: ReelTutorialNudge = .rest
+    var showsTutorial = false
 
     @State private var internalCurrentId: Int?
     @State private var toastMessage: String?
@@ -15,8 +16,6 @@ struct ReelsFeedView: View {
     @State private var mutationRetry: (() -> Void)?
     @State private var toastTask: Task<Void, Never>?
     @State private var watchlistTmdbId: Int?
-    @State private var addedToWatchlist: Set<Int> = []
-    @State private var lastWatchlistedTmdbId: Int?
     @State private var lastHiddenTmdbId: Int?
     @State private var detailMovie: ReelMovie?
     @State private var selectedFriend: FriendResponse?
@@ -31,7 +30,12 @@ struct ReelsFeedView: View {
 
     var body: some View {
         GeometryReader { geo in
-            let cardHeight = geo.size.height
+            // The floating tab bar overlaps this container. A page that
+            // includes that overlap leaves the next movie peeking under the bar.
+            // shortcut: iOS 26's floating tab bar overlaps the page when
+            // safeAreaInsets.bottom is 0. 80pt matches that bar on a Pro Max.
+            let overlap = max(geo.safeAreaInsets.bottom, 80)
+            let cardHeight = max(geo.size.height - overlap, 1)
 
             ScrollView(.vertical) {
                 LazyVStack(spacing: 0) {
@@ -39,7 +43,48 @@ struct ReelsFeedView: View {
                         Array(movies.enumerated()),
                         id: \.element.id
                     ) { index, movie in
-                        reelCard(movie, index: index, height: cardHeight)
+                        ReelCardView(
+                            movie: movie,
+                            isActive: movie.tmdbId == currentId
+                                && isTabVisible,
+                            position: index,
+                            feed: feed,
+                            onSwipeResult: { result in
+                                switch result {
+                                case .hidden:
+                                    lastHiddenTmdbId = movie.tmdbId
+                                    showToast("Won't show again")
+                                    advanceToNext(from: movie.tmdbId)
+                                case .interested:
+                                    showToast("Interested")
+                                    advanceToNext(from: movie.tmdbId)
+                                case .interestFailed:
+                                    showToast("Couldn't save interest")
+                                }
+                            },
+                            onRequestWatchlist: {
+                                watchlistTmdbId = movie.tmdbId
+                            },
+                            onRated: { _ in },
+                            onMutationFailed: { copy, retry in
+                                noteMutationFailure(copy, retry: retry, tmdbId: movie.tmdbId)
+                            },
+                            onShowDetail: {
+                                detailMovie = movie
+                            },
+                            onShowFriend: { friend in
+                                selectedFriend = friend
+                            },
+                            tutorialNudge: movie.tmdbId == currentId ? tutorialNudge : .rest,
+                            showsTutorial: showsTutorial && movie.tmdbId == currentId
+                        )
+                        .frame(height: cardHeight)
+                        .id(movie.tmdbId)
+                        .scrollTransition(.interactive, axis: .vertical) { content, phase in
+                            content
+                                .opacity(phase.isIdentity ? 1 : 0.7)
+                                .scaleEffect(phase.isIdentity ? 1 : 0.96)
+                        }
                     }
                 }
                 .scrollTargetLayout()
@@ -49,6 +94,8 @@ struct ReelsFeedView: View {
             )
             .scrollPosition(id: currentIdBinding)
             .scrollIndicators(.hidden)
+            .frame(height: cardHeight)
+            .clipped()
             .refreshable {
                 await onRefresh?()
             }
@@ -114,8 +161,8 @@ struct ReelsFeedView: View {
             WatchlistPickerSheet(
                 tmdbId: item.tmdbId,
                 isWatched: false,
-                isInPersonalWatchlist: addedToWatchlist
-                    .contains(item.tmdbId)
+                isInPersonalWatchlist: UserActionCache.shared
+                    .isWatchlisted(item.tmdbId)
             ) { _ in }
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
@@ -139,45 +186,12 @@ struct ReelsFeedView: View {
 
     // MARK: - Toast
 
-    private func reelCard(_ movie: ReelMovie, index: Int, height: CGFloat) -> some View {
-        ReelCardView(
-            movie: movie,
-            isActive: movie.tmdbId == currentId && isTabVisible,
-            groupContext: groupContext,
-            position: index,
-            feed: feed,
-            onWatchlistAdded: { msg in
-                self.noteWatchlist(msg, tmdbId: movie.tmdbId)
-            },
-            onRated: { _ in },
-            onMutationFailed: { copy, retry in
-                noteMutationFailure(copy, retry: retry, tmdbId: movie.tmdbId)
-            },
-            onShowDetail: { detailMovie = movie },
-            onShowFriend: { selectedFriend = $0 }
-        )
-        .frame(height: height)
-        .id(movie.tmdbId)
-    }
-
-    private func noteWatchlist(_ message: String, tmdbId: Int) {
-        if message.contains("Won't show") {
-            lastHiddenTmdbId = tmdbId
-        } else {
-            addedToWatchlist.insert(tmdbId)
-            lastWatchlistedTmdbId = tmdbId
-        }
-        showToast(message)
-        advanceToNext(from: tmdbId)
-    }
-
     private func noteMutationFailure(
         _ copy: UserFacingError,
         retry: @escaping () -> Void,
         tmdbId: Int
     ) {
         toastMessage = nil
-        addedToWatchlist.remove(tmdbId)
         if lastHiddenTmdbId == tmdbId {
             currentIdBinding.wrappedValue = tmdbId
             lastHiddenTmdbId = nil
@@ -198,18 +212,13 @@ struct ReelsFeedView: View {
     }
 
     private func toastActionLabel(_ toast: String) -> String? {
-        if toast.contains("Watchlist") { return "Change" }
         if toast.contains("Won't show") { return "Undo" }
         return nil
     }
 
     private func handleToastAction(_ toast: String) {
         toastMessage = nil
-        if toast.contains("Watchlist") {
-            if let id = lastWatchlistedTmdbId {
-                watchlistTmdbId = id
-            }
-        } else if toast.contains("Won't show"), let id = lastHiddenTmdbId {
+        if toast.contains("Won't show"), let id = lastHiddenTmdbId {
             Task {
                 try? await RecommendationsAPI.unhideMovie(tmdbId: id)
             }

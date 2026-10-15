@@ -49,7 +49,7 @@ struct DiscoverSectionView: View {
     private var filterHeader: some View {
         VStack(spacing: 0) {
             filterChips
-                .padding(.horizontal, 24)
+                .padding(.horizontal, 16)
                 .padding(.top, 10)
                 .padding(.bottom, 12)
 
@@ -120,7 +120,7 @@ struct DiscoverSectionView: View {
             GridItem(.flexible(), spacing: 12),
             GridItem(.flexible(), spacing: 12),
         ]
-        return LazyVGrid(columns: columns, spacing: 16) {
+        return LazyVGrid(columns: columns, spacing: 12) {
             ForEach(
                 Array(movies.enumerated()),
                 id: \.element.id
@@ -150,8 +150,7 @@ struct DiscoverSectionView: View {
                     .padding(.vertical, 16)
             }
         }
-        .scrollTargetLayout()
-        .padding(.horizontal, 24)
+        .padding(.horizontal, 16)
     }
 
     private func cardView(

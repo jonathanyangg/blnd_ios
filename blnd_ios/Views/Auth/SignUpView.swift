@@ -5,12 +5,16 @@ struct SignUpView: View {
     @Environment(AuthState.self) var authState
     @Environment(OnboardingState.self) var onboardingState
     @Binding var path: NavigationPath
+    var onAccountReady: (() -> Void)?
+    var onSignIn: (() -> Void)?
     @State private var emailError: String?
 
     var body: some View {
         VStack(spacing: 0) {
-            OnboardingProgressBar(step: 3, total: 5)
-                .padding(.top, 12)
+            if onAccountReady == nil {
+                OnboardingProgressBar(step: 3, total: 5)
+                    .padding(.top, 12)
+            }
 
             ScrollView {
                 // content must scroll when keyboard is up
@@ -118,14 +122,22 @@ struct SignUpView: View {
                                     ? nil : phone
                             )
                             if authState.error == nil {
-                                path.append(AuthRoute.onboardingComplete)
+                                if let onAccountReady {
+                                    onAccountReady()
+                                } else {
+                                    path.append(AuthRoute.onboardingComplete)
+                                }
                             }
                         }
                     }
 
                     Button {
-                        path.removeLast(path.count)
-                        path.append(AuthRoute.login)
+                        if let onSignIn {
+                            onSignIn()
+                        } else {
+                            path.removeLast(path.count)
+                            path.append(AuthRoute.login)
+                        }
                     } label: {
                         HStack(spacing: 4) {
                             Text("Already have an account?")

@@ -11,12 +11,19 @@ enum AuthRoute: Hashable {
     case findFriends
     case forgotPassword
     case letterboxdImport
+    case onboardingV2
 
     static let nextAfterLetterboxdImport = AuthRoute.findFriends
 }
 
 /// Landing screen that routes to Sign Up or Login.
+/// Where a brand-new Sign in with Apple user goes after choosing a username.
+enum AppleNewUserHandoff {
+    static let afterUsername = AuthRoute.onboardingV2
+}
+
 struct WelcomeView: View {
+    @Environment(OnboardingState.self) private var onboardingState
     @State private var path = NavigationPath()
 
     var body: some View {
@@ -39,7 +46,7 @@ struct WelcomeView: View {
                 VStack(spacing: 8) {
                     AppButton(label: "Create Account") {
                         Analytics.onboardingStarted()
-                        path.append(AuthRoute.pickGenres)
+                        path.append(AuthRoute.onboardingV2)
                     }
 
                     AppButton(label: "Sign In", style: .ghost) {
@@ -74,8 +81,15 @@ struct WelcomeView: View {
                         onComplete: { path.append(AuthRoute.nextAfterLetterboxdImport) },
                         onSkip: { path.append(AuthRoute.nextAfterLetterboxdImport) }
                     )
+                case .onboardingV2:
+                    OnboardingV2View(path: $path)
                 }
             }
+        }
+        .task(id: onboardingState.continueWithV2) {
+            guard onboardingState.continueWithV2 else { return }
+            path = NavigationPath()
+            path.append(AppleNewUserHandoff.afterUsername)
         }
     }
 }
