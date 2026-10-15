@@ -47,9 +47,28 @@ extension MovieDetailView {
         .padding(.horizontal, 24)
     }
 
+    var whereToWatchSection: some View {
+        WhereToWatchSection(
+            options: watchOptions,
+            isLoading: watchLoading,
+            failed: watchFailed,
+            isPremium: authState.isPremium
+        ) { offer in
+            Task { await WatchLinkOpener.open(offer) }
+        }
+    }
+
+    var bestWatchNow: StreamingOption? {
+        WhereToWatchList.offers(from: watchOptions, kind: .watchNow).first
+    }
+
     var actionButtonsRow: some View {
         HStack(spacing: 10) {
-            Button { showStreamingSheet = true } label: {
+            Button {
+                guard let offer = bestWatchNow else { return }
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                Task { await WatchLinkOpener.open(offer) }
+            } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "play.circle.fill")
                         .font(.system(size: 14, weight: .semibold))
@@ -63,7 +82,9 @@ extension MovieDetailView {
                 .clipShape(
                     RoundedRectangle(cornerRadius: AppTheme.cornerRadiusMedium)
                 )
+                .opacity(bestWatchNow == nil && !watchLoading ? 0.45 : 1)
             }
+            .disabled(bestWatchNow == nil && !watchLoading)
 
             Button { showWatchlistSheet = true } label: {
                 HStack(spacing: 6) {
@@ -130,7 +151,43 @@ extension MovieDetailView {
                 Color.clear.frame(width: 32, height: 36)
             }
         }
-        .padding(.bottom, 20)
+        .padding(.bottom, 12)
+    }
+
+    var watchedWithRow: some View {
+        Button { showLogSheet = true } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "person.2")
+                    .font(.system(size: 14))
+                Text("Watched with")
+                    .font(.system(size: 15, weight: .medium))
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(AppTheme.textDim)
+            }
+            .foregroundStyle(.white)
+            .padding(.vertical, 12)
+            .padding(.horizontal, 14)
+            .background(AppTheme.card)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+        .padding(.bottom, 16)
+        .sheet(isPresented: $showLogSheet) {
+            RateMovieSheet(
+                title: movie?.title ?? title,
+                year: movie?.yearString ?? "",
+                tmdbId: tmdbId,
+                posterPath: movie?.posterPath,
+                existingRating: userRating
+            ) { newRating in
+                userRating = newRating
+                isWatched = true
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+            .presentationBackground(AppTheme.card)
+        }
     }
 
     @ViewBuilder
@@ -260,11 +317,41 @@ extension MovieDetailView {
     /// Pull-to-refresh: reloads the movie (incl. comment count), watched/rating,
     /// hidden, and friends state without flashing the loading spinner.
     func refreshAll() async {
+        if mediaType == .tv {
+            await loadWhereToWatch(showLoading: false)
+            return
+        }
         async let movie: () = fetchMovie(showLoading: false)
+        async let watch: () = loadWhereToWatch(showLoading: false)
         async let watched: () = checkWatchedStatus()
         async let hidden: () = checkHiddenStatus()
         async let friends: () = loadFriendsWhoWatched()
-        _ = await (movie, watched, hidden, friends)
+        _ = await (movie, watch, watched, hidden, friends)
+    }
+
+    /// `showLoading` is false on pull-to-refresh so a failure keeps the offers
+    /// already on screen.
+    func loadWhereToWatch(showLoading: Bool = true) async {
+        if showLoading {
+            watchLoading = true
+            watchFailed = false
+        }
+        defer { watchLoading = false }
+        let type = mediaType ?? movie?.mediaType ?? .movie
+        do {
+            let response = try await MoviesAPI.getStreaming(
+                tmdbId: tmdbId,
+                mediaType: type
+            )
+            watchOptions = response.options
+            watchFailed = false
+        } catch is CancellationError {
+            return
+        } catch {
+            guard watchOptions.isEmpty else { return }
+            watchOptions = []
+            watchFailed = true
+        }
     }
 
     func checkWatchedStatus() async {

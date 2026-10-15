@@ -2,6 +2,7 @@ import SwiftUI
 
 enum FriendProfileTab: String, CaseIterable {
     case watched = "Watched"
+    case diary = "Diary"
     case taste = "Taste"
 }
 
@@ -185,6 +186,8 @@ extension FriendProfileView {
             switch selectedTab {
             case .watched:
                 watchedSection
+            case .diary:
+                diarySection
             case .taste:
                 tasteSection
             }
@@ -208,7 +211,7 @@ extension FriendProfileView {
     private var tabPicker: some View {
         HStack(spacing: 0) {
             sortMenu
-                .disabled(selectedTab == .taste)
+                .disabled(selectedTab == .taste || selectedTab == .diary)
                 .padding(.trailing, 16)
                 .transaction { $0.animation = nil }
 
@@ -374,6 +377,23 @@ extension FriendProfileView {
                 onTap: mutualCount > 0 ? { showMutualsList = true } : nil
             ),
         ])
+    }
+
+    @ViewBuilder
+    private var diarySection: some View {
+        if publicProfile == nil {
+            EmptyView()
+        } else if watchedGated {
+            watchedGatedView
+        } else {
+            WatchTimelineScreen(
+                source: .user(friend.id),
+                embedsInParentScroll: true,
+                emptyTitle: "No diary yet",
+                emptyMessage: "Movies they watch will show up here, along with who they watched them with.",
+                detailSource: .friendProfile
+            )
+        }
     }
 
     @ViewBuilder

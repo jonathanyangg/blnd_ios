@@ -88,12 +88,21 @@ enum MoviesAPI {
         )
     }
 
+    /// ISO country for where-to-watch. The backend expects two letters.
+    static var watchCountry: String {
+        let code = (Locale.current.region?.identifier ?? "us").lowercased()
+        guard code.count == 2, code.allSatisfy(\.isLetter) else { return "us" }
+        return code
+    }
+
     static func getStreaming(
         tmdbId: Int,
-        country: String = "us"
+        mediaType: MediaType = .movie,
+        country: String = watchCountry
     ) async throws -> StreamingAvailabilityResponse {
-        try await APIClient.shared.request(
-            endpoint: "/movies/\(tmdbId)/streaming?country=\(country)",
+        let root = mediaType == .tv ? "tv" : "movies"
+        return try await APIClient.shared.request(
+            endpoint: "/\(root)/\(tmdbId)/streaming?country=\(country)",
             authenticated: true
         )
     }
@@ -213,6 +222,18 @@ enum RecommendationsAPI {
         try await APIClient.shared.requestVoid(
             endpoint: "/recommendations/\(tmdbId)/hide",
             method: "DELETE",
+            authenticated: true
+        )
+    }
+
+    /// GET /recommendations/now — one movie and a reason.
+    /// `exclude` is the re-roll list of tmdb ids.
+    static func findNow(
+        genre: String?,
+        exclude: [Int]
+    ) async throws -> NowPickResponse {
+        try await APIClient.shared.request(
+            endpoint: NowPickQuery.endpoint(genre: genre, exclude: exclude),
             authenticated: true
         )
     }

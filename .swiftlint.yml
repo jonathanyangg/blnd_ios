@@ -2,9 +2,9 @@ included:
   - blnd_ios
 
 excluded:
-  - blnd.xcodeproj
-  - blndTests
-  - blndUITests
+  - blnd_ios.xcodeproj
+  - blnd_iosTests
+  - blnd_iosUITests
   - .build
 
 disabled_rules:

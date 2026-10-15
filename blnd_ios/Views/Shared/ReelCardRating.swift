@@ -7,6 +7,23 @@ extension ReelCardView {
         UserActionCache.shared.rating(for: movie.tmdbId)
     }
 
+    var watchedWithButton: some View {
+        Button {
+            showLogSheet = true
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "person.2")
+                Text("Watched with")
+            }
+            .font(.system(size: 13, weight: .medium))
+            .foregroundStyle(AppTheme.textMuted)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 4)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
     var inlineRatingBar: some View {
         HStack(spacing: 0) {
             Color.clear.frame(width: 32, height: 36)

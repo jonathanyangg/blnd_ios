@@ -393,7 +393,12 @@ private extension SearchView {
             LazyVGrid(columns: columns, spacing: 16) {
                 ForEach(results) { movie in
                     NavigationLink {
-                        MovieDetailView(tmdbId: movie.tmdbId, title: movie.title, source: .search)
+                        MovieDetailView(
+                            tmdbId: movie.tmdbId,
+                            title: movie.title,
+                            source: .search,
+                            mediaType: movie.mediaType
+                        )
                     } label: {
                         MovieCard(
                             tmdbId: movie.tmdbId,
