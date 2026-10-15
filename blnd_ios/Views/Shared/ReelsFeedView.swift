@@ -29,7 +29,12 @@ struct ReelsFeedView: View {
 
     var body: some View {
         GeometryReader { geo in
-            let cardHeight = geo.size.height
+            // The floating tab bar overlaps this container. A page that
+            // includes that overlap leaves the next movie peeking under the bar.
+            // shortcut: iOS 26's floating tab bar overlaps the page when
+            // safeAreaInsets.bottom is 0. 80pt matches that bar on a Pro Max.
+            let overlap = max(geo.safeAreaInsets.bottom, 80)
+            let cardHeight = max(geo.size.height - overlap, 1)
 
             ScrollView(.vertical) {
                 LazyVStack(spacing: 0) {
@@ -66,6 +71,11 @@ struct ReelsFeedView: View {
                         )
                         .frame(height: cardHeight)
                         .id(movie.tmdbId)
+                        .scrollTransition(.interactive, axis: .vertical) { content, phase in
+                            content
+                                .opacity(phase.isIdentity ? 1 : 0.7)
+                                .scaleEffect(phase.isIdentity ? 1 : 0.96)
+                        }
                     }
                 }
                 .scrollTargetLayout()
@@ -75,6 +85,8 @@ struct ReelsFeedView: View {
             )
             .scrollPosition(id: currentIdBinding)
             .scrollIndicators(.hidden)
+            .frame(height: cardHeight)
+            .clipped()
             .refreshable {
                 await onRefresh?()
             }

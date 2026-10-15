@@ -9,7 +9,6 @@ struct CachedAsyncImage<Content: View, Placeholder: View>: View {
     @ViewBuilder let placeholder: () -> Placeholder
 
     @State private var image: UIImage?
-    @State private var isLoading = false
 
     var body: some View {
         Group {
@@ -23,26 +22,27 @@ struct CachedAsyncImage<Content: View, Placeholder: View>: View {
     }
 
     private func loadImage() async {
-        guard let url, !isLoading else { return }
-        isLoading = true
-        defer { isLoading = false }
-
+        guard let url, image == nil else { return }
         let request = URLRequest(url: url)
-
-        // Check cache first
+        let data: Data?
         if let cached = ImageCache.shared.session.configuration.urlCache?.cachedResponse(for: request) {
-            image = UIImage(data: cached.data)
-            return
-        }
-
-        // Fetch from network
-        do {
-            let (data, _) = try await ImageCache.shared.session.data(for: request)
-            if !Task.isCancelled {
-                image = UIImage(data: data)
+            data = cached.data
+        } else {
+            do {
+                let (downloaded, _) = try await ImageCache.shared.session.data(for: request)
+                data = downloaded
+            } catch {
+                data = nil
             }
-        } catch {
-            // Silently fail — placeholder stays visible
+        }
+        guard let data, !Task.isCancelled else { return }
+        // Decode off the main actor so a fast scroll does not hitch on UIImage(data:).
+        let decoded = await Task.detached(priority: .userInitiated) {
+            guard let image = UIImage(data: data) else { return nil as UIImage? }
+            return image.preparingForDisplay() ?? image
+        }.value
+        if !Task.isCancelled {
+            image = decoded
         }
     }
 }

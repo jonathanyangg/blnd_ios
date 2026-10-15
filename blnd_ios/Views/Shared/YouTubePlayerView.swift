@@ -128,7 +128,7 @@ private struct YouTubeWebView: UIViewRepresentable {
             for action: WKNavigationAction,
             windowFeatures: WKWindowFeatures
         ) -> WKWebView? {
-            if let url = action.request.url {
+            if action.navigationType == .linkActivated, let url = action.request.url {
                 UIApplication.shared.open(url)
             }
             return nil
@@ -151,8 +151,10 @@ private struct YouTubeWebView: UIViewRepresentable {
                     || host.contains("youtu.be")
             ) && !host.contains("youtube-nocookie.com")
 
-            if isYouTube {
+            if isYouTube, action.navigationType == .linkActivated {
                 UIApplication.shared.open(url)
+                decisionHandler(.cancel)
+            } else if isYouTube {
                 decisionHandler(.cancel)
             } else {
                 decisionHandler(.allow)
