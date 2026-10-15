@@ -56,7 +56,8 @@ struct SearchResultCard: View {
     }
 }
 
-/// Title and overview for a series. Search has no separate TV payload.
+/// Title and overview from the search hit.
+/// shortcut: no TV detail endpoint yet, so this screen does not refetch the series.
 struct TVDetailView: View {
     let tmdbId: Int
     let title: String
