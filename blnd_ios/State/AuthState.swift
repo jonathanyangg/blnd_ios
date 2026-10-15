@@ -64,15 +64,7 @@ class AuthState {
 
         do {
             let user = try await AuthAPI.me()
-            currentUser = user
-            phase = user.username != nil ? .authenticated : .onboardingPending
-            if phase == .authenticated {
-                await UserActionCache.shared.bootstrap()
-                if let uid = KeychainManager.readString(key: "userId") {
-                    Analytics.identify(userId: uid)
-                    try? await Purchases.shared.logIn(uid)
-                }
-            }
+            await applySession(user)
         } catch APIError.unauthorized {
             // Tokens definitively rejected - real sign-out. (APIClient's
             // forceLogoutNotification also lands here when refresh fails.)
@@ -86,15 +78,7 @@ class AuthState {
                     nanoseconds: UInt64(delaySeconds * 1_000_000_000)
                 )
                 guard let user = try? await AuthAPI.me() else { continue }
-                currentUser = user
-                phase = user.username != nil ? .authenticated : .onboardingPending
-                if phase == .authenticated {
-                    await UserActionCache.shared.bootstrap()
-                    if let uid = KeychainManager.readString(key: "userId") {
-                        Analytics.identify(userId: uid)
-                        try? await Purchases.shared.logIn(uid)
-                    }
-                }
+                await applySession(user)
                 isCheckingSession = false
                 return
             }
@@ -106,6 +90,19 @@ class AuthState {
         }
 
         isCheckingSession = false
+    }
+
+    private func applySession(_ user: UserResponse) async {
+        currentUser = user
+        phase = user.username != nil ? .authenticated : .onboardingPending
+
+        guard phase == .authenticated, let uid = KeychainManager.readString(key: "userId") else {
+            return
+        }
+
+        await UserActionCache.shared.bootstrap()
+        Analytics.identify(userId: uid)
+        try? await Purchases.shared.logIn(uid)
     }
 
     func signup(

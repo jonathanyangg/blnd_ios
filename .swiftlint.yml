@@ -1,5 +1,5 @@
 included:
-  - blnd
+  - blnd_ios
 
 excluded:
   - blnd.xcodeproj
