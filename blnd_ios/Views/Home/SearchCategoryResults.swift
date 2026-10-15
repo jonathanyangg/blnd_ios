@@ -17,6 +17,7 @@ enum SearchSegment: String, CaseIterable, Identifiable {
 struct UnifiedSearchResults: View {
     let segment: SearchSegment
     let movies: [MovieResponse]
+    let shows: [TVShowResponse]
     let actors: [PersonResult]
     let users: [UserSearchResult]
     let blends: [GroupResponse]
@@ -41,7 +42,7 @@ struct UnifiedSearchResults: View {
     }
 
     private var showsTV: Bool {
-        segment == .shows
+        segment == .all || segment == .shows
     }
 
     private var showsPeople: Bool {
@@ -86,12 +87,11 @@ struct UnifiedSearchResults: View {
                         }
                     }
                 }
-                if showsTV {
-                    section("TV", empty: false) {
-                        Text("TV search needs a backend endpoint.")
-                            .font(.system(size: 14))
-                            .foregroundStyle(AppTheme.textDim)
-                            .padding(.horizontal, 24)
+                if showsTV, !shows.isEmpty || segment == .shows {
+                    section("TV", empty: shows.isEmpty) {
+                        ForEach(shows) { show in
+                            showRow(show)
+                        }
                     }
                 }
                 if showsPeople, !actors.isEmpty || segment == .people {
@@ -140,12 +140,12 @@ struct UnifiedSearchResults: View {
     }
 
     private var nothingToShow: Bool {
-        if segment == .shows { return false }
         let moviesEmpty = !showsMovies || movies.isEmpty
+        let showsEmpty = !showsTV || shows.isEmpty
         let peopleEmpty = !showsPeople || actors.isEmpty
         let usersEmpty = !showsUsers || users.isEmpty
         let blendsEmpty = !showsBlends || visibleBlends.isEmpty
-        return moviesEmpty && peopleEmpty && usersEmpty && blendsEmpty
+        return moviesEmpty && showsEmpty && peopleEmpty && usersEmpty && blendsEmpty
     }
 
     private func section(
@@ -176,6 +176,25 @@ struct UnifiedSearchResults: View {
             .frame(maxWidth: .infinity)
             .padding(.top, 60)
             .padding(.horizontal, 24)
+    }
+
+    private func showRow(_ show: TVShowResponse) -> some View {
+        HStack(spacing: 12) {
+            poster(show.posterPath)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(show.title)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                if let year = show.year {
+                    Text(String(year))
+                        .font(.system(size: 13))
+                        .foregroundStyle(AppTheme.textMuted)
+                }
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 24)
     }
 
     private func movieRow(_ movie: MovieResponse) -> some View {

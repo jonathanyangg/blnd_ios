@@ -8,6 +8,7 @@ struct SearchView: View {
     @State private var searchText = ""
     @State private var debouncedQuery = ""
     @State private var results: [MovieResponse] = []
+    @State private var tvResults: [TVShowResponse] = []
     @State private var actorResults: [PersonResult] = []
     @State private var userResults: [UserSearchResult] = []
     @State private var blends: [GroupResponse] = []
@@ -150,6 +151,7 @@ struct SearchView: View {
                         searchText = ""
                         debouncedQuery = ""
                         results = []
+                        tvResults = []
                         actorResults = []
                         userResults = []
                         hasSearched = false
@@ -186,6 +188,7 @@ struct SearchView: View {
                     UnifiedSearchResults(
                         segment: segment,
                         movies: results,
+                        shows: tvResults,
                         actors: actorResults,
                         users: userResults,
                         blends: blends,
@@ -279,6 +282,7 @@ private extension SearchView {
         if trimmed.isEmpty {
             debouncedQuery = ""
             results = []
+            tvResults = []
             actorResults = []
             userResults = []
             hasSearched = false
@@ -294,9 +298,11 @@ private extension SearchView {
     func searchAll(query: String) async {
         isLoading = true
         async let movieCall = MoviesAPI.search(query: query)
+        async let tvCall = TVAPI.search(query: query)
         async let actorCall = MoviesAPI.searchPerson(query: query)
         async let userCall = AuthAPI.searchUsers(query: query)
         let movies = try? await movieCall
+        let shows = try? await tvCall
         let actors = try? await actorCall
         let users = try? await userCall
         guard debouncedQuery == query else {
@@ -304,12 +310,14 @@ private extension SearchView {
             return
         }
         results = movies?.results ?? []
+        tvResults = shows?.results ?? []
         actorResults = actors?.results ?? []
         userResults = users?.results ?? []
         hasSearched = true
         Analytics.searchPerformed(
             queryLength: query.count,
-            resultCount: results.count + actorResults.count + userResults.count
+            resultCount: results.count + tvResults.count
+                + actorResults.count + userResults.count
         )
         isLoading = false
     }
