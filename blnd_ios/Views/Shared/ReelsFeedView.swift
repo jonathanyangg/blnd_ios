@@ -12,7 +12,7 @@ struct ReelsFeedView: View {
     @State private var toastMessage: String?
     @State private var toastTask: Task<Void, Never>?
     @State private var watchlistTmdbId: Int?
-    @State private var lastHiddenTmdbId: Int?
+    @State private var lastNotForMeTmdbId: Int?
     @State private var detailMovie: ReelMovie?
     @State private var selectedFriend: FriendResponse?
 
@@ -43,7 +43,7 @@ struct ReelsFeedView: View {
                             onSwipeResult: { result in
                                 switch result {
                                 case .hidden:
-                                    lastHiddenTmdbId = movie.tmdbId
+                                    lastNotForMeTmdbId = movie.tmdbId
                                     showToast("Won't show again")
                                     advanceToNext(from: movie.tmdbId)
                                 case .interested:
@@ -51,6 +51,8 @@ struct ReelsFeedView: View {
                                     advanceToNext(from: movie.tmdbId)
                                 case .interestFailed:
                                     showToast("Couldn't save interest")
+                                case .notForMeFailed:
+                                    showToast("Couldn't save that")
                                 }
                             },
                             onRequestWatchlist: {
@@ -176,11 +178,11 @@ struct ReelsFeedView: View {
 
     private func handleToastAction(_ toast: String) {
         toastMessage = nil
-        if toast.contains("Won't show"), let id = lastHiddenTmdbId {
+        if toast.contains("Won't show"), let id = lastNotForMeTmdbId {
             Task {
-                try? await RecommendationsAPI.unhideMovie(tmdbId: id)
+                try? await RecommendationsAPI.unmarkNotForMe(tmdbId: id)
             }
-            lastHiddenTmdbId = nil
+            lastNotForMeTmdbId = nil
         }
     }
 }

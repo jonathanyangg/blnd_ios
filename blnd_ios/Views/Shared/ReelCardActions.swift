@@ -4,10 +4,11 @@ enum ReelSwipeResult {
     case hidden
     case interested
     case interestFailed
+    case notForMeFailed
 }
 
 enum ReelSwipeDecision: Equatable {
-    case hide
+    case notForMe
     case interested
     case ignore
 }
@@ -19,7 +20,7 @@ func reelSwipeDecision(
     threshold: CGFloat
 ) -> ReelSwipeDecision {
     guard abs(deltaX) > abs(deltaY) * 1.5 else { return .ignore }
-    if deltaX < -threshold { return .hide }
+    if deltaX < -threshold { return .notForMe }
     if deltaX > threshold { return .interested }
     return .ignore
 }
@@ -82,8 +83,8 @@ extension ReelCardView {
             deltaY: deltaY,
             threshold: swipeThreshold
         ) {
-        case .hide:
-            Task { await hideMovie() }
+        case .notForMe:
+            Task { await markNotForMe() }
         case .interested:
             Task { await markInterested() }
         case .ignore:
@@ -148,16 +149,19 @@ extension ReelCardView {
         }
     }
 
-    func hideMovie() async {
-        UINotificationFeedbackGenerator()
-            .notificationOccurred(.success)
-        onSwipeResult?(.hidden)
+    /// Left swipe. A weak negative signal, not a watchlist change and not a hide.
+    func markNotForMe() async {
         do {
-            _ = try await RecommendationsAPI.hideMovie(
-                tmdbId: movie.tmdbId
-            )
+            try await RecommendationsAPI.markNotForMe(tmdbId: movie.tmdbId)
+            UINotificationFeedbackGenerator()
+                .notificationOccurred(.success)
             Analytics.movieHidden(tmdbId: movie.tmdbId)
-        } catch {}
+            onSwipeResult?(.hidden)
+        } catch {
+            UINotificationFeedbackGenerator()
+                .notificationOccurred(.warning)
+            onSwipeResult?(.notForMeFailed)
+        }
     }
 
     func posterURL(_ path: String) -> URL? {
