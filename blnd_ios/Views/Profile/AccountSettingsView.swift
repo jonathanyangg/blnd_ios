@@ -53,7 +53,7 @@ struct AccountSettingsView: View {
                     .clipShape(RoundedRectangle(cornerRadius: AppTheme.cornerRadiusLarge))
                 }
 
-                if let errorMessage {
+                if let errorMessage, errorMessage.fields.isEmpty {
                     InlineError(message: errorMessage)
                 }
 
@@ -202,6 +202,9 @@ struct AccountSettingsView: View {
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(AppTheme.textMuted)
                 AppTextField(placeholder: "Display name", text: $displayName)
+                if let note = errorMessage?.inline(for: "display_name") {
+                    InlineError(message: note)
+                }
             }
 
             VStack(alignment: .leading, spacing: 6) {
@@ -211,6 +214,9 @@ struct AccountSettingsView: View {
                 AppTextField(placeholder: "Username", text: $username)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
+                if let note = errorMessage?.inline(for: "username") {
+                    InlineError(message: note)
+                }
             }
 
             VStack(alignment: .leading, spacing: 6) {
@@ -219,6 +225,9 @@ struct AccountSettingsView: View {
                     .foregroundStyle(AppTheme.textMuted)
                 AppTextField(placeholder: "+1 (555) 123-4567", text: $phoneNumber)
                     .keyboardType(.phonePad)
+                if let note = errorMessage?.inline(for: "phone_number") {
+                    InlineError(message: note)
+                }
                 Text("Friends can find you by phone number")
                     .font(.system(size: 11))
                     .foregroundStyle(AppTheme.textDim)

@@ -60,6 +60,9 @@ struct CreateGroupView: View {
                         groupName = String(newValue.prefix(30))
                     }
                 }
+                if let note = errorMessage?.inline(for: "name") {
+                    InlineError(message: note)
+                }
 
                 HStack {
                     Spacer()
@@ -80,7 +83,7 @@ struct CreateGroupView: View {
                     .padding(.top, 8)
                 }
 
-                if let errorMessage {
+                if let errorMessage, errorMessage.fields.isEmpty {
                     InlineError(message: errorMessage)
                         .padding(.top, 8)
                 }

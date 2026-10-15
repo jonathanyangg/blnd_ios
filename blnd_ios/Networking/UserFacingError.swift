@@ -15,6 +15,23 @@ struct UserFacingError: Equatable, Sendable {
     let category: ErrorCategory
     let title: String
     let message: String
+    /// Friendly sentences for fields the user can fix. Empty when the message is generic.
+    var fields: [String: String] = [:]
+    var field: String?
+    /// PREMIUM_REQUIRED, PAYMENT_REQUIRED, FREE_GROUP_CAP, or a legacy upgrade sentence.
+    var opensPaywall: Bool = false
+
+    /// The sentence for one field, when this error names it.
+    func inline(for name: String) -> UserFacingError? {
+        guard let text = fields[name] else { return nil }
+        return UserFacingError(
+            category: .validation,
+            title: "Check that again",
+            message: text,
+            fields: [:],
+            field: name
+        )
+    }
 
     var icon: String {
         switch category {
@@ -73,8 +90,8 @@ struct UserFacingError: Equatable, Sendable {
             return copy(for: .authExpired)
         case .notFound:
             return copy(for: .notFound)
-        case .badRequest:
-            return copy(for: .validation)
+        case let .badRequest(info):
+            return mapFields(info)
         case .rateLimited:
             return UserFacingError(
                 category: .server,
@@ -97,6 +114,104 @@ struct UserFacingError: Equatable, Sendable {
         default:
             return copy(for: .server)
         }
+    }
+
+    private static let paywallCodes: Set<String> = [
+        "PREMIUM_REQUIRED", "PAYMENT_REQUIRED", "FREE_GROUP_CAP",
+    ]
+
+    /// Known sentences from the auth schema and the error-code list. Unknown text stays generic.
+    private static let knownCopy: [String: (field: String?, message: String)] = [
+        "username is already taken": ("username", "That username is taken."),
+        "username must be 3-30 characters": ("username", "Usernames are 3–30 characters."),
+        "username can only contain letters, numbers, periods, and underscores": (
+            "username", "Use letters, numbers, periods, or underscores."
+        ),
+        "username cannot start or end with a period or underscore": (
+            "username", "Don't start or end with a period or underscore."
+        ),
+        "username cannot contain consecutive periods or underscores": (
+            "username", "Don't repeat periods or underscores."
+        ),
+        "password must be at least 8 characters": ("password", "Use at least 8 characters."),
+        "password must contain at least one uppercase letter": ("password", "Add an uppercase letter."),
+        "current password is incorrect": ("current_password", "That password doesn't match."),
+        "cannot change password for this account": (
+            "current_password", "This account doesn't use a password."
+        ),
+        "phone number must be in e.164 format (e.g. +15551234567)": (
+            "phone_number", "Use a number like +15551234567."
+        ),
+        "phone number is already linked to another account": (
+            "phone_number", "That number is already in use."
+        ),
+        "avatar url must use https": ("avatar_url", "The photo link must use https."),
+        "avatar url too long": ("avatar_url", "That photo link is too long."),
+        "genre name too long": ("favorite_genres", "One of those genre names is too long."),
+        "value is not a valid email address": ("email", "That email doesn't look right."),
+        "field required": (nil, "Fill this in."),
+        "string should have at least 1 character": (nil, "Fill this in."),
+        "string should have at most 30 characters": (nil, "That's too long."),
+        "string should have at most 100 characters": (nil, "That's too long."),
+        "string should have at most 250 characters": (nil, "That's too long."),
+        "user is already a member": (nil, "They're already in this blend."),
+        "this blend is full.": (nil, "This blend is full."),
+    ]
+
+    private static func mapFields(_ info: APIFieldError) -> UserFacingError {
+        if info.opensPaywall || paywallCodes.contains(info.code ?? "") {
+            return UserFacingError(
+                category: .validation,
+                title: "blnd+",
+                message: "Upgrade to blnd+ to do this.",
+                opensPaywall: true
+            )
+        }
+        if info.code == "GROUP_FULL" {
+            return UserFacingError(
+                category: .validation,
+                title: "Check that again",
+                message: "This blend is full."
+            )
+        }
+        var fields: [String: String] = [:]
+        var loose: String?
+        for issue in info.issues {
+            let key = normalize(issue.text)
+            guard let known = knownCopy[key] else { continue }
+            let field = issue.field ?? known.field
+            if let field {
+                fields[field] = known.message
+            } else if loose == nil {
+                loose = known.message
+            }
+        }
+        if let first = fields.first {
+            return UserFacingError(
+                category: .validation,
+                title: "Check that again",
+                message: first.value,
+                fields: fields,
+                field: first.key
+            )
+        }
+        if let loose {
+            return UserFacingError(
+                category: .validation,
+                title: "Check that again",
+                message: loose
+            )
+        }
+        return copy(for: .validation)
+    }
+
+    private static func normalize(_ text: String) -> String {
+        var value = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let prefix = "Value error, "
+        if value.lowercased().hasPrefix(prefix.lowercased()) {
+            value = String(value.dropFirst(prefix.count))
+        }
+        return value.lowercased()
     }
 
     private static func copy(for category: ErrorCategory) -> UserFacingError {
@@ -125,7 +240,7 @@ struct UserFacingError: Equatable, Sendable {
             case .invalidURL: "invalidURL"
             case .unauthorized: "unauthorized"
             case .refreshUnavailable: "refreshUnavailable"
-            case let .badRequest(message): "badRequest: \(message)"
+            case let .badRequest(info): "badRequest: \(info.code ?? "") \(info.raw)"
             case .notFound: "notFound"
             case let .rateLimited(detail): "rateLimited: \(detail ?? "")"
             case let .serverError(code): "serverError: \(code)"

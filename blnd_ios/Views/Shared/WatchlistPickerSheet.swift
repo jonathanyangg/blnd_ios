@@ -10,6 +10,8 @@ struct WatchlistPickerSheet: View {
     @State private var groups: [GroupResponse] = []
     @State private var isLoading = true
     @State private var isSaving = false
+    @State private var saveError: UserFacingError?
+    @State private var saveRetry: (() -> Void)?
     @State private var searchQuery = ""
 
     // Tracks current checked state for personal + each group
@@ -54,6 +56,16 @@ struct WatchlistPickerSheet: View {
                     searchField
                 }
                 listContent
+            }
+        }
+        .overlay(alignment: .bottom) {
+            if let saveError {
+                ErrorToast(message: saveError, retry: saveRetry, onDismiss: {
+                    self.saveError = nil
+                    saveRetry = nil
+                })
+                .padding(.horizontal, 24)
+                .padding(.bottom, 16)
             }
         }
         .task { await loadState() }
@@ -258,8 +270,7 @@ struct WatchlistPickerSheet: View {
 
     private func save() async {
         isSaving = true
-
-        // Personal watchlist changes
+        saveError = nil
         let cache = UserActionCache.shared
         if personalChecked != initialPersonal, !isWatched {
             do {
@@ -272,10 +283,13 @@ struct WatchlistPickerSheet: View {
                     cache.didRemoveFromWatchlist(tmdbId)
                     Analytics.watchlistRemoved(tmdbId: tmdbId, source: .picker)
                 }
-            } catch { /* Non-critical — watchlist state may be stale */ }
+            } catch {
+                personalChecked = initialPersonal
+                failSave(error)
+                return
+            }
         }
 
-        // Group watchlist changes
         for (groupId, checked) in groupChecked {
             let wasChecked = initialGroupState[groupId] ?? false
             guard checked != wasChecked else { continue }
@@ -291,11 +305,21 @@ struct WatchlistPickerSheet: View {
                     )
                     Analytics.watchlistRemoved(tmdbId: tmdbId, source: .picker)
                 }
-            } catch { /* Non-critical — group watchlist state may be stale */ }
+            } catch {
+                groupChecked[groupId] = wasChecked
+                failSave(error)
+                return
+            }
         }
 
         onDismiss(personalChecked && !isWatched)
         isSaving = false
         dismiss()
+    }
+
+    private func failSave(_ error: Error) {
+        isSaving = false
+        saveError = UserFacingError.capture(error, screen: "Watchlist")
+        saveRetry = { Task { await save() } }
     }
 }

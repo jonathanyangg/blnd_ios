@@ -8,14 +8,24 @@ extension HomeView {
     }
 
     func hideMovie(_ tmdbId: Int) {
+        guard let index = recommendations.firstIndex(where: { $0.tmdbId == tmdbId }) else { return }
+        let movie = recommendations[index]
         withAnimation {
             recommendations.removeAll { $0.tmdbId == tmdbId }
-            fypReelMovies.removeAll { $0.tmdbId == tmdbId }
+            rebuildReelMovies()
         }
         Task {
-            _ = try? await RecommendationsAPI.hideMovie(
-                tmdbId: tmdbId
-            )
+            do {
+                _ = try await RecommendationsAPI.hideMovie(tmdbId: tmdbId)
+            } catch {
+                withAnimation {
+                    recommendations.insert(movie, at: min(index, recommendations.count))
+                    rebuildReelMovies()
+                }
+                showToast(UserFacingError.capture(error, screen: "HideMovie")) {
+                    hideMovie(tmdbId)
+                }
+            }
         }
     }
 

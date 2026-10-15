@@ -15,7 +15,7 @@ struct ChangePasswordView: View {
             VStack(spacing: 24) {
                 fieldsSection
 
-                if let errorMessage {
+                if let errorMessage, errorMessage.fields.isEmpty {
                     InlineError(message: errorMessage) {
                         Task { await changePassword() }
                     }
@@ -69,6 +69,9 @@ struct ChangePasswordView: View {
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(AppTheme.textMuted)
                 AppTextField(placeholder: "Current password", text: $currentPassword, isSecure: true)
+                if let note = errorMessage?.inline(for: "current_password") {
+                    InlineError(message: note)
+                }
             }
 
             VStack(alignment: .leading, spacing: 6) {
@@ -76,6 +79,9 @@ struct ChangePasswordView: View {
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(AppTheme.textMuted)
                 AppTextField(placeholder: "New password", text: $newPassword, isSecure: true)
+                if let note = errorMessage?.inline(for: "new_password") ?? errorMessage?.inline(for: "password") {
+                    InlineError(message: note)
+                }
             }
 
             VStack(alignment: .leading, spacing: 6) {

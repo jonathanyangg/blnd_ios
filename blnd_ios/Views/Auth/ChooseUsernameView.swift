@@ -30,9 +30,17 @@ struct ChooseUsernameView: View {
                     AppTextField(placeholder: "Username", text: $state.username)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
+                    if let note = error?.inline(for: "username") {
+                        InlineError(message: note)
+                            .padding(.bottom, 8)
+                    }
                     PhoneNumberInputField(phoneNumber: $state.phoneNumber)
+                    if let note = error?.inline(for: "phone_number") {
+                        InlineError(message: note)
+                            .padding(.bottom, 8)
+                    }
 
-                    if let error {
+                    if let error, error.fields.isEmpty {
                         InlineError(message: error)
                             .padding(.bottom, 8)
                     }

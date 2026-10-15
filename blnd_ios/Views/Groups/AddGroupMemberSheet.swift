@@ -197,13 +197,8 @@ struct AddGroupMemberSheet: View {
             )
             addedIds.insert(friend.id)
             onMemberAdded(updated)
-        } catch let error as APIError {
-            if case let .badRequest(message) = error,
-               message.contains("Upgrade") || message.contains("blnd+") {
-                showPaywall = true
-            } else {
-                errorMessage = UserFacingError.capture(error, screen: "BlendMembers")
-            }
+        } catch let error as APIError where error.opensPaywall {
+            showPaywall = true
         } catch {
             errorMessage = UserFacingError.capture(error, screen: "BlendMembers")
         }
