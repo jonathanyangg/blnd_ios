@@ -47,9 +47,28 @@ extension MovieDetailView {
         .padding(.horizontal, 24)
     }
 
+    var whereToWatchSection: some View {
+        WhereToWatchSection(
+            payload: whereToWatch,
+            isLoading: watchLoading,
+            failed: watchFailed,
+            isPremium: authState.isPremium
+        ) { offer, kind in
+            Task { await WatchLinkOpener.open(offer, kind: kind) }
+        }
+    }
+
+    var bestWatchNow: WatchOffer? {
+        whereToWatch?.offers(.watchNow).first
+    }
+
     var actionButtonsRow: some View {
         HStack(spacing: 10) {
-            Button { showStreamingSheet = true } label: {
+            Button {
+                guard let offer = bestWatchNow else { return }
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                Task { await WatchLinkOpener.open(offer, kind: .watchNow) }
+            } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "play.circle.fill")
                         .font(.system(size: 14, weight: .semibold))
@@ -63,7 +82,9 @@ extension MovieDetailView {
                 .clipShape(
                     RoundedRectangle(cornerRadius: AppTheme.cornerRadiusMedium)
                 )
+                .opacity(bestWatchNow == nil && !watchLoading ? 0.45 : 1)
             }
+            .disabled(bestWatchNow == nil && !watchLoading)
 
             Button { showWatchlistSheet = true } label: {
                 HStack(spacing: 6) {
@@ -130,7 +151,43 @@ extension MovieDetailView {
                 Color.clear.frame(width: 32, height: 36)
             }
         }
-        .padding(.bottom, 20)
+        .padding(.bottom, 12)
+    }
+
+    var watchedWithRow: some View {
+        Button { showLogSheet = true } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "person.2")
+                    .font(.system(size: 14))
+                Text("Watched with")
+                    .font(.system(size: 15, weight: .medium))
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(AppTheme.textDim)
+            }
+            .foregroundStyle(.white)
+            .padding(.vertical, 12)
+            .padding(.horizontal, 14)
+            .background(AppTheme.card)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+        .padding(.bottom, 16)
+        .sheet(isPresented: $showLogSheet) {
+            RateMovieSheet(
+                title: movie?.title ?? title,
+                year: movie?.yearString ?? "",
+                tmdbId: tmdbId,
+                posterPath: movie?.posterPath,
+                existingRating: userRating
+            ) { newRating in
+                userRating = newRating
+                isWatched = true
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+            .presentationBackground(AppTheme.card)
+        }
     }
 
     @ViewBuilder
@@ -169,6 +226,8 @@ extension MovieDetailView {
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
         let cache = UserActionCache.shared
         let wasWatched = isWatched
+        let previousRating = userRating
+        let previousWatched = isWatched
         let fromWatchlist = cache.isWatchlisted(tmdbId)
         userRating = value
         isWatched = true
@@ -190,7 +249,16 @@ extension MovieDetailView {
                     isUpdate: wasWatched
                 )
             } catch {
-                // Non-critical — cache stays updated
+                userRating = previousRating
+                isWatched = previousWatched
+                if let previousRating {
+                    cache.didRate(tmdbId, rating: previousRating)
+                } else {
+                    cache.didUnwatch(tmdbId)
+                }
+                reportMutation(error, screen: "RateMovie") {
+                    saveDetailRating(value)
+                }
             }
         }
     }
@@ -198,12 +266,24 @@ extension MovieDetailView {
     private func clearDetailRating() {
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
         guard isWatched else { return }
+        let previousRating = userRating
         userRating = nil
         isWatched = false
         UserActionCache.shared.didUnwatch(tmdbId)
         Analytics.movieUnwatched(tmdbId: tmdbId, source: .detail)
         Task {
-            try? await TrackingAPI.deleteWatchedMovie(tmdbId: tmdbId)
+            do {
+                try await TrackingAPI.deleteWatchedMovie(tmdbId: tmdbId)
+            } catch {
+                userRating = previousRating
+                isWatched = true
+                if let previousRating {
+                    UserActionCache.shared.didRate(tmdbId, rating: previousRating)
+                } else {
+                    UserActionCache.shared.didWatch(tmdbId)
+                }
+                reportMutation(error, screen: "RateMovie") { clearDetailRating() }
+            }
         }
     }
 
@@ -249,7 +329,7 @@ extension MovieDetailView {
             // On a silent refresh, keep showing the existing movie rather than
             // replacing it with a full-screen error.
             if movie == nil {
-                errorMessage = error.localizedDescription
+                errorMessage = UserFacingError.capture(error, screen: "MovieDetail")
             }
         }
         if showLoading {
@@ -260,11 +340,41 @@ extension MovieDetailView {
     /// Pull-to-refresh: reloads the movie (incl. comment count), watched/rating,
     /// hidden, and friends state without flashing the loading spinner.
     func refreshAll() async {
+        if mediaType == .tv {
+            await loadWhereToWatch(showLoading: false)
+            return
+        }
         async let movie: () = fetchMovie(showLoading: false)
+        async let watch: () = loadWhereToWatch(showLoading: false)
         async let watched: () = checkWatchedStatus()
         async let hidden: () = checkHiddenStatus()
         async let friends: () = loadFriendsWhoWatched()
-        _ = await (movie, watched, hidden, friends)
+        _ = await (movie, watch, watched, hidden, friends)
+    }
+
+    /// `showLoading` is false on pull-to-refresh so a failure keeps the offers
+    /// already on screen.
+    func loadWhereToWatch(showLoading: Bool = true) async {
+        if showLoading {
+            watchLoading = true
+            watchFailed = false
+        }
+        defer { watchLoading = false }
+        let type = mediaType ?? movie?.mediaType ?? .movie
+        do {
+            let response = try await MoviesAPI.getStreaming(
+                tmdbId: tmdbId,
+                mediaType: type
+            )
+            whereToWatch = response.whereToWatch
+            watchFailed = response.whereToWatch == nil
+        } catch is CancellationError {
+            return
+        } catch {
+            guard whereToWatch == nil else { return }
+            whereToWatch = nil
+            watchFailed = true
+        }
     }
 
     func checkWatchedStatus() async {
@@ -304,21 +414,38 @@ extension MovieDetailView {
     }
 
     func hideMovie() async {
+        let wasHidden = isHidden
+        isHidden = true
         do {
             _ = try await RecommendationsAPI.hideMovie(
                 tmdbId: tmdbId
             )
-            isHidden = true
             onHide?()
-        } catch { errorMessage = error.localizedDescription }
+        } catch {
+            isHidden = wasHidden
+            reportMutation(error, screen: "HideMovie") { await hideMovie() }
+        }
     }
 
     func unhideMovie() async {
+        let wasHidden = isHidden
+        isHidden = false
         do {
             try await RecommendationsAPI.unhideMovie(
                 tmdbId: tmdbId
             )
-            isHidden = false
-        } catch { errorMessage = error.localizedDescription }
+        } catch {
+            isHidden = wasHidden
+            reportMutation(error, screen: "UnhideMovie") { await unhideMovie() }
+        }
+    }
+
+    func reportMutation(
+        _ error: Error,
+        screen: String,
+        retry: @escaping () async -> Void
+    ) {
+        actionToast = UserFacingError.capture(error, screen: screen)
+        actionRetry = { Task { await retry() } }
     }
 }

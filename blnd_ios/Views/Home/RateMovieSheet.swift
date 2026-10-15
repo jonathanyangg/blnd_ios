@@ -6,15 +6,33 @@ struct RateMovieSheet: View {
     let tmdbId: Int
     var posterPath: String?
     var existingRating: Double?
+    var previewFriends: [FriendResponse]?
+    var previewSelection: Set<String> = []
     var onSaved: ((Double) -> Void)?
 
     @Environment(\.dismiss) private var dismiss
-    @State private var rating: Double = 4
+    @State private var rating: Double = 0
     @State private var isSaving = false
-    @State private var saveError: String?
+    @State private var saveError: UserFacingError?
+    @State private var savedRating: Double?
+    @State private var friends: [FriendResponse] = []
+    @State private var selectedFriendIds: Set<String> = []
+    @State private var didEditCompanions = false
+    @State private var companionNote: String?
+    @State private var isLoadingFriends = false
+    @State private var friendsError: String?
 
     private var isRerating: Bool {
-        existingRating != nil
+        existingRating != nil || savedRating != nil
+    }
+
+    private var selectedCompanions: [TimelinePerson] {
+        friends.compactMap { friend in
+            guard selectedFriendIds.contains(friend.id) else { return nil }
+            let trimmed = friend.displayName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let name = trimmed.isEmpty ? friend.username : trimmed
+            return TimelinePerson(id: friend.id, name: name, avatar: friend.avatarUrl)
+        }
     }
 
     var body: some View {
@@ -38,18 +56,20 @@ struct RateMovieSheet: View {
             .padding(.bottom, 20)
 
             StarRatingInput(rating: $rating)
+                .padding(.bottom, 18)
+
+            watchedWithSection
                 .padding(.bottom, 16)
 
             if let saveError {
-                Text(saveError)
-                    .font(.system(size: 13))
-                    .foregroundStyle(.red)
+                InlineError(message: saveError)
                     .padding(.bottom, 8)
             }
 
             AppButton(
-                label: isRerating ? "Update Rating" : "Save",
-                isLoading: isSaving
+                label: isRerating ? "Update" : "Save",
+                isLoading: isSaving,
+                isDisabled: rating == 0
             ) {
                 Task { await save() }
             }
@@ -58,10 +78,102 @@ struct RateMovieSheet: View {
         .padding(.top, 20)
         .padding(.bottom, 32)
         .onAppear {
-            if let existingRating {
+            if savedRating == nil, let existingRating {
                 rating = existingRating
+                savedRating = existingRating
+            }
+            if let previewFriends {
+                friends = previewFriends
+                selectedFriendIds = previewSelection
             }
         }
+        .task {
+            guard previewFriends == nil else { return }
+            await loadFriendsAndTags()
+        }
+    }
+
+    private var watchedWithSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Watched with")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(AppTheme.textMuted)
+
+            if isLoadingFriends {
+                ProgressView()
+                    .tint(.white)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else if let friendsError {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(friendsError)
+                        .font(.system(size: 13))
+                        .foregroundStyle(AppTheme.textMuted)
+                    Button("Retry") {
+                        Task { await loadFriendsAndTags() }
+                    }
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white)
+                }
+            } else if friends.isEmpty {
+                Text("Add a friend first, then you can tag who you watched this with.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(AppTheme.textMuted)
+            } else {
+                ScrollView {
+                    VStack(spacing: 4) {
+                        ForEach(friends) { friend in
+                            friendRow(friend)
+                        }
+                    }
+                }
+                .frame(maxHeight: 220)
+            }
+
+            if let companionNote {
+                Text(companionNote)
+                    .font(.system(size: 13))
+                    .foregroundStyle(AppTheme.textMuted)
+            }
+
+            if let line = DiaryCopy.watchedWithLine(selectedCompanions) {
+                Text(line)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(.white)
+            }
+        }
+    }
+
+    private func friendRow(_ friend: FriendResponse) -> some View {
+        let isSelected = selectedFriendIds.contains(friend.id)
+        let trimmedName = friend.displayName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let label = trimmedName.isEmpty ? friend.username : trimmedName
+        return Button {
+            let result = DiaryCopy.toggle(friend.id, in: selectedFriendIds)
+            selectedFriendIds = result.selected
+            companionNote = result.hitCap ? DiaryCopy.companionCapMessage : nil
+            if !result.hitCap { didEditCompanions = true }
+        } label: {
+            HStack(spacing: 10) {
+                AvatarView(url: friend.avatarUrl, size: 32)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(label)
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(.white)
+                    Text("@\(friend.username)")
+                        .font(.system(size: 12))
+                        .foregroundStyle(AppTheme.textDim)
+                }
+                Spacer()
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 18))
+                    .foregroundStyle(isSelected ? .white : AppTheme.textDim)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .background(isSelected ? AppTheme.cardSecondary : Color.clear)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+        .buttonStyle(.plain)
     }
 
     @ViewBuilder
@@ -80,32 +192,77 @@ struct RateMovieSheet: View {
         }
     }
 
+    private func loadFriendsAndTags() async {
+        isLoadingFriends = true
+        friendsError = nil
+        defer { isLoadingFriends = false }
+
+        do {
+            friends = try await FriendsAPI.listFriends().friends
+        } catch is CancellationError {
+            return
+        } catch {
+            friendsError = "Couldn't load your friends. Try again."
+            return
+        }
+
+        do {
+            let existing = try await TimelineAPI.watchedWith(tmdbId: tmdbId)
+            if !didEditCompanions {
+                selectedFriendIds = Set(existing.map(\.id))
+            }
+        } catch {
+            return
+        }
+    }
+
     private func save() async {
+        guard rating > 0 else { return }
         isSaving = true
         saveError = nil
+        defer { isSaving = false }
+
         let fromWatchlist = UserActionCache.shared.isWatchlisted(tmdbId)
-        do {
-            if isRerating {
-                _ = try await TrackingAPI.updateRating(tmdbId: tmdbId, rating: rating)
-            } else {
-                _ = try await TrackingAPI.trackMovie(tmdbId: tmdbId, rating: rating, review: nil)
+        if savedRating != rating {
+            let isUpdate = existingRating != nil || savedRating != nil
+            do {
+                if isUpdate {
+                    _ = try await TrackingAPI.updateRating(tmdbId: tmdbId, rating: rating)
+                } else {
+                    _ = try await TrackingAPI.trackMovie(tmdbId: tmdbId, rating: rating, review: nil)
+                }
+                savedRating = rating
+                UserActionCache.shared.didRate(tmdbId, rating: rating)
+                Analytics.movieRated(
+                    tmdbId: tmdbId,
+                    rating: rating,
+                    source: .sheet,
+                    fromWatchlist: fromWatchlist,
+                    isUpdate: isUpdate
+                )
+                onSaved?(rating)
+            } catch {
+                saveError = UserFacingError.capture(error, screen: "RateMovie")
+                return
             }
-            UserActionCache.shared.didRate(
-                tmdbId, rating: rating
-            )
-            Analytics.movieRated(
-                tmdbId: tmdbId,
-                rating: rating,
-                source: .sheet,
-                fromWatchlist: fromWatchlist,
-                isUpdate: isRerating
-            )
-            onSaved?(rating)
-            dismiss()
-        } catch {
-            saveError = error.localizedDescription
         }
-        isSaving = false
+
+        guard didEditCompanions else {
+            dismiss()
+            return
+        }
+
+        do {
+            try await TimelineAPI.setWatchedWith(
+                tmdbId: tmdbId,
+                userIds: Array(selectedFriendIds)
+            )
+            dismiss()
+        } catch APIError.notFound {
+            saveError = UserFacingError.client(.notFound, message: DiaryCopy.taggingUnavailable)
+        } catch {
+            saveError = UserFacingError.capture(error, screen: "RateMovie")
+        }
     }
 }
 

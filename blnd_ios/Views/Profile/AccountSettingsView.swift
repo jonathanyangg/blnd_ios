@@ -15,7 +15,7 @@ struct AccountSettingsView: View {
         "Drama", "Animation", "Documentary", "Mystery", "Fantasy", "Crime",
     ]
     @State private var isSaving = false
-    @State private var errorMessage: String?
+    @State private var errorMessage: UserFacingError?
     @State private var showSuccess = false
     @State private var showDeleteConfirmation = false
     @State private var isDeleting = false
@@ -53,10 +53,8 @@ struct AccountSettingsView: View {
                     .clipShape(RoundedRectangle(cornerRadius: AppTheme.cornerRadiusLarge))
                 }
 
-                if let errorMessage {
-                    Text(errorMessage)
-                        .font(.system(size: 13))
-                        .foregroundStyle(AppTheme.destructive)
+                if let errorMessage, errorMessage.fields.isEmpty {
+                    InlineError(message: errorMessage)
                 }
 
                 AppButton(label: "Save Changes", isLoading: isSaving) {
@@ -204,6 +202,9 @@ struct AccountSettingsView: View {
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(AppTheme.textMuted)
                 AppTextField(placeholder: "Display name", text: $displayName)
+                if let note = errorMessage?.inline(for: "display_name") {
+                    InlineError(message: note)
+                }
             }
 
             VStack(alignment: .leading, spacing: 6) {
@@ -213,6 +214,9 @@ struct AccountSettingsView: View {
                 AppTextField(placeholder: "Username", text: $username)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
+                if let note = errorMessage?.inline(for: "username") {
+                    InlineError(message: note)
+                }
             }
 
             VStack(alignment: .leading, spacing: 6) {
@@ -221,6 +225,9 @@ struct AccountSettingsView: View {
                     .foregroundStyle(AppTheme.textMuted)
                 AppTextField(placeholder: "+1 (555) 123-4567", text: $phoneNumber)
                     .keyboardType(.phonePad)
+                if let note = errorMessage?.inline(for: "phone_number") {
+                    InlineError(message: note)
+                }
                 Text("Friends can find you by phone number")
                     .font(.system(size: 11))
                     .foregroundStyle(AppTheme.textDim)
@@ -265,7 +272,7 @@ struct AccountSettingsView: View {
             avatarImage = nil
             selectedPhoto = nil
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = UserFacingError.capture(error, screen: "Account")
         }
     }
 
@@ -287,7 +294,7 @@ struct AccountSettingsView: View {
             authState.currentUser = updated
         } catch {
             avatarImage = nil
-            errorMessage = error.localizedDescription
+            errorMessage = UserFacingError.capture(error, screen: "Account")
         }
         isUploadingAvatar = false
     }
@@ -297,7 +304,7 @@ struct AccountSettingsView: View {
         errorMessage = nil
         let success = await authState.deleteAccount()
         if !success {
-            errorMessage = "Failed to delete account. Please try again."
+            errorMessage = authState.error
             isDeleting = false
         }
         // If success, AuthState.logout() triggers navigation to WelcomeView
@@ -320,7 +327,7 @@ struct AccountSettingsView: View {
             authState.currentUser = updated
             dismiss()
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = UserFacingError.capture(error, screen: "Account")
         }
         isSaving = false
     }

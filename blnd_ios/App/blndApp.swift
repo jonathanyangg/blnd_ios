@@ -10,29 +10,67 @@ struct BlndApp: App {
     @State private var deepLinkState = DeepLinkState()
 
     init() {
+        #if DEBUG
+        if NotesImportPreviewLaunch.isEnabled {
+            NotesImportPreviewLaunch.install()
+        }
+        #endif
         let config = PostHogConfig(apiKey: "phc_o8gysMyjwxqas8WBdUzNXwiQN9xsASDhCyetHvfnSWY5")
         config.captureScreenViews = true
         config.captureApplicationLifecycleEvents = true
         PostHogSDK.shared.setup(config)
 
+        #if DEBUG
         Purchases.logLevel = .debug
+        #else
+        Purchases.logLevel = .warn
+        #endif
         Purchases.configure(withAPIKey: "appl_XsVFffVINQJHsPlnmgVzYyPAleP")
     }
 
     var body: some Scene {
         WindowGroup {
-            ZStack {
-                AppTheme.background
-                    .ignoresSafeArea()
-                ContentView()
-                    .environment(authState)
-                    .environment(onboardingState)
-                    .environment(deepLinkState)
-                    .onAppear {
-                        appDelegate.deepLinkState = deepLinkState
+            Group {
+                if let screen = UITestLaunch.screen {
+                    UITestHost(screen: screen)
+                } else {
+                    ZStack {
+                        AppTheme.background
+                            .ignoresSafeArea()
+                        root
                     }
+                }
             }
             .preferredColorScheme(.dark)
+            .onOpenURL { url in
+                guard NotesShareText.isOpenURL(url) else { return }
+                if let text = NotesShareText.consume() {
+                    deepLinkState.pendingNotesText = text
+                }
+            }
         }
+    }
+
+    private var mainContent: some View {
+        ContentView()
+            .environment(authState)
+            .environment(onboardingState)
+            .environment(deepLinkState)
+            .onAppear {
+                appDelegate.deepLinkState = deepLinkState
+            }
+    }
+
+    @ViewBuilder
+    private var root: some View {
+        #if DEBUG
+            if TimelinePreview.isEnabled {
+                TimelinePreviewHost()
+            } else {
+                mainContent
+            }
+        #else
+            mainContent
+        #endif
     }
 }

@@ -2,11 +2,10 @@ import SwiftUI
 
 struct FriendsListView: View {
     @Environment(TabState.self) private var tabState
-    @Environment(DeepLinkState.self) private var deepLinkState
     @State private var friends: [FriendResponse] = []
     @State private var pendingRequests: PendingRequestsResponse?
     @State private var isLoading = true
-    @State private var errorMessage: String?
+    @State private var errorMessage: UserFacingError?
     @State private var showAddFriend = false
     @State private var selectedTab = 0
 
@@ -21,12 +20,17 @@ struct FriendsListView: View {
                             .foregroundStyle(.white)
                         Spacer()
                         Button {
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
                             showAddFriend = true
                         } label: {
-                            Image(systemName: "magnifyingglass")
-                                .font(.system(size: 22, weight: .medium))
-                                .foregroundStyle(.white)
+                            Text("Add")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundStyle(.black)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 8)
+                                .background(.white, in: Capsule())
                         }
+                        .accessibilityLabel("Add friends")
                     }
                     .padding(.top, 20)
                     .padding(.horizontal, 24)
@@ -74,18 +78,6 @@ struct FriendsListView: View {
                     Task { await loadData() }
                 }
             }
-            .onChange(of: deepLinkState.pending) { _, newValue in
-                if case .friendRequests = newValue {
-                    selectedTab = 1
-                    deepLinkState.pending = nil
-                }
-            }
-            .onAppear {
-                if case .friendRequests = deepLinkState.pending {
-                    selectedTab = 1
-                    deepLinkState.pending = nil
-                }
-            }
         }
         .id(tabState.navigationReset)
     }
@@ -102,7 +94,12 @@ struct FriendsListView: View {
             emptyState(
                 icon: "person.2",
                 title: "No friends yet",
-                subtitle: "Add friends to see them here"
+                subtitle: "Search by username and send a request.",
+                actionTitle: "Add a friend",
+                action: {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    showAddFriend = true
+                }
             )
         } else {
             ForEach(friends) { friend in
@@ -131,7 +128,7 @@ struct FriendsListView: View {
             emptyState(
                 icon: "envelope",
                 title: "No pending requests",
-                subtitle: "Friend requests will appear here"
+                subtitle: "When someone adds you, the request shows up here."
             )
         } else {
             if !incoming.isEmpty {
@@ -207,9 +204,11 @@ struct FriendsListView: View {
     private func emptyState(
         icon: String,
         title: String,
-        subtitle: String
+        subtitle: String,
+        actionTitle: String? = nil,
+        action: (() -> Void)? = nil
     ) -> some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 12) {
             Image(systemName: icon)
                 .font(.system(size: 36))
                 .foregroundStyle(AppTheme.textDim)
@@ -219,7 +218,20 @@ struct FriendsListView: View {
             Text(subtitle)
                 .font(.system(size: 14))
                 .foregroundStyle(AppTheme.textMuted)
+                .multilineTextAlignment(.center)
+            if let actionTitle, let action {
+                Button(action: action) {
+                    Text(actionTitle)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(.black)
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 10)
+                        .background(.white, in: Capsule())
+                }
+                .padding(.top, 4)
+            }
         }
+        .padding(.horizontal, 40)
         .padding(.top, 60)
     }
 
@@ -232,7 +244,7 @@ struct FriendsListView: View {
         friends = cache.friends
         pendingRequests = cache.pendingRequests
         if friends.isEmpty, pendingRequests == nil, !cache.didLoadFriends {
-            errorMessage = "Could not load friends"
+            errorMessage = cache.friendsLoadError
         }
         isLoading = false
     }

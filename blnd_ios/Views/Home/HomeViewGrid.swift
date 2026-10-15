@@ -5,7 +5,7 @@ import SwiftUI
 extension HomeView {
     var gridFeed: some View {
         GeometryReader { geo in
-            let cardWidth = (geo.size.width - 24 * 2 - 12) / 2
+            let cardWidth = (geo.size.width - 16 * 2 - 12) / 2
             let cardHeight = cardWidth * 1.5
 
             ScrollView {
@@ -16,7 +16,7 @@ extension HomeView {
                             cardWidth: cardWidth,
                             cardHeight: cardHeight
                         )
-                        .padding(.top, 16)
+                        .padding(.top, 12)
                     case .discover:
                         DiscoverSectionView(
                             cardWidth: cardWidth,
@@ -26,18 +26,10 @@ extension HomeView {
                         )
                     }
                 }
-                .padding(.bottom, 16)
             }
-            .scrollPosition(id: gridScrollBinding, anchor: .top)
+            .contentMargins(.bottom, 96, for: .scrollContent)
             .background(AppTheme.background)
             .refreshable { await refreshCurrentTab() }
-        }
-    }
-
-    private var gridScrollBinding: Binding<Int?> {
-        switch selectedTab {
-        case .forYou: $fypCurrentId
-        case .discover: $discoverCurrentId
         }
     }
 
@@ -52,6 +44,14 @@ extension HomeView {
                 errorView(message: error) {
                     Task { await loadForYou() }
                 }
+            } else if recommendations.isEmpty, catalogFilters.filter.media == .tv {
+                CatalogFilterNotice(title: "TV recommendations are coming soon")
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 40)
+            } else if recommendations.isEmpty, catalogFilters.filter.isActive {
+                CatalogFilterNotice(title: "Nothing matches this filter")
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 40)
             } else {
                 movieGrid(
                     cardWidth: cardWidth,
@@ -69,7 +69,7 @@ extension HomeView {
             GridItem(.flexible(), spacing: 12),
             GridItem(.flexible(), spacing: 12),
         ]
-        return LazyVGrid(columns: columns, spacing: 16) {
+        return LazyVGrid(columns: columns, spacing: 12) {
             ForEach(
                 Array(recommendations.enumerated()),
                 id: \.element.id
@@ -89,8 +89,7 @@ extension HomeView {
                     .padding(.vertical, 16)
             }
         }
-        .scrollTargetLayout()
-        .padding(.horizontal, 24)
+        .padding(.horizontal, 16)
     }
 
     private func fypGridCard(
@@ -120,7 +119,8 @@ extension HomeView {
                 posterPath: movie.posterPath,
                 width: cardWidth,
                 height: cardHeight,
-                scorePercent: movie.scorePercent
+                scorePercent: movie.scorePercent,
+                mediaType: movie.mediaType
             )
         }
         .buttonStyle(.plain)
@@ -130,13 +130,10 @@ extension HomeView {
             }
         }
         .contextMenu {
-            Button(role: .destructive) {
+            Button {
                 hideMovie(movie.tmdbId)
             } label: {
-                Label(
-                    "Not for me",
-                    systemImage: "hand.thumbsdown"
-                )
+                Label("Not for me", systemImage: "eye.slash")
             }
         }
     }
@@ -149,7 +146,7 @@ extension HomeView {
     }
 
     func errorView(
-        message: String,
+        message: UserFacingError,
         retry: @escaping () -> Void
     ) -> some View {
         ErrorStateView(message: message, retry: retry)

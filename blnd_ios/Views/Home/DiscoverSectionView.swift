@@ -23,7 +23,7 @@ struct DiscoverSectionView: View {
     @State var movies: [MovieResponse] = []
     @State var discoverReelMovies: [ReelMovie] = []
     @State var isLoading = false
-    @State var errorMessage: String?
+    @State var errorMessage: UserFacingError?
     @State var selectedGenres: Set<String> = []
     @State var showGenreSheet = false
     @State var selectedActor: PersonResult?
@@ -31,17 +31,24 @@ struct DiscoverSectionView: View {
     @State var seenIds: Set<Int> = []
     @State var hasMorePages = true
     @State var isLoadingMore = false
+    @State var catalogFilters = CatalogFilterStore.shared
 
     var body: some View {
         VStack(spacing: 0) {
             filterHeader
-            if viewMode == .reels {
+            if catalogFilters.filter.media == .tv {
+                CatalogFilterNotice(title: "TV recommendations are coming soon")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if viewMode == .reels {
                 reelsFeed
             } else {
                 gridFeed
             }
         }
-        .task { await loadMovies() }
+        .task(id: catalogFilters.filter) {
+            resetPagination()
+            await loadMovies(forceRefresh: true)
+        }
     }
 
     // MARK: - Shared Filter Header
@@ -49,7 +56,7 @@ struct DiscoverSectionView: View {
     private var filterHeader: some View {
         VStack(spacing: 0) {
             filterChips
-                .padding(.horizontal, 24)
+                .padding(.horizontal, 16)
                 .padding(.top, 10)
                 .padding(.bottom, 12)
 
@@ -87,18 +94,10 @@ struct DiscoverSectionView: View {
     }
 
     private func reelsError(
-        _ message: String
+        _ message: UserFacingError
     ) -> some View {
-        VStack(spacing: 12) {
-            Text(message)
-                .font(.system(size: 14))
-                .foregroundStyle(AppTheme.textMuted)
-                .multilineTextAlignment(.center)
-            Button("Retry") {
-                Task { await loadMovies() }
-            }
-            .font(.system(size: 14, weight: .semibold))
-            .foregroundStyle(.white)
+        ErrorStateView(message: message) {
+            Task { await loadMovies() }
         }
     }
 
@@ -128,7 +127,7 @@ struct DiscoverSectionView: View {
             GridItem(.flexible(), spacing: 12),
             GridItem(.flexible(), spacing: 12),
         ]
-        return LazyVGrid(columns: columns, spacing: 16) {
+        return LazyVGrid(columns: columns, spacing: 12) {
             ForEach(
                 Array(movies.enumerated()),
                 id: \.element.id
@@ -158,8 +157,7 @@ struct DiscoverSectionView: View {
                     .padding(.vertical, 16)
             }
         }
-        .scrollTargetLayout()
-        .padding(.horizontal, 24)
+        .padding(.horizontal, 16)
     }
 
     private func cardView(
@@ -173,7 +171,8 @@ struct DiscoverSectionView: View {
             posterPath: movie.posterPath,
             width: cardWidth,
             height: cardHeight,
-            scorePercent: movie.matchPercent
+            scorePercent: movie.matchPercent,
+            mediaType: movie.mediaType
         )
         .overlay(alignment: .topLeading) {
             if activeFilter == .trending {
@@ -300,7 +299,7 @@ struct DiscoverSectionView: View {
     }
 
     private func errorView(
-        message: String
+        message: UserFacingError
     ) -> some View {
         ErrorStateView(message: message) {
             Task { await loadMovies() }

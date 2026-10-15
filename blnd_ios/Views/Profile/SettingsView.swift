@@ -53,7 +53,8 @@ struct SettingsView: View {
                         settingsRow("Restore Purchases", icon: "arrow.clockwise") {
                             Task {
                                 isRestoring = true
-                                _ = try? await Purchases.shared.restorePurchases()
+                                let info = try? await Purchases.shared.restorePurchases()
+                                await authState.refreshRevenueCatCustomerInfo(fallingBackTo: info)
                                 await authState.fetchCurrentUser()
                                 isRestoring = false
                             }
@@ -81,7 +82,7 @@ struct SettingsView: View {
                             destination = .account
                         }
                         Divider().background(AppTheme.cardSecondary)
-                        settingsRow("Notifications", icon: "bell") {
+                        settingsRow("Notifications & Privacy", icon: "bell") {
                             destination = .notifications
                         }
                         Divider().background(AppTheme.cardSecondary)

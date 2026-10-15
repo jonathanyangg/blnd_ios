@@ -1,23 +1,31 @@
 import Foundation
 
-/// Pydantic 422 validation error shape
-private struct ValidationErrorDetail: Decodable {
-    let msg: String
+/// One parsed client error. `raw` is for logs. Views use `UserFacingError`, not `raw`.
+struct APIIssue: Equatable, Sendable {
+    var field: String?
+    var text: String
 }
 
-private struct ValidationErrorResponse: Decodable {
-    let detail: [ValidationErrorDetail]
+struct APIFieldError: Equatable, Sendable {
+    var code: String?
+    var issues: [APIIssue]
+    var raw: String
+    var opensPaywall: Bool
+
+    var field: String? { issues.first?.field }
 }
 
-private struct APIErrorDetail: Decodable {
-    let detail: String?
+/// Message from `{error:{code,message}, detail}`. `detail` may be a string.
+func apiErrorMessage(from data: Data, fallback: String = "Request failed") -> String {
+    let raw = APIFieldError.parse(data).raw
+    return raw.isEmpty ? fallback : raw
 }
 
 enum APIError: LocalizedError {
     case invalidURL
     case unauthorized
     case refreshUnavailable
-    case badRequest(String)
+    case badRequest(APIFieldError)
     case notFound
     case rateLimited(detail: String?)
     case serverError(Int)
@@ -25,17 +33,113 @@ enum APIError: LocalizedError {
     case networkError(Error)
 
     var errorDescription: String? {
-        switch self {
-        case .invalidURL: return "Invalid URL"
-        case .unauthorized: return "Invalid credentials"
-        case .refreshUnavailable: return "Couldn't refresh your session - check your connection and try again"
-        case let .badRequest(message): return message
-        case .notFound: return "Not found"
-        case let .rateLimited(detail): return detail ?? "Too many requests, try again later"
-        case let .serverError(code): return "Server error (\(code))"
-        case .decodingError: return "Unexpected response format"
-        case let .networkError(error): return error.localizedDescription
+        UserFacingError.map(self).message
+    }
+
+    var opensPaywall: Bool {
+        if case let .badRequest(info) = self { return info.opensPaywall }
+        return false
+    }
+
+    /// Reads `{error: {code, message}, detail}` first. Older bodies that only
+    /// have `detail` (string, `{code, message}`, or a 422 list) still parse.
+    static func decode(status: Int, data: Data) -> APIError {
+        let info = APIFieldError.parse(data)
+        switch status {
+        case 401:
+            return .unauthorized
+        case 404:
+            return .notFound
+        case 429:
+            return .rateLimited(detail: info.raw)
+        case 400 ..< 500:
+            return .badRequest(info)
+        default:
+            return .serverError(status)
         }
+    }
+}
+
+extension APIFieldError {
+    private static let paywallCodes: Set<String> = [
+        "PREMIUM_REQUIRED", "PAYMENT_REQUIRED", "FREE_GROUP_CAP",
+    ]
+
+    static func parse(_ data: Data) -> APIFieldError {
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return APIFieldError(code: nil, issues: [], raw: "Request failed", opensPaywall: false)
+        }
+        if let error = json["error"] as? [String: Any], let code = error["code"] as? String {
+            let message = (error["message"] as? String) ?? (json["detail"] as? String) ?? ""
+            return make(code: code, message: message)
+        }
+        if let detail = json["detail"] as? String {
+            return make(code: nil, message: detail)
+        }
+        if let detail = json["detail"] as? [String: Any] {
+            let code = (detail["code"] as? String)?.uppercased()
+            let message = detail["message"] as? String ?? ""
+            return make(code: code, message: message)
+        }
+        if let detail = json["detail"] as? [[String: Any]] {
+            let issues = detail.map { issue in
+                let msg = (issue["msg"] as? String ?? "invalid")
+                    .replacingOccurrences(of: "Value error, ", with: "")
+                return APIIssue(field: fieldName(issue["loc"]), text: msg)
+            }
+            let raw = issues.map { issue in
+                issue.field.map { "\($0): \(issue.text)" } ?? issue.text
+            }.joined(separator: "; ")
+            return APIFieldError(
+                code: "VALIDATION_ERROR",
+                issues: issues,
+                raw: raw.isEmpty ? "Request failed" : raw,
+                opensPaywall: false
+            )
+        }
+        return APIFieldError(code: nil, issues: [], raw: "Request failed", opensPaywall: false)
+    }
+
+    private static func make(code: String?, message: String) -> APIFieldError {
+        let normalized = code?.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let code = (normalized?.isEmpty == false) ? normalized : nil
+        let raw = message.isEmpty ? "Request failed" : message
+        let legacyPaywall = code == nil && (
+            raw.localizedCaseInsensitiveContains("blnd+")
+                || raw.localizedCaseInsensitiveContains("upgrade")
+        )
+        return APIFieldError(
+            code: code,
+            issues: split(message),
+            raw: raw,
+            opensPaywall: paywallCodes.contains(code ?? "") || legacyPaywall
+        )
+    }
+
+    private static func split(_ message: String) -> [APIIssue] {
+        let parts = message.split(separator: ";", omittingEmptySubsequences: true)
+        if parts.isEmpty { return [APIIssue(field: nil, text: message)] }
+        return parts.map { part in
+            let piece = part.trimmingCharacters(in: .whitespaces)
+            guard let range = piece.range(of: ": ") else {
+                return APIIssue(field: nil, text: piece)
+            }
+            let loc = String(piece[..<range.lowerBound])
+            let text = String(piece[range.upperBound...])
+            return APIIssue(field: fieldName(loc), text: text)
+        }
+    }
+
+    private static func fieldName(_ loc: Any?) -> String? {
+        let parts: [String]
+        if let loc = loc as? [Any] {
+            parts = loc.compactMap { $0 as? String }
+        } else if let loc = loc as? String {
+            parts = loc.split(separator: ".").map(String.init)
+        } else {
+            return nil
+        }
+        return parts.last { $0 != "body" && $0 != "query" }
     }
 }
 
@@ -274,46 +378,7 @@ final class APIClient: @unchecked Sendable {
         }
     }
 
-    /// Maps HTTP status + response body to an APIError.
-    /// Handles all FastAPI error shapes:
-    ///   - 400/409: {"detail": "string"}
-    ///   - 422:     {"detail": [{"msg": "string", ...}]}
-    ///   - 429:     plain text (rate limit)
     private func mapError(status: Int, data: Data) -> APIError {
-        switch status {
-        case 401:
-            return .unauthorized
-        case 404:
-            return .notFound
-        case 429:
-            let detail = try? JSONDecoder().decode(APIErrorDetail.self, from: data).detail
-            return .rateLimited(detail: detail)
-        case 400 ..< 500:
-            return .badRequest(parseDetail(from: data))
-        default:
-            return .serverError(status)
-        }
-    }
-
-    /// Parses error detail from FastAPI response body.
-    /// Tries {"detail": "string"} first, then {"detail": {"message": "..."}},
-    /// then {"detail": [{"msg": ...}]}.
-    private func parseDetail(from data: Data) -> String {
-        // Shape 1: {"detail": "Username already taken"}
-        if let obj = try? decoder.decode([String: String].self, from: data), let detail = obj["detail"] {
-            return detail
-        }
-        // Shape 2: {"detail": {"message": "...", "code": "...", ...}}
-        if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-            if let detail = json["detail"] as? [String: Any], let msg = detail["message"] as? String {
-                return msg
-            }
-        }
-        // Shape 3: {"detail": [{"msg": "String should have at most 250 characters", ...}]}
-        if let obj = try? decoder.decode(ValidationErrorResponse.self, from: data) {
-            let messages = obj.detail.map(\.msg)
-            return messages.joined(separator: ". ")
-        }
-        return "Request failed"
+        APIError.decode(status: status, data: data)
     }
 }

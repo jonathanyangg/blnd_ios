@@ -2,17 +2,20 @@ import SwiftUI
 
 private enum ProfileTab: String, CaseIterable {
     case watched = "Watched"
+    case diary = "Diary"
     case watchlist = "Watchlist"
     case taste = "Taste"
 }
 
 struct ProfileView: View {
-    @Environment(AuthState.self) private var authState
+    @Environment(AuthState.self) var authState
     @Environment(TabState.self) private var tabState
+    @Environment(DeepLinkState.self) private var deepLinkState
     @State private var showSettings = false
     @State private var showImportContext = false
     @State private var showNotifications = false
-    @State private var unreadCount = 0
+    @State private var showFriends = false
+    @State var unreadCount = 0
     @State private var showFullAvatar = false
     @State private var showPaywall = false
     @State private var selectedTab: ProfileTab = .watched
@@ -26,11 +29,15 @@ struct ProfileView: View {
     @State private var isLoadingWatchlist = false
     @State private var friendsCount = 0
     @State private var groupsCount = 0
-    @State private var genreTaste: GenreTasteResponse?
-    @State private var isLoadingTaste = false
+    @State var genreTaste: GenreTasteResponse?
+    @State var isLoadingTaste = false
 
     @State private var watchedSort: MovieSortOption = .dateDesc
     @State private var watchlistSort: MovieSortOption = .dateDesc
+    @State private var catalogFilters = CatalogFilterStore.shared
+    @State private var watchedRequest = 0
+    @State private var watchlistRequest = 0
+    @State var diaryReload = 0
 
     var body: some View {
         NavigationStack {
@@ -44,12 +51,12 @@ struct ProfileView: View {
                         StatItem(
                             label: "Friends",
                             value: friendsCount,
-                            onTap: { tabState.switchTab(1) }
+                            onTap: { showFriends = true }
                         ),
                         StatItem(
                             label: "Blends",
                             value: groupsCount,
-                            onTap: { tabState.switchTab(2) }
+                            onTap: { tabState.switchTab(1) }
                         ),
                     ])
 
@@ -66,6 +73,15 @@ struct ProfileView: View {
                     switch selectedTab {
                     case .watched:
                         watchedGrid
+                    case .diary:
+                        WatchTimelineScreen(
+                            source: .own,
+                            embedsInParentScroll: true,
+                            emptyTitle: "Your diary is empty",
+                            emptyMessage: "Rate a movie and tag the friends you watched it with.",
+                            detailSource: .profile,
+                            reloadToken: diaryReload
+                        )
                     case .watchlist:
                         watchlistGrid
                     case .taste:
@@ -79,10 +95,16 @@ struct ProfileView: View {
                 SettingsView()
             }
             .navigationDestination(isPresented: $showImportContext) {
-                ImportContextView()
+                MovieImportFlow(
+                    onComplete: { showImportContext = false },
+                    onSkip: { showImportContext = false }
+                )
             }
             .navigationDestination(isPresented: $showNotifications) {
                 ActivityFeedView()
+            }
+            .navigationDestination(isPresented: $showFriends) {
+                FriendsListView()
             }
             .sheet(isPresented: $showPaywall) {
                 PaywallView(source: .manual)
@@ -101,11 +123,27 @@ struct ProfileView: View {
                 async let unread: () = loadUnreadCount()
                 _ = await (watched, watchlist, counts, taste, unread)
             }
+            .onAppear { openNotificationsIfNeeded() }
+            .onChange(of: tabState.openNotifications) { _, _ in
+                openNotificationsIfNeeded()
+            }
+            .onChange(of: catalogFilters.filter) {
+                Task {
+                    await loadWatched()
+                    await loadWatchlist()
+                }
+            }
             .onChange(of: showNotifications) {
                 if !showNotifications {
                     // Refresh unread count when coming back from notifications
                     Task { await loadUnreadCount() }
                 }
+            }
+            .onChange(of: deepLinkState.pending) { _, link in
+                openNotificationsIfNeeded(link)
+            }
+            .onAppear {
+                openNotificationsIfNeeded(deepLinkState.pending)
             }
             .onChange(of: watchedSort) { Task { await loadWatched() } }
             .onChange(of: watchlistSort) { Task { await loadWatchlist() } }
@@ -239,14 +277,15 @@ struct ProfileView: View {
                 sort: currentSortBinding,
                 allowsRating: selectedTab == .watched
             )
-            .disabled(selectedTab == .taste)
+            .disabled(selectedTab == .taste || selectedTab == .diary)
             .padding(.trailing, 16)
             // Center the icon with the tab text (the tab VStack adds an
             // underline below its text, which pushes the icon ~4pt low).
             .offset(y: -4)
             .transaction { $0.animation = nil }
 
-            HStack(spacing: 24) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 22) {
                 ForEach(ProfileTab.allCases, id: \.self) { tab in
                     Button {
                         withAnimation(.easeInOut(duration: 0.2)) {
@@ -279,9 +318,14 @@ struct ProfileView: View {
                         }
                     }
                 }
+                }
             }
 
             Spacer()
+            if selectedTab != .taste {
+                CatalogFilterButton()
+                    .offset(y: -4)
+            }
         }
         .frame(maxWidth: .infinity)
     }
@@ -324,14 +368,20 @@ extension ProfileView {
                     .tint(.white)
                     .padding(.top, 40)
             } else if watchedMovies.isEmpty {
-                emptyState(message: "No watched movies yet")
+                emptyState(message: catalogFilters.filter.isActive
+                    ? "Nothing matches this filter"
+                    : "No watched movies yet")
             } else {
                 PosterGrid {
                     ForEach(watchedMovies) { movie in
                         NavigationLink {
                             MovieDetailView(tmdbId: movie.tmdbId, title: movie.title, source: .profile)
                         } label: {
-                            PosterTile(posterPath: movie.posterPath, rating: movie.rating)
+                            PosterTile(
+                                posterPath: movie.posterPath,
+                                rating: movie.rating,
+                                mediaType: movie.mediaType
+                            )
                         }
                         .buttonStyle(.plain)
                         .id(movie.tmdbId)
@@ -348,14 +398,20 @@ extension ProfileView {
                     .tint(.white)
                     .padding(.top, 40)
             } else if watchlistMovies.isEmpty {
-                emptyState(message: "Your watchlist is empty")
+                emptyState(message: catalogFilters.filter.isActive
+                    ? "Nothing matches this filter"
+                    : "Your watchlist is empty")
             } else {
                 PosterGrid {
                     ForEach(watchlistMovies) { movie in
                         NavigationLink {
                             MovieDetailView(tmdbId: movie.tmdbId, title: movie.title, source: .watchlist)
                         } label: {
-                            PosterTile(posterPath: movie.posterPath, rating: nil)
+                            PosterTile(
+                                posterPath: movie.posterPath,
+                                rating: nil,
+                                mediaType: movie.mediaType
+                            )
                         }
                         .buttonStyle(.plain)
                         .id(movie.tmdbId)
@@ -419,19 +475,39 @@ extension ProfileView {
 // MARK: - Data Loading
 
 extension ProfileView {
+    private func openNotificationsIfNeeded(_ link: DeepLink? = nil) {
+        if case .friendRequests = link {
+            showNotifications = true
+            deepLinkState.pending = nil
+            return
+        }
+        guard tabState.openNotifications else { return }
+        showNotifications = true
+        tabState.openNotifications = false
+    }
+
     func loadWatched() async {
+        watchedRequest += 1
+        let request = watchedRequest
         isLoadingWatched = true
         do {
+            let filter = catalogFilters.current()
             let response = try await TrackingAPI.getWatchHistory(
                 limit: 50,
-                sort: watchedSort
+                sort: watchedSort,
+                filter: filter
             )
-            watchedMovies = response.results
+            guard request == watchedRequest else { return }
+            watchedMovies = response.results.filter {
+                filter.matches(mediaType: $0.mediaType, year: $0.year)
+            }
             watchedTotal = response.total
         } catch is CancellationError {
             return
         } catch { /* Non-critical — empty state shown */ }
-        isLoadingWatched = false
+        if request == watchedRequest {
+            isLoadingWatched = false
+        }
     }
 
     func loadCounts() async {
@@ -443,49 +519,27 @@ extension ProfileView {
     }
 
     func loadWatchlist() async {
+        watchlistRequest += 1
+        let request = watchlistRequest
         isLoadingWatchlist = true
         do {
+            let filter = catalogFilters.current()
             let response = try await TrackingAPI.getWatchlist(
                 limit: 50,
-                sort: watchlistSort
+                sort: watchlistSort,
+                filter: filter
             )
-            watchlistMovies = response.results
+            guard request == watchlistRequest else { return }
+            watchlistMovies = response.results.filter {
+                filter.matches(mediaType: $0.mediaType, year: $0.year)
+            }
             watchlistTotal = response.total
         } catch is CancellationError {
             return
         } catch { /* Non-critical — empty state shown */ }
-        isLoadingWatchlist = false
-    }
-
-    func loadUnreadCount() async {
-        do {
-            let response = try await NotificationAPI.getInbox(limit: 1)
-            unreadCount = response.unreadCount
-        } catch {
-            // Non-critical
+        if request == watchlistRequest {
+            isLoadingWatchlist = false
         }
-    }
-
-    func loadTaste() async {
-        isLoadingTaste = true
-        do {
-            genreTaste = try await ProfileAPI.getGenreTaste()
-        } catch is CancellationError {
-            return
-        } catch { /* Non-critical — "rate more movies" fallback shown */ }
-        isLoadingTaste = false
-    }
-
-    func refreshAll() async {
-        UserActionCache.shared.invalidateGroups()
-        UserActionCache.shared.invalidateFriends()
-        async let watched: () = loadWatched()
-        async let watchlist: () = loadWatchlist()
-        async let counts: () = loadCounts()
-        async let taste: () = loadTaste()
-        async let unread: () = loadUnreadCount()
-        _ = await (watched, watchlist, counts, taste, unread)
-        await authState.fetchCurrentUser()
     }
 }
 
@@ -493,4 +547,5 @@ extension ProfileView {
     ProfileView()
         .environment(AuthState())
         .environment(TabState())
+        .environment(DeepLinkState())
 }

@@ -3,7 +3,6 @@ import SwiftUI
 struct AddGroupMemberSheet: View {
     let groupId: Int
     var existingMemberIds: Set<String> = []
-    var memberCount: Int = 0
     let onMemberAdded: (GroupDetailResponse) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -13,10 +12,8 @@ struct AddGroupMemberSheet: View {
     @State private var query = ""
     @State private var addingId: String?
     @State private var addedIds: Set<String> = []
-    @State private var errorMessage: String?
+    @State private var errorMessage: UserFacingError?
     @State private var showPaywall = false
-
-    private let freeGroupCap = 8
 
     @FocusState private var isFieldFocused: Bool
 
@@ -37,9 +34,7 @@ struct AddGroupMemberSheet: View {
                 .padding(.bottom, 12)
 
             if let errorMessage {
-                Text(errorMessage)
-                    .font(.system(size: 13))
-                    .foregroundStyle(.red)
+                InlineError(message: errorMessage)
                     .padding(.horizontal, 24)
                     .padding(.bottom, 8)
             }
@@ -179,17 +174,11 @@ struct AddGroupMemberSheet: View {
             friends = response.friends.filter {
                 !existingMemberIds.contains($0.id)
             }
-        } catch { errorMessage = error.localizedDescription }
+        } catch { errorMessage = UserFacingError.capture(error, screen: "BlendMembers") }
         isLoadingFriends = false
     }
 
     private func addFriend(_ friend: FriendResponse) async {
-        let currentCount = memberCount + addedIds.count
-        if currentCount >= freeGroupCap, !authState.isPremium {
-            showPaywall = true
-            return
-        }
-
         addingId = friend.id
         errorMessage = nil
         do {
@@ -199,14 +188,10 @@ struct AddGroupMemberSheet: View {
             )
             addedIds.insert(friend.id)
             onMemberAdded(updated)
-        } catch let APIError.badRequest(message) {
-            if message.contains("Upgrade") || message.contains("blnd+") {
-                showPaywall = true
-            } else {
-                errorMessage = message
-            }
+        } catch let error as APIError where error.opensPaywall {
+            showPaywall = true
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = UserFacingError.capture(error, screen: "BlendMembers")
         }
         addingId = nil
     }

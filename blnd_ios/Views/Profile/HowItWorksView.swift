@@ -19,8 +19,9 @@ struct HowItWorksView: View {
                     title: "For You",
                     body: "Your personalized feed. We compare movies we think you haven't "
                         + "seen against your taste profile and surface the ones most likely "
-                        + "to click. Swipe up for the next pick, right to add to watchlist, left to save "
-                        + "for later. Your taste profile refreshes automatically as you rate, "
+                        + "to click. Swipe up for the next pick, right if you're interested, "
+                        + "left for not for me. Add to watchlist from the card. "
+                        + "Your taste profile refreshes automatically as you rate, "
                         + "so the feed keeps up."
                 )
                 section(

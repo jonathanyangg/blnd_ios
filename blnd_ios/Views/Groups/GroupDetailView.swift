@@ -2,6 +2,7 @@ import SwiftUI
 
 enum GroupTab: String, CaseIterable {
     case blendPicks = "Blend Picks"
+    case timeline = "Timeline"
     case watchlist = "Watchlist"
 }
 
@@ -17,24 +18,20 @@ struct GroupDetailView: View {
     @State var blendCurrentId: Int?
     @State var watchlistCurrentId: Int?
     @State var isLoading = true
-    @State var loadError: String?
+    @State var loadError: UserFacingError?
     @State var showMembers = false
     @State var selectedTab: GroupTab = .blendPicks
     @State var viewMode: ViewMode = .reels
-    @State var toastMessage: String?
+    @State var toastMessage: UserFacingError?
+    @State var toastRetry: (() -> Void)?
     @State var toastTask: Task<Void, Never>?
+    @State var timelineReload = 0
     @State var isEditingName = false
     @State var editedName = ""
     @Namespace var tabNamespace
+    @State var catalogFilters = CatalogFilterStore.shared
     @Environment(\.dismiss) var dismiss
     @Environment(TabState.self) var tabState
-
-    var groupContext: ReelCardView.GroupContext? {
-        guard let group else { return nil }
-        return .init(
-            groupId: groupId, groupName: group.name
-        )
-    }
 
     var currentUserId: String {
         KeychainManager.readString(key: "userId") ?? ""
@@ -56,6 +53,17 @@ struct GroupDetailView: View {
                     Task { await loadAll(forceRefresh: true) }
                 }
                 Spacer()
+            } else if selectedTab == .timeline {
+                WatchTimelineScreen(
+                    source: .blend(groupId),
+                    showsViewer: true,
+                    emptyTitle: "No shared history yet",
+                    emptyMessage: "Movies this blend watches will land here, with who they watched them with.",
+                    unavailableTitle: "Timeline isn't available yet",
+                    unavailableMessage: "Shared history will show up here once the server update ships.",
+                    detailSource: .grid,
+                    reloadToken: timelineReload
+                )
             } else if viewMode == .reels {
                 reelsFeed
             } else {
@@ -66,7 +74,9 @@ struct GroupDetailView: View {
         .navigationBarBackButtonHidden()
         .toolbar(.hidden, for: .navigationBar)
         .swipeBackGesture()
-        .task { await loadAll() }
+        .task(id: catalogFilters.filter) {
+            await loadAll(forceRefresh: group != nil)
+        }
         .refreshable { await loadAll(forceRefresh: true) }
         .sheet(isPresented: $showMembers) {
             membersSheet
@@ -85,23 +95,17 @@ struct GroupDetailView: View {
         }
         .overlay(alignment: .top) {
             if let toast = toastMessage {
-                Text(toast)
-                    .font(.system(
-                        size: 13, weight: .medium
-                    ))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .background(.red.opacity(0.85))
-                    .clipShape(Capsule())
-                    .padding(.top, 60)
-                    .transition(
-                        .move(edge: .top)
-                            .combined(with: .opacity)
-                    )
-                    .onTapGesture {
-                        toastMessage = nil
-                    }
+                ErrorToast(
+                    message: toast,
+                    retry: toastRetry,
+                    onDismiss: { toastMessage = nil; toastRetry = nil }
+                )
+                .padding(.horizontal, 24)
+                .padding(.top, 60)
+                .transition(
+                    .move(edge: .top)
+                        .combined(with: .opacity)
+                )
             }
         }
         .animation(
@@ -133,19 +137,23 @@ struct GroupDetailView: View {
 
                     Spacer(minLength: 8)
 
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            viewMode = viewMode == .reels ? .grid : .reels
+                    if selectedTab == .timeline {
+                        Color.clear.frame(width: 28, height: 28)
+                    } else {
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                viewMode = viewMode == .reels ? .grid : .reels
+                            }
+                        } label: {
+                            Image(
+                                systemName: viewMode == .reels
+                                    ? "square.grid.2x2"
+                                    : "rectangle.stack"
+                            )
+                            .font(.system(size: 16))
+                            .foregroundStyle(.white)
+                            .frame(width: 28, height: 28)
                         }
-                    } label: {
-                        Image(
-                            systemName: viewMode == .reels
-                                ? "square.grid.2x2"
-                                : "rectangle.stack"
-                        )
-                        .font(.system(size: 16))
-                        .foregroundStyle(.white)
-                        .frame(width: 28, height: 28)
                     }
                 }
                 .padding(.horizontal, 16)
@@ -155,7 +163,14 @@ struct GroupDetailView: View {
 
             groupTabPicker
                 .padding(.horizontal, 24)
-                .padding(.bottom, 4)
+                .padding(.bottom, 8)
+
+            HStack {
+                CatalogFilterButton()
+                Spacer()
+            }
+            .padding(.horizontal, 24)
+            .padding(.bottom, 8)
 
             Divider().overlay(AppTheme.border)
         }
@@ -232,7 +247,7 @@ struct GroupDetailView: View {
             isEditingName = true
         } label: {
             HStack(spacing: 6) {
-                Text(group.name)
+                Text(group.displayTitle)
                     .font(.system(size: 17, weight: .bold))
                     .foregroundStyle(.white)
                     .lineLimit(1)

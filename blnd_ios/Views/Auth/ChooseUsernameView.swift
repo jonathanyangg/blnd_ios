@@ -4,15 +4,18 @@ struct ChooseUsernameView: View {
     @Environment(AuthState.self) var authState
     @Environment(OnboardingState.self) var onboardingState
     @Binding var path: NavigationPath
+    var onAccountReady: (() -> Void)?
     @State private var isLoading = false
-    @State private var error: String?
+    @State private var error: UserFacingError?
 
     var body: some View {
         @Bindable var state = onboardingState
 
         VStack(spacing: 0) {
-            OnboardingProgressBar(step: 3, total: 5)
-                .padding(.top, 12)
+            if onAccountReady == nil {
+                OnboardingProgressBar(step: 3, total: 5)
+                    .padding(.top, 12)
+            }
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
@@ -30,12 +33,18 @@ struct ChooseUsernameView: View {
                     AppTextField(placeholder: "Username", text: $state.username)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
+                    if let note = error?.inline(for: "username") {
+                        InlineError(message: note)
+                            .padding(.bottom, 8)
+                    }
                     PhoneNumberInputField(phoneNumber: $state.phoneNumber)
+                    if let note = error?.inline(for: "phone_number") {
+                        InlineError(message: note)
+                            .padding(.bottom, 8)
+                    }
 
-                    if let error {
-                        Text(error)
-                            .font(.system(size: 13))
-                            .foregroundStyle(AppTheme.destructive)
+                    if let error, error.fields.isEmpty {
+                        InlineError(message: error)
                             .padding(.bottom, 8)
                     }
 
@@ -102,9 +111,14 @@ struct ChooseUsernameView: View {
                 phoneNumber: phone.isEmpty ? nil : phone
             )
 
-            // Both calls succeeded — navigate to completion
+            // Both calls succeeded. The v2 account gate continues in place.
+            // A brand-new Apple sign-in starts Onboarding v2 from Welcome.
             authState.phase = .onboardingPending
-            path.append(AuthRoute.onboardingComplete)
+            if let onAccountReady {
+                onAccountReady()
+            } else {
+                onboardingState.continueWithV2 = true
+            }
         } catch {
             isLoading = false
             // Determine which call failed
@@ -114,10 +128,10 @@ struct ChooseUsernameView: View {
                 onboardingState.appleRawNonce = nil
                 onboardingState.appleDisplayName = nil
                 onboardingState.appleAuthCode = nil
-                self.error = error.localizedDescription
+                self.error = UserFacingError.capture(error, screen: "ChooseUsername")
             } else {
                 // completeOnboarding failed (e.g. username taken) — keep Apple state
-                self.error = error.localizedDescription
+                self.error = UserFacingError.capture(error, screen: "ChooseUsername")
             }
         }
     }

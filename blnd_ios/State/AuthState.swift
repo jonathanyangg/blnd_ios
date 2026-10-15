@@ -13,11 +13,66 @@ class AuthState {
     var isCheckingSession: Bool
     var currentUser: UserResponse?
     var isLoading = false
-    var error: String?
+    var error: UserFacingError?
     var showPaywall = false
+    /// Latest RevenueCat customer info. Nil until logIn, purchase, or restore refreshes it.
+    private(set) var revenueCatCustomerInfo: CustomerInfo?
 
+    /// Backend first (`is_premium`, then a paid tier that has not expired).
+    /// RevenueCat's `premium` entitlement covers the gap before the webhook lands.
     var isPremium: Bool {
-        currentUser?.isPremium ?? false
+        Self.isPremium(
+            serverFlag: currentUser?.isPremium ?? nil,
+            tier: currentUser?.subscriptionTier,
+            expiresAt: currentUser?.subscriptionExpiresAt,
+            revenueCatActive: revenueCatEntitlementActive
+        )
+    }
+
+    /// Paid `profiles.subscription_tier` values. The DB check allows only `free` and `premium`.
+    static let paidTiers: Set<String> = ["premium"]
+    /// RevenueCat entitlement attached to `blnd_premium_monthly`.
+    static let premiumEntitlementID = "premium"
+
+    /// True if the server flag is true, the paid tier is still open, or RevenueCat is active.
+    static func isPremium(
+        serverFlag: Bool?,
+        tier: String?,
+        expiresAt: String?,
+        revenueCatActive: Bool,
+        now: Date = Date()
+    ) -> Bool {
+        if serverFlag == true { return true }
+        if paidTiers.contains(tier ?? ""), expiryIsOpen(expiresAt, now: now) { return true }
+        return revenueCatActive
+    }
+
+    static func entitlementIsActive(_ activeIDs: Set<String>) -> Bool {
+        activeIDs.contains(premiumEntitlementID)
+    }
+
+    private var revenueCatEntitlementActive: Bool {
+        guard let info = revenueCatCustomerInfo else { return false }
+        return Self.entitlementIsActive(Set(info.entitlements.active.keys))
+    }
+
+    private static func expiryIsOpen(_ raw: String?, now: Date) -> Bool {
+        guard let raw, !raw.isEmpty else { return true }
+        guard let expires = parseExpiry(raw) else { return true }
+        return expires > now
+    }
+
+    /// Prod sends Python `isoformat()`, including microseconds and `+00:00`.
+    private static func parseExpiry(_ raw: String) -> Date? {
+        let fractional = ISO8601DateFormatter()
+        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = fractional.date(from: raw) { return date }
+        let plain = ISO8601DateFormatter()
+        if let date = plain.date(from: raw) { return date }
+        guard let fraction = raw.range(of: #"\.\d+"#, options: .regularExpression) else { return nil }
+        var stripped = raw
+        stripped.removeSubrange(fraction)
+        return plain.date(from: stripped)
     }
 
     private var logoutObserver: NSObjectProtocol?
@@ -64,15 +119,7 @@ class AuthState {
 
         do {
             let user = try await AuthAPI.me()
-            currentUser = user
-            phase = user.username != nil ? .authenticated : .onboardingPending
-            if phase == .authenticated {
-                await UserActionCache.shared.bootstrap()
-                if let uid = KeychainManager.readString(key: "userId") {
-                    Analytics.identify(userId: uid)
-                    try? await Purchases.shared.logIn(uid)
-                }
-            }
+            await applySession(user)
         } catch APIError.unauthorized {
             // Tokens definitively rejected - real sign-out. (APIClient's
             // forceLogoutNotification also lands here when refresh fails.)
@@ -81,31 +128,36 @@ class AuthState {
             // Transient failure (offline, cold backend, server 5xx). The
             // tokens are still in the Keychain - retry with backoff so a
             // waking server doesn't dump the user at the login screen.
+            var lastError: Error = error
             for delaySeconds in [2.0, 5.0, 10.0] {
                 try? await Task.sleep(
                     nanoseconds: UInt64(delaySeconds * 1_000_000_000)
                 )
                 guard let user = try? await AuthAPI.me() else { continue }
-                currentUser = user
-                phase = user.username != nil ? .authenticated : .onboardingPending
-                if phase == .authenticated {
-                    await UserActionCache.shared.bootstrap()
-                    if let uid = KeychainManager.readString(key: "userId") {
-                        Analytics.identify(userId: uid)
-                        try? await Purchases.shared.logIn(uid)
-                    }
-                }
+                await applySession(user)
                 isCheckingSession = false
                 return
             }
             // Still failing: show sign-in, but tokens stay in the Keychain so
             // the next launch (or a successful retry) restores the session.
-            self.error =
-                "Couldn't reach the server - check your connection and try again."
+            self.error = UserFacingError.capture(lastError, screen: "CheckSession")
             phase = .unauthenticated
         }
 
         isCheckingSession = false
+    }
+
+    private func applySession(_ user: UserResponse) async {
+        currentUser = user
+        phase = user.username != nil ? .authenticated : .onboardingPending
+
+        guard phase == .authenticated, let uid = KeychainManager.readString(key: "userId") else {
+            return
+        }
+
+        await UserActionCache.shared.bootstrap()
+        Analytics.identify(userId: uid)
+        await logInRevenueCat(userId: uid)
     }
 
     func signup(
@@ -132,7 +184,7 @@ class AuthState {
             // Explicitly mark as needing onboarding (genres + ratings)
             phase = .onboardingPending
         } catch {
-            self.error = error.localizedDescription
+            self.error = UserFacingError.capture(error, screen: "SignUp")
         }
 
         isLoading = false
@@ -160,12 +212,12 @@ class AuthState {
                 phase = .authenticated
                 await UserActionCache.shared.bootstrap()
                 Analytics.identify(userId: response.userId)
-                try? await Purchases.shared.logIn(response.userId)
+                await logInRevenueCat(userId: response.userId)
             }
             isLoading = false
             return response
         } catch {
-            self.error = error.localizedDescription
+            self.error = UserFacingError.capture(error, screen: "AppleLogin")
             isLoading = false
             return nil
         }
@@ -189,9 +241,9 @@ class AuthState {
                     userProperties: ["username": user.username ?? "", "email": email]
                 )
             }
-            try? await Purchases.shared.logIn(response.userId)
+            await logInRevenueCat(userId: response.userId)
         } catch {
-            self.error = error.localizedDescription
+            self.error = UserFacingError.capture(error, screen: "Login")
         }
 
         isLoading = false
@@ -207,7 +259,7 @@ class AuthState {
             isLoading = false
             return true
         } catch {
-            self.error = error.localizedDescription
+            self.error = UserFacingError.capture(error, screen: "DeleteAccount")
             isLoading = false
             return false
         }
@@ -220,12 +272,33 @@ class AuthState {
         KeychainManager.delete(key: "refreshToken")
         KeychainManager.delete(key: "userId")
         currentUser = nil
+        revenueCatCustomerInfo = nil
         error = nil
         isLoading = false
         phase = .unauthenticated
         UserActionCache.shared.reset()
         Analytics.reset()
         Purchases.shared.logOut { _, _ in }
+    }
+
+    /// Identifies the user, then refreshes customer info so the entitlement is current.
+    func logInRevenueCat(userId: String) async {
+        let loggedIn = try? await Purchases.shared.logIn(userId)
+        await refreshRevenueCatCustomerInfo(fallingBackTo: loggedIn?.customerInfo)
+    }
+
+    /// Network refresh of customer info. `fallingBackTo` is the info just returned by
+    /// logIn, purchase, or restore. An in-hand active entitlement wins so a lagging
+    /// refetch cannot hide a purchase that just completed.
+    func refreshRevenueCatCustomerInfo(fallingBackTo info: CustomerInfo? = nil) async {
+        let fresh = try? await Purchases.shared.customerInfo(fetchPolicy: .fetchCurrent)
+        if let info, Self.entitlementIsActive(Set(info.entitlements.active.keys)) {
+            revenueCatCustomerInfo = info
+        } else if let fresh {
+            revenueCatCustomerInfo = fresh
+        } else if let info {
+            revenueCatCustomerInfo = info
+        }
     }
 
     func fetchCurrentUser() async {
