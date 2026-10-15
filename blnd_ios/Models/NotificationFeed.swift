@@ -17,6 +17,7 @@ enum ActivityKind: Equatable {
     case recommendation
     case rating
     case friendAccepted
+    case follower
     case other
 }
 
@@ -44,19 +45,12 @@ struct ActivityRow: Identifiable, Equatable {
 }
 
 struct PinnedRequest: Identifiable, Equatable {
-    enum Kind: Equatable {
-        case friend
-        case follow
-    }
-
     let id: String
-    let kind: Kind
+    let inboxID: Int
     let name: String
     let avatarURL: String?
     let date: Date
     let isUnread: Bool
-    let friendshipId: Int?
-    let followId: Int?
     let profile: ActivityRoute
 }
 
@@ -71,32 +65,22 @@ struct ActivityFeedContent: Equatable {
 }
 
 enum ActivityFeed {
-    static func make(
-        inbox: [InboxItem],
-        incoming: [FriendRequestResponse],
-        useInboxFriendRequests: Bool,
-        filter: ChannelPrefs,
-        now: Date
-    ) -> ActivityFeedContent {
+    static func make(inbox: [InboxItem], now: Date) -> ActivityFeedContent {
         ActivityFeedContent(
-            requests: pinnedRequests(
-                inbox: inbox,
-                incoming: incoming,
-                useInboxFriendRequests: useInboxFriendRequests
-            ),
-            sections: activitySections(inbox: inbox, filter: filter, now: now)
+            requests: pinnedRequests(inbox: inbox),
+            sections: activitySections(inbox: inbox, now: now)
         )
     }
 
     static func deepLink(type: String, data: [String: String]) -> DeepLink? {
         switch kind(for: type) {
         case nil:
-            return type == "friend_request" || type == "follow_request" ? .friendRequests : nil
+            return type == "friend_request" ? .friendRequests : nil
         case .blendInvite, .blendActivity:
             return data["group_id"].flatMap(Int.init).map(DeepLink.groupDetail(groupId:))
         case .like, .comment:
             return data["tmdb_id"].flatMap(Int.init).map(DeepLink.comments(tmdbId:))
-        case .friendAccepted:
+        case .friendAccepted, .follower:
             return .friendRequests
         case .watchedWith, .match, .recommendation, .rating, .other:
             return data["tmdb_id"].flatMap(Int.init).map(DeepLink.movieDetail(tmdbId:))
@@ -138,10 +122,11 @@ enum ActivityFeed {
         "weekly_digest": .recommendation,
         "friend_activity": .rating,
         "friend_accepted": .friendAccepted,
+        "new_follower": .follower,
     ]
 
     static func kind(for type: String) -> ActivityKind? {
-        if type == "friend_request" || type == "follow_request" { return nil }
+        if type == "friend_request" { return nil }
         return kinds[type] ?? .other
     }
 
@@ -155,24 +140,10 @@ enum ActivityFeed {
     }
 }
 
-extension ChannelPrefs {
-    func allows(_ kind: ActivityKind) -> Bool {
-        switch kind {
-        case .rating: friendRatings
-        case .blendInvite, .blendActivity: blendActivity
-        case .like, .comment: commentsLikes
-        case .watchedWith: watchedWith
-        case .recommendation: recommendations
-        case .match, .friendAccepted, .other: true
-        }
-    }
-}
-
 enum FriendlyCopy {
     static let requestAction = "Couldn't update that request. Please try again."
     static let saveSettings = "Couldn't save that setting. Please try again."
-    static let refreshSettings =
-        "Couldn't refresh your notification settings. Showing what was saved on this phone."
+    static let refreshSettings = "Couldn't load your notification settings."
 
     static func notificationsMessage(for error: Error) -> String {
         isOffline(error) ? "No internet connection" : "Couldn't load your notifications."
@@ -191,122 +162,47 @@ enum FriendlyCopy {
 // MARK: - Grouping
 
 private extension ActivityFeed {
-    static func pinnedRequests(
-        inbox: [InboxItem],
-        incoming: [FriendRequestResponse],
-        useInboxFriendRequests: Bool
-    ) -> [PinnedRequest] {
-        var rows = incoming.map(friendRequest)
-        for item in inbox {
-            if item.type == "follow_request" {
-                rows.append(followRequest(item))
-            } else if useInboxFriendRequests, item.type == "friend_request" {
-                rows.append(inboxFriendRequest(item))
-            }
-        }
-        return rows.sorted { $0.date > $1.date }
+    static func pinnedRequests(inbox: [InboxItem]) -> [PinnedRequest] {
+        inbox.filter { $0.type == "friend_request" && $0.canRespond }.map(friendRequest)
+            .sorted { $0.date > $1.date }
     }
 
-    static func friendRequest(_ request: FriendRequestResponse) -> PinnedRequest {
-        let person = request.requester
-        let name = person.displayName ?? person.username
-        return PinnedRequest(
-            id: "friend-\(request.id)",
-            kind: .friend,
-            name: name,
-            avatarURL: person.avatarUrl,
-            date: parseDate(request.createdAt) ?? .distantPast,
-            isUnread: true,
-            friendshipId: request.id,
-            followId: nil,
-            profile: .profile(userId: person.id, username: person.username, avatarURL: person.avatarUrl)
-        )
-    }
-
-    static func followRequest(_ item: InboxItem) -> PinnedRequest {
-        requestRow(item, kind: .follow, idPrefix: "follow", followId: int(item.data, "follow_id"), friendshipId: nil)
-    }
-
-    static func inboxFriendRequest(_ item: InboxItem) -> PinnedRequest {
-        requestRow(
-            item,
-            kind: .friend,
-            idPrefix: "friend-inbox",
-            followId: nil,
-            friendshipId: int(item.data, "friendship_id")
-        )
-    }
-
-    static func requestRow(
-        _ item: InboxItem,
-        kind: PinnedRequest.Kind,
-        idPrefix: String,
-        followId: Int?,
-        friendshipId: Int?
-    ) -> PinnedRequest {
+    static func friendRequest(_ item: InboxItem) -> PinnedRequest {
         let name = item.fromUsername ?? "Someone"
-        let userId = item.data?["user_id"] ?? ""
+        let userId = item.target?.type == "user" ? item.target?.id : item.data?["user_id"]
         return PinnedRequest(
-            id: "\(idPrefix)-\(item.id)",
-            kind: kind,
+            id: "friend-\(item.id)",
+            inboxID: item.id,
             name: name,
-            avatarURL: item.fromAvatarUrl,
+            avatarURL: item.displayAvatar,
             date: parseDate(item.createdAt) ?? .distantPast,
             isUnread: !item.read,
-            friendshipId: friendshipId,
-            followId: followId,
-            profile: .profile(userId: userId, username: name, avatarURL: item.fromAvatarUrl)
+            profile: .profile(userId: userId ?? "", username: name, avatarURL: item.displayAvatar)
         )
     }
 
-    static func activitySections(
-        inbox: [InboxItem],
-        filter: ChannelPrefs,
-        now: Date
-    ) -> [ActivitySection] {
+    static func activitySections(inbox: [InboxItem], now: Date) -> [ActivitySection] {
         let sorted = inbox.sorted {
             (parseDate($0.createdAt) ?? .distantPast) > (parseDate($1.createdAt) ?? .distantPast)
         }
-        var grouped: [ActivityBucket: [String: Accumulator]] = [:]
-        var order: [ActivityBucket: [String]] = [:]
+        var grouped: [String: Accumulator] = [:]
+        var order: [String] = []
+        var bucketOf: [String: ActivityBucket] = [:]
         for item in sorted {
-            guard let kind = kind(for: item.type), filter.allows(kind), let date = parseDate(item.createdAt) else {
-                continue
+            guard let kind = kind(for: item.type), let date = parseDate(item.createdAt) else { continue }
+            let key = item.groupKey.flatMap { $0.isEmpty ? nil : $0 } ?? "item-\(item.id)"
+            if grouped[key] == nil {
+                order.append(key)
+                bucketOf[key] = bucket(for: date, now: now)
             }
-            let bucket = bucket(for: date, now: now)
-            let key = groupKey(kind: kind, item: item)
-            if grouped[bucket]?[key] == nil {
-                order[bucket, default: []].append(key)
-            }
-            var accumulator = grouped[bucket]?[key] ?? Accumulator(kind: kind, date: date, item: item)
+            var accumulator = grouped[key] ?? Accumulator(kind: kind, date: date, item: item)
             accumulator.add(item: item, date: date)
-            grouped[bucket, default: [:]][key] = accumulator
+            grouped[key] = accumulator
         }
         return ActivityBucket.allCases.compactMap { bucket in
-            let rows = (order[bucket] ?? []).compactMap { grouped[bucket]?[$0]?.row(id: "\(bucket.rawValue)-\($0)") }
+            let rows = order.filter { bucketOf[$0] == bucket }.compactMap { grouped[$0]?.row(id: $0) }
             return rows.isEmpty ? nil : ActivitySection(bucket: bucket, rows: rows)
         }
-    }
-
-    static func groupKey(kind: ActivityKind, item: InboxItem) -> String {
-        let data = item.data ?? [:]
-        if let comment = data["comment_id"], kind == .like || kind == .comment {
-            return "\(kind)-comment-\(comment)"
-        }
-        if let tmdb = data["tmdb_id"], !tmdb.isEmpty, kind != .blendInvite {
-            return "\(kind)-tmdb-\(tmdb)"
-        }
-        if let group = data["group_id"], !group.isEmpty {
-            return "\(kind)-group-\(group)"
-        }
-        if let user = data["user_id"], !user.isEmpty {
-            return "\(kind)-user-\(user)"
-        }
-        return "\(kind)-item-\(item.id)"
-    }
-
-    static func int(_ data: [String: String]?, _ key: String) -> Int? {
-        data?[key].flatMap(Int.init)
     }
 }
 
@@ -329,11 +225,11 @@ private struct Accumulator {
             self.date = date
             self.item = item
         }
-        if posterURL == nil { posterURL = ActivityFeed.posterURL(item.data) }
+        if posterURL == nil { posterURL = ActivityFeed.posterURL(for: item) }
         isUnread = isUnread || !item.read
         let name = item.fromUsername ?? "Someone"
         if !actors.contains(where: { $0.name == name }) {
-            actors.append(ActivityActor(name: name, avatarURL: item.fromAvatarUrl))
+            actors.append(ActivityActor(name: name, avatarURL: item.displayAvatar))
         }
     }
 
@@ -397,23 +293,49 @@ extension ActivityFeed {
             return movie.map { "rated \($0)" } ?? "rated a movie"
         case .friendAccepted:
             return "accepted your friend request"
+        case .follower:
+            return "started following you"
         case .other:
             return "sent you an update"
         }
     }
 
+    static func posterURL(for item: InboxItem) -> URL? {
+        if let url = posterURL(item.data) { return url }
+        guard let raw = item.posterUrl, let url = URL(string: raw), url.scheme != nil else { return nil }
+        return url
+    }
+
     static func route(kind: ActivityKind, item: InboxItem) -> ActivityRoute? {
         let data = item.data ?? [:]
         let title = data["movie_title"] ?? ""
+        if let target = item.target {
+            switch target.type {
+            case "comment":
+                if let id = data["tmdb_id"].flatMap(Int.init) { return .comments(tmdbId: id, title: title) }
+            case "movie":
+                if let id = Int(target.id) { return .movie(tmdbId: id, title: title) }
+            case "blend":
+                if let id = Int(target.id) { return .group(id) }
+            case "user":
+                return .profile(
+                    userId: target.id,
+                    username: item.fromUsername ?? "",
+                    avatarURL: item.displayAvatar
+                )
+            default:
+                break
+            }
+        }
         switch kind {
         case .blendInvite, .blendActivity:
             if let id = data["group_id"].flatMap(Int.init) { return .group(id) }
             if let id = data["tmdb_id"].flatMap(Int.init) { return .movie(tmdbId: id, title: title) }
         case .like, .comment:
             if let id = data["tmdb_id"].flatMap(Int.init) { return .comments(tmdbId: id, title: title) }
-        case .friendAccepted:
+        case .friendAccepted, .follower:
             if let userId = data["user_id"] {
-                return .profile(userId: userId, username: item.fromUsername ?? "", avatarURL: item.fromAvatarUrl)
+                return .profile(userId: userId, username: item.fromUsername ?? "", avatarURL: item.displayAvatar)
             }
         case .watchedWith, .match, .recommendation, .rating, .other:
             if let id = data["tmdb_id"].flatMap(Int.init) { return .movie(tmdbId: id, title: title) }

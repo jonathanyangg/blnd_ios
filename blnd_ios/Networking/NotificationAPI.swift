@@ -56,37 +56,33 @@ enum NotificationAPI {
         )
     }
 
-    /// PATCH /notifications/preferences — update notification preference toggles (partial).
-    /// Sends the richer body first. A 4xx means this server only stores the five booleans.
+    /// PATCH /notifications/preferences — partial update of share_ratings and channels.
     static func updatePreferences(
         _ prefs: UpdatePreferencesRequest
     ) async throws -> NotificationPreferences {
-        do {
-            return try await sendPreferences(prefs, includeExtensions: true)
-        } catch APIError.badRequest {
-            return try await sendPreferences(prefs, includeExtensions: false)
-        }
-    }
-
-    private static func sendPreferences(
-        _ prefs: UpdatePreferencesRequest,
-        includeExtensions: Bool
-    ) async throws -> NotificationPreferences {
-        let body = PreferencePatch(request: prefs, includeExtensions: includeExtensions)
-        return try await APIClient.shared.request(
+        try await APIClient.shared.request(
             endpoint: "/notifications/preferences",
             method: "PATCH",
-            body: body,
+            body: prefs,
             authenticated: true
         )
     }
-}
 
-private struct PreferencePatch: Encodable {
-    let request: UpdatePreferencesRequest
-    let includeExtensions: Bool
+    /// POST /notifications/inbox/{id}/accept — accept the friend request on this row.
+    static func acceptInboxItem(id: Int) async throws {
+        try await APIClient.shared.requestVoid(
+            endpoint: "/notifications/inbox/\(id)/accept",
+            method: "POST",
+            authenticated: true
+        )
+    }
 
-    func encode(to encoder: Encoder) throws {
-        try request.encode(to: encoder, includeExtensions: includeExtensions)
+    /// POST /notifications/inbox/{id}/decline — decline the friend request on this row.
+    static func declineInboxItem(id: Int) async throws {
+        try await APIClient.shared.requestVoid(
+            endpoint: "/notifications/inbox/\(id)/decline",
+            method: "POST",
+            authenticated: true
+        )
     }
 }

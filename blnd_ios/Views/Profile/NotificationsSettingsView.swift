@@ -2,47 +2,36 @@ import SwiftUI
 
 struct NotificationsSettingsView: View {
     private let isPreview: Bool
-    @State private var prefs: NotificationPrivacyPrefs
+    @State private var prefs: NotificationPrivacyPrefs?
+    @State private var isLoading: Bool
     @State private var loadError: String?
     @State private var saveError: String?
 
     init(preview: NotificationPrivacyPrefs? = nil) {
         isPreview = preview != nil
-        _prefs = State(initialValue: preview ?? NotificationPrefsStore.load())
+        _prefs = State(initialValue: preview)
+        _isLoading = State(initialValue: preview == nil)
     }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                if let loadError { note(loadError) }
-                if let saveError { note(saveError) }
-                sharingCard
-                channelSection(
-                    "Friends' ratings",
-                    inApp: \.friendRatings,
-                    push: \.friendRatings
-                )
-                channelSection(
-                    "Blend activity",
-                    inApp: \.blendActivity,
-                    push: \.blendActivity
-                )
-                channelSection(
-                    "Comments and likes",
-                    inApp: \.commentsLikes,
-                    push: \.commentsLikes
-                )
-                channelSection(
-                    "Watched-with tags",
-                    inApp: \.watchedWith,
-                    push: \.watchedWith
-                )
-                channelSection(
-                    "Recommendations",
-                    inApp: \.recommendations,
-                    push: \.recommendations
-                )
-                systemSettings
+                if isLoading {
+                    ProgressView()
+                        .tint(.white)
+                        .frame(maxWidth: .infinity, minHeight: 200)
+                } else if prefs == nil {
+                    note(loadError ?? FriendlyCopy.refreshSettings)
+                } else {
+                    if let saveError { note(saveError) }
+                    sharingCard
+                    channelSection("Friends' ratings", inApp: \.friendRatings, push: \.friendRatings)
+                    channelSection("Blend activity", inApp: \.blendActivity, push: \.blendActivity)
+                    channelSection("Comments and likes", inApp: \.commentsLikes, push: \.commentsLikes)
+                    channelSection("Watched-with tags", inApp: \.watchedWith, push: \.watchedWith)
+                    channelSection("Recommendations", inApp: \.recommendations, push: \.recommendations)
+                    systemSettings
+                }
             }
             .padding(.horizontal, 24)
             .padding(.top, 20)
@@ -87,7 +76,7 @@ struct NotificationsSettingsView: View {
 
     private var shareBinding: Binding<ShareAudience> {
         Binding(
-            get: { prefs.shareRatings },
+            get: { prefs?.shareRatings ?? .friends },
             set: { audience in
                 Task { await update { $0.shareRatings = audience } }
             }
@@ -108,12 +97,12 @@ struct NotificationsSettingsView: View {
                 toggle(
                     "In-app",
                     subtitle: "Show in your notification center",
-                    isOn: prefs.inApp[keyPath: inApp]
+                    isOn: prefs?.inApp[keyPath: inApp] ?? true
                 ) { value in
                     await update { $0.inApp[keyPath: inApp] = value }
                 }
                 Divider().background(AppTheme.cardSecondary)
-                toggle("Push", subtitle: "Alert on this phone", isOn: prefs.push[keyPath: push]) { value in
+                toggle("Push", subtitle: "Alert on this phone", isOn: prefs?.push[keyPath: push] ?? true) { value in
                     await update { $0.push[keyPath: push] = value }
                 }
             }
@@ -179,32 +168,29 @@ struct NotificationsSettingsView: View {
         do {
             let server = try await NotificationAPI.getPreferences()
             guard !Task.isCancelled else { return }
-            prefs = prefs.applying(server: server)
-            NotificationPrefsStore.save(prefs)
+            prefs = NotificationPrivacyPrefs(server: server)
             loadError = nil
         } catch {
             guard !Task.isCancelled else { return }
             loadError = FriendlyCopy.refreshSettings
         }
+        isLoading = false
     }
 
     private func update(_ change: (inout NotificationPrivacyPrefs) -> Void) async {
-        let previous = prefs
-        var next = prefs
+        guard var next = prefs else { return }
+        let previous = next
         change(&next)
         prefs = next
-        NotificationPrefsStore.save(prefs)
         guard !isPreview else { return }
         do {
-            let server = try await NotificationAPI.updatePreferences(prefs.asRequest())
+            let server = try await NotificationAPI.updatePreferences(next.asRequest())
             guard !Task.isCancelled else { return }
-            prefs = prefs.applying(server: server)
-            NotificationPrefsStore.save(prefs)
+            prefs = NotificationPrivacyPrefs(server: server)
             saveError = nil
         } catch {
             guard !Task.isCancelled else { return }
             prefs = previous
-            NotificationPrefsStore.save(previous)
             saveError = FriendlyCopy.saveSettings
         }
     }

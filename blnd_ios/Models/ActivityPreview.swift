@@ -3,35 +3,7 @@ import Foundation
 /// Fixed activity used by the simulator screenshot launch (`-UITestScreen`).
 enum ActivityPreview {
     static func sample(now: Date = Date()) -> ActivityFeedContent {
-        ActivityFeed.make(
-            inbox: items(now: now),
-            incoming: [maya(now: now)],
-            useInboxFriendRequests: false,
-            filter: ChannelPrefs(),
-            now: now
-        )
-    }
-
-    private static func maya(now: Date) -> FriendRequestResponse {
-        FriendRequestResponse(
-            id: 7,
-            requester: FriendResponse(
-                friendshipId: 7,
-                id: "user-maya",
-                username: "maya",
-                displayName: "Maya",
-                avatarUrl: nil
-            ),
-            addressee: FriendResponse(
-                friendshipId: 7,
-                id: "me",
-                username: "me",
-                displayName: nil,
-                avatarUrl: nil
-            ),
-            status: "pending",
-            createdAt: stamp(now.addingTimeInterval(-1_800))
-        )
+        ActivityFeed.make(inbox: items(now: now), now: now)
     }
 
     static func inbox(now: Date = Date()) -> [InboxItem] {
@@ -40,7 +12,8 @@ enum ActivityPreview {
 
     private static func items(now: Date) -> [InboxItem] {
         [
-            follow(now: now),
+            request(now: now),
+            follower(now: now),
             like(id: 1, name: "Sam", minutesAgo: 20, read: false, now: now),
             like(id: 2, name: "Jules", minutesAgo: 40, read: false, now: now),
             like(id: 3, name: "Noa", minutesAgo: 55, read: true, now: now),
@@ -55,15 +28,30 @@ enum ActivityPreview {
         ]
     }
 
-    private static func follow(now: Date) -> InboxItem {
+    private static func request(now: Date) -> InboxItem {
+        item(
+            id: 7,
+            type: "friend_request",
+            name: "Maya",
+            body: "Maya wants to be friends",
+            data: ["type": "friend_request", "user_id": "user-maya"],
+            read: false,
+            date: now.addingTimeInterval(-1_800),
+            actions: ["accept", "decline"],
+            target: InboxTarget(type: "user", id: "user-maya")
+        )
+    }
+
+    private static func follower(now: Date) -> InboxItem {
         item(
             id: 11,
-            type: "follow_request",
+            type: "new_follower",
             name: "Alex",
-            body: "Alex requested to follow you",
-            data: ["type": "follow_request", "user_id": "user-alex", "follow_id": "4"],
+            body: "Alex started following you",
+            data: ["type": "new_follower", "user_id": "user-alex"],
             read: false,
-            date: now.addingTimeInterval(-600)
+            date: now.addingTimeInterval(-600),
+            target: InboxTarget(type: "user", id: "user-alex")
         )
     }
 
@@ -81,7 +69,9 @@ enum ActivityPreview {
                 "poster_path": "/k3waqVXSnvCZWfJYNtdamTgTtTA.jpg",
             ],
             read: read,
-            date: now.addingTimeInterval(TimeInterval(-minutesAgo * 60))
+            date: now.addingTimeInterval(TimeInterval(-minutesAgo * 60)),
+            groupKey: "like:comment:88",
+            target: InboxTarget(type: "comment", id: "88")
         )
     }
 
@@ -212,18 +202,24 @@ enum ActivityPreview {
         body: String,
         data: [String: String],
         read: Bool,
-        date: Date
+        date: Date,
+        groupKey: String? = nil,
+        actions: [String] = [],
+        target: InboxTarget? = nil
     ) -> InboxItem {
         InboxItem(
             id: id,
             type: type,
             fromUsername: name,
             fromAvatarUrl: nil,
+            groupKey: groupKey,
+            target: target,
             title: type,
             body: body,
             data: data,
             read: read,
-            createdAt: stamp(date)
+            createdAt: stamp(date),
+            actions: actions
         )
     }
 

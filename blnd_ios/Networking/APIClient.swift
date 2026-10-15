@@ -295,10 +295,11 @@ final class APIClient: @unchecked Sendable {
         }
     }
 
-    /// Parses error detail from FastAPI response body.
-    /// Tries {"detail": "string"} first, then {"detail": {"message": "..."}},
-    /// then {"detail": [{"msg": ...}]}.
+    /// Parses an error body. Prefers `{error:{code,message}}`, then the older detail shapes.
     private func parseDetail(from data: Data) -> String {
+        if let message = APIErrorEnvelope.message(in: data) {
+            return message
+        }
         // Shape 1: {"detail": "Username already taken"}
         if let obj = try? decoder.decode([String: String].self, from: data), let detail = obj["detail"] {
             return detail
@@ -315,5 +316,20 @@ final class APIClient: @unchecked Sendable {
             return messages.joined(separator: ". ")
         }
         return "Request failed"
+    }
+}
+
+/// `{error:{code,message}}` from the API. Callers show their own copy, not this string.
+enum APIErrorEnvelope {
+    static func message(in data: Data) -> String? {
+        struct Envelope: Decodable {
+            struct Body: Decodable {
+                let code: String
+                let message: String
+            }
+
+            let error: Body
+        }
+        return try? JSONDecoder().decode(Envelope.self, from: data).error.message
     }
 }

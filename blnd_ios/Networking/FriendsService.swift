@@ -25,26 +25,6 @@ enum FriendsService {
         return result
     }
 
-    // shortcut: no follow API on main, upgrade when POST /follows/{id}/accept exists
-    static func acceptFollow(followId: Int) async throws {
-        try await APIClient.shared.requestVoid(
-            endpoint: "/follows/\(followId)/accept",
-            method: "POST",
-            authenticated: true
-        )
-        await invalidate()
-    }
-
-    // shortcut: no follow API on main, upgrade when POST /follows/{id}/decline exists
-    static func declineFollow(followId: Int) async throws {
-        try await APIClient.shared.requestVoid(
-            endpoint: "/follows/\(followId)/decline",
-            method: "POST",
-            authenticated: true
-        )
-        await invalidate()
-    }
-
     static func rejectRequest(friendshipId: Int) async throws -> FriendRequestResponse {
         let result: FriendRequestResponse = try await APIClient.shared.request(
             endpoint: "/friends/\(friendshipId)/reject",

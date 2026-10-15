@@ -15,7 +15,7 @@ struct ActivityRequestRow: View {
             .buttonStyle(.plain)
             VStack(alignment: .leading, spacing: 8) {
                 Button(action: onOpen) {
-                    (Text(request.name).fontWeight(.semibold) + Text(request.kind.prompt))
+                    (Text(request.name).fontWeight(.semibold) + Text(" wants to be friends"))
                         .font(.system(size: 14))
                         .foregroundStyle(.white)
                         .multilineTextAlignment(.leading)
@@ -67,7 +67,9 @@ struct ActivityRowView: View {
             sentence
                 .frame(maxWidth: .infinity, alignment: .leading)
             if row.isUnread { UnreadDot() }
-            PosterThumb(url: row.posterURL)
+            if let url = row.posterURL {
+                PosterThumb(url: url)
+            }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
@@ -135,14 +137,5 @@ struct UnreadDot: View {
             .fill(.blue)
             .frame(width: 8, height: 8)
             .accessibilityLabel("Unread")
-    }
-}
-
-private extension PinnedRequest.Kind {
-    var prompt: String {
-        switch self {
-        case .friend: " wants to be friends"
-        case .follow: " requested to follow you"
-        }
     }
 }

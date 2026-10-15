@@ -7,14 +7,10 @@ struct ActivityFeedView: View {
 
     @State private var frozen: ActivityFeedContent?
     @State private var items: [InboxItem] = []
-    @State private var incoming: [FriendRequestResponse] = []
-    @State private var useInboxFriendRequests = false
-    @State private var hiddenFollowIds: Set<Int> = []
     @State private var isLoading: Bool
     @State private var isLoadingMore = false
     @State private var hasMore = true
     @State private var errorMessage: String?
-    @State private var requestWarning: String?
     @State private var actionError: String?
     @State private var busyRequestId: String?
     @State private var route: ActivityRoute?
@@ -67,25 +63,12 @@ struct ActivityFeedView: View {
 
     private var feed: ActivityFeedContent {
         if let frozen { return frozen }
-        let visible = items.filter { item in
-            guard item.type == "follow_request", let id = item.data?["follow_id"].flatMap(Int.init) else {
-                return true
-            }
-            return !hiddenFollowIds.contains(id)
-        }
-        return ActivityFeed.make(
-            inbox: visible,
-            incoming: incoming,
-            useInboxFriendRequests: useInboxFriendRequests,
-            filter: NotificationPrefsStore.load().inApp,
-            now: Date()
-        )
+        return ActivityFeed.make(inbox: items, now: Date())
     }
 
     private var feedList: some View {
         LazyVStack(alignment: .leading, spacing: 0) {
             if let actionError { banner(actionError) }
-            if let requestWarning { banner(requestWarning) }
             if !feed.requests.isEmpty {
                 sectionHeader("Requests")
                 ForEach(feed.requests) { request in
@@ -205,15 +188,9 @@ struct ActivityFeedView: View {
             hasMore = true
         }
         do {
-            async let inboxTask = NotificationAPI.getInbox(limit: pageSize, offset: 0)
-            async let requestsTask = loadRequests()
-            let inbox = try await inboxTask
-            let requests = await requestsTask
+            let inbox = try await NotificationAPI.getInbox(limit: pageSize, offset: 0)
             guard !Task.isCancelled else { return false }
             items = inbox.results
-            incoming = requests.incoming
-            useInboxFriendRequests = requests.failed
-            requestWarning = requests.failed ? "Couldn't load friend requests." : nil
             hasMore = inbox.results.count >= pageSize
             isLoading = false
             return true
@@ -222,15 +199,6 @@ struct ActivityFeedView: View {
             if items.isEmpty { errorMessage = FriendlyCopy.notificationsMessage(for: error) }
             isLoading = false
             return false
-        }
-    }
-
-    private func loadRequests() async -> (incoming: [FriendRequestResponse], failed: Bool) {
-        do {
-            let response = try await FriendsAPI.getPendingRequests()
-            return (response.incoming, false)
-        } catch {
-            return ([], true)
         }
     }
 
@@ -259,53 +227,17 @@ struct ActivityFeedView: View {
         busyRequestId = request.id
         defer { busyRequestId = nil }
         do {
-            try await perform(request, accept: accept)
-            remove(request)
+            if accept {
+                try await NotificationAPI.acceptInboxItem(id: request.inboxID)
+                Analytics.friendRequestAccepted()
+            } else {
+                try await NotificationAPI.declineInboxItem(id: request.inboxID)
+                Analytics.friendRequestRejected()
+            }
+            items.removeAll { $0.id == request.inboxID }
             await tabState.refreshPendingCount()
         } catch {
             actionError = FriendlyCopy.requestAction
-        }
-    }
-
-    private func perform(_ request: PinnedRequest, accept: Bool) async throws {
-        switch request.kind {
-        case .friend:
-            guard let id = request.friendshipId else { throw FriendlyFailure() }
-            if accept {
-                _ = try await FriendsService.acceptRequest(friendshipId: id)
-                Analytics.friendRequestAccepted()
-            } else {
-                _ = try await FriendsService.rejectRequest(friendshipId: id)
-                Analytics.friendRequestRejected()
-            }
-        case .follow:
-            guard let id = request.followId else { throw FriendlyFailure() }
-            if accept {
-                try await FriendsService.acceptFollow(followId: id)
-            } else {
-                try await FriendsService.declineFollow(followId: id)
-            }
-        }
-    }
-
-    private func remove(_ request: PinnedRequest) {
-        if let friendshipId = request.friendshipId {
-            incoming.removeAll { $0.id == friendshipId }
-        }
-        if let followId = request.followId {
-            hiddenFollowIds.insert(followId)
-        }
-        items.removeAll { $0.type == request.kind.inboxType && $0.fromUsername == request.name }
-    }
-}
-
-private struct FriendlyFailure: Error {}
-
-private extension PinnedRequest.Kind {
-    var inboxType: String {
-        switch self {
-        case .friend: "friend_request"
-        case .follow: "follow_request"
         }
     }
 }

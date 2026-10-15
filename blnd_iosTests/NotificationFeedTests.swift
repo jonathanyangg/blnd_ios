@@ -9,7 +9,8 @@ struct NotificationFeedTests {
         let today = feed.sections.first { $0.bucket == .today }
         let likes = today?.rows.first { $0.lineLead == "Sam and 3 others" }
 
-        #expect(feed.requests.map(\.name) == ["Alex", "Maya"])
+        #expect(feed.requests.map(\.name) == ["Maya"])
+        #expect(today?.rows.contains { $0.lineLead == "Alex" } == true)
         #expect(likes?.lineRest == " liked your comment on Past Lives")
         #expect(likes?.isUnread == true)
         #expect(likes?.posterURL?.absoluteString.contains("k3waqVXSnvCZWfJYNtdamTgTtTA") == true)
@@ -30,23 +31,33 @@ struct NotificationFeedTests {
         })
     }
 
-    @Test func inAppFilterHidesRatingsAndKeepsMatches() {
+    @Test func groupKeyDoesNotMergeDifferentRows() {
         let now = Date()
-        var filter = ChannelPrefs()
-        filter.friendRatings = false
-        filter.commentsLikes = false
+        let stamp = ISO8601DateFormatter()
+        stamp.formatOptions = [.withInternetDateTime]
+        let created = stamp.string(from: now)
+        func like(id: Int, name: String, key: String) -> InboxItem {
+            InboxItem(
+                id: id,
+                type: "like",
+                fromUsername: name,
+                fromAvatarUrl: nil,
+                groupKey: key,
+                target: InboxTarget(type: "comment", id: key),
+                title: "like",
+                body: "\(name) liked your comment",
+                data: ["tmdb_id": "1", "movie_title": "Heat"],
+                read: false,
+                createdAt: created
+            )
+        }
         let feed = ActivityFeed.make(
-            inbox: ActivityPreview.inbox(now: now),
-            incoming: [],
-            useInboxFriendRequests: false,
-            filter: filter,
+            inbox: [like(id: 1, name: "Sam", key: "like:comment:1"), like(id: 2, name: "Jules", key: "like:comment:2")],
             now: now
         )
         let rows = feed.sections.flatMap(\.rows)
-
-        #expect(rows.contains { $0.route == .movie(tmdbId: 531428, title: "Portrait of a Lady on Fire") })
-        #expect(!rows.contains { $0.lineLead == "Ken" })
-        #expect(!rows.contains { $0.lineLead == "Sam and 3 others" })
+        #expect(rows.count == 2)
+        #expect(feed.requests.isEmpty)
     }
 
     @Test func weekBoundaryUsesRollingSevenDays() {
@@ -74,80 +85,82 @@ struct NotificationFeedTests {
             ActivityFeed.deepLink(type: "watched_with", data: ["tmdb_id": "949"])
                 == .movieDetail(tmdbId: 949)
         )
-        #expect(ActivityFeed.deepLink(type: "follow_request", data: [:]) == .friendRequests)
+        #expect(ActivityFeed.deepLink(type: "new_follower", data: [:]) == .friendRequests)
+        #expect(ActivityFeed.deepLink(type: "friend_request", data: [:]) == .friendRequests)
     }
 
-    @Test func legacyPreferencesLeaveLocalChannelsAlone() throws {
-        var local = NotificationPrivacyPrefs()
-        local.inApp.friendRatings = false
-        local.push.watchedWith = false
-        local.shareRatings = .off
+    @Test func serverChannelsAreTheSettings() {
+        var push = ChannelPrefs()
+        push.friendRatings = false
+        var inApp = ChannelPrefs()
+        inApp.watchedWith = false
         let server = NotificationPreferences(
             friendRequests: true,
-            groupInvites: false,
+            groupInvites: true,
             recommendations: true,
-            friendActivity: false,
-            commentReplies: true
+            friendActivity: true,
+            commentReplies: true,
+            shareRatings: "off",
+            inApp: inApp,
+            push: push
         )
-
-        let merged = local.applying(server: server)
-
-        #expect(merged.push.friendRatings == false)
-        #expect(merged.push.blendActivity == false)
-        #expect(merged.push.commentsLikes == true)
-        #expect(merged.push.recommendations == true)
-        #expect(merged.push.watchedWith == false)
-        #expect(merged.inApp.friendRatings == false)
-        #expect(merged.shareRatings == .off)
+        let prefs = NotificationPrivacyPrefs(server: server)
+        #expect(prefs.shareRatings == .off)
+        #expect(prefs.push.friendRatings == false)
+        #expect(prefs.inApp.watchedWith == false)
+        #expect(prefs.push.blendActivity == true)
     }
 
-    @Test func decodesLegacyAndRichPreferences() throws {
-        let legacy = """
-        {"friend_requests":true,"group_invites":false,"recommendations":true,\
-        "friend_activity":false,"comment_replies":true}
-        """
-        let decoded = try JSONDecoder().decode(NotificationPreferences.self, from: Data(legacy.utf8))
-        #expect(decoded.groupInvites == false)
-        #expect(decoded.shareRatings == nil)
-        #expect(decoded.inApp == nil)
-
-        let rich = """
+    @Test func decodesPreferenceAndInboxContract() throws {
+        let prefsJSON = """
         {"friend_requests":true,"group_invites":true,"recommendations":true,\
-        "friend_activity":true,"comment_replies":true,"share_ratings":"everyone",\
-        "in_app":{"friend_ratings":false,"blend_activity":true,"comments_likes":true,\
-        "watched_with":true,"recommendations":false}}
+        "friend_activity":true,"comment_replies":true,"share_ratings":"friends",\
+        "in_app":{"friend_ratings":true,"blend_activity":true,"comments_likes":true,\
+        "watched_with":true,"recommendations":true},\
+        "push":{"friend_ratings":false,"blend_activity":true,"comments_likes":true,\
+        "watched_with":true,"recommendations":true}}
         """
-        let extra = try JSONDecoder().decode(NotificationPreferences.self, from: Data(rich.utf8))
-        #expect(extra.shareRatings == "everyone")
-        #expect(extra.inApp?.friendRatings == false)
-        #expect(extra.inApp?.recommendations == false)
+        let prefs = try JSONDecoder().decode(NotificationPreferences.self, from: Data(prefsJSON.utf8))
+        #expect(prefs.shareRatings == "friends")
+        #expect(prefs.push.friendRatings == false)
+        #expect(prefs.inApp.watchedWith == true)
+
+        let legacy = """
+        {"friend_requests":true,"group_invites":true,"recommendations":true,\
+        "friend_activity":true,"comment_replies":true}
+        """
+        let legacyPrefs = try? JSONDecoder().decode(NotificationPreferences.self, from: Data(legacy.utf8))
+        #expect(legacyPrefs == nil)
+
+        let rowJSON = """
+        {"id":5,"type":"like","from_username":"Alex","from_avatar_url":"https://cdn.example/alex.jpg",\
+        "avatar_url":"https://cdn.example/alex.jpg","title":"New Like","body":"Alex liked your review",\
+        "poster_url":"https://image.tmdb.org/t/p/w185/poster.jpg","group_key":"like:comment:1",\
+        "target":{"type":"comment","id":"1"},"data":{"poster_path":"/poster.jpg",\
+        "poster_url":"https://image.tmdb.org/t/p/w185/poster.jpg","tmdb_id":"15"},\
+        "read":false,"created_at":"2026-10-15T12:00:00Z","actions":[]}
+        """
+        let row = try JSONDecoder().decode(InboxItem.self, from: Data(rowJSON.utf8))
+        #expect(row.groupKey == "like:comment:1")
+        #expect(row.target == InboxTarget(type: "comment", id: "1"))
+        #expect(row.data?["poster_path"] == "/poster.jpg")
+        #expect(row.actions.isEmpty)
+        #expect(row.canRespond == false)
     }
 
-    @Test func patchOmitsFriendRequestsAndCanDropExtensions() throws {
+    @Test func patchSendsShareRatingsAndChannels() throws {
         let request = NotificationPrivacyPrefs(shareRatings: .off).asRequest()
-        let full = try JSONSerialization.jsonObject(with: try encoded(request, extensions: true)) as? [String: Any]
-        let legacy = try JSONSerialization.jsonObject(with: try encoded(request, extensions: false)) as? [String: Any]
-
-        #expect(full?["friend_requests"] == nil)
-        #expect(full?["share_ratings"] as? String == "off")
-        #expect(full?["friend_activity"] as? Bool == true)
-        #expect(full?["in_app"] != nil)
-        #expect(legacy?["share_ratings"] == nil)
-        #expect(legacy?["in_app"] == nil)
-        #expect(legacy?["group_invites"] as? Bool == true)
+        let object = try JSONSerialization.jsonObject(with: JSONEncoder().encode(request)) as? [String: Any]
+        let push = object?["push"] as? [String: Bool]
+        #expect(object?["friend_requests"] == nil)
+        #expect(object?["share_ratings"] as? String == "off")
+        #expect(object?["friend_activity"] as? Bool == true)
+        #expect(push?["friend_ratings"] == true)
+        #expect(push?["watched_with"] == true)
     }
 
-    private func encoded(_ request: UpdatePreferencesRequest, extensions: Bool) throws -> Data {
-        let encoder = JSONEncoder()
-        return try encoder.encode(PreferencePatchBox(request: request, includeExtensions: extensions))
-    }
-}
-
-private struct PreferencePatchBox: Encodable {
-    let request: UpdatePreferencesRequest
-    let includeExtensions: Bool
-
-    func encode(to encoder: Encoder) throws {
-        try request.encode(to: encoder, includeExtensions: includeExtensions)
+    @Test func readsErrorEnvelopeMessage() {
+        let body = #"{"error":{"code":"VALIDATION_ERROR","message":"Try again"},"detail":"raw"}"#
+        #expect(APIErrorEnvelope.message(in: Data(body.utf8)) == "Try again")
     }
 }
