@@ -130,7 +130,43 @@ extension MovieDetailView {
                 Color.clear.frame(width: 32, height: 36)
             }
         }
-        .padding(.bottom, 20)
+        .padding(.bottom, 12)
+    }
+
+    var watchedWithRow: some View {
+        Button { showLogSheet = true } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "person.2")
+                    .font(.system(size: 14))
+                Text("Watched with")
+                    .font(.system(size: 15, weight: .medium))
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(AppTheme.textDim)
+            }
+            .foregroundStyle(.white)
+            .padding(.vertical, 12)
+            .padding(.horizontal, 14)
+            .background(AppTheme.card)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+        .padding(.bottom, 16)
+        .sheet(isPresented: $showLogSheet) {
+            RateMovieSheet(
+                title: movie?.title ?? title,
+                year: movie?.yearString ?? "",
+                tmdbId: tmdbId,
+                posterPath: movie?.posterPath,
+                existingRating: userRating
+            ) { newRating in
+                userRating = newRating
+                isWatched = true
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+            .presentationBackground(AppTheme.card)
+        }
     }
 
     @ViewBuilder

@@ -18,6 +18,7 @@ struct MovieDetailView: View {
     @State var showHideConfirm = false
     @State var showStreamingSheet = false
     @State var showCommentsSheet = false
+    @State var showLogSheet = false
     @State var overviewExpanded = false
 
     private var displayTitle: String {
@@ -172,6 +173,7 @@ struct MovieDetailView: View {
                 .padding(.bottom, 20)
 
             detailRatingBar
+            watchedWithRow
             actionButtonsRow
             FriendsWhoWatchedSection(friends: friendsWhoWatched)
             commentsRow(movie)

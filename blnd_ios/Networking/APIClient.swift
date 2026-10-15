@@ -18,7 +18,7 @@ enum APIError: LocalizedError {
     case unauthorized
     case refreshUnavailable
     case badRequest(String)
-    case notFound
+    case notFound(String?)
     case rateLimited(detail: String?)
     case serverError(Int)
     case decodingError
@@ -30,7 +30,7 @@ enum APIError: LocalizedError {
         case .unauthorized: return "Invalid credentials"
         case .refreshUnavailable: return "Couldn't refresh your session - check your connection and try again"
         case let .badRequest(message): return message
-        case .notFound: return "Not found"
+        case let .notFound(message): return message ?? "Not found"
         case let .rateLimited(detail): return detail ?? "Too many requests, try again later"
         case let .serverError(code): return "Server error (\(code))"
         case .decodingError: return "Unexpected response format"
@@ -284,7 +284,7 @@ final class APIClient: @unchecked Sendable {
         case 401:
             return .unauthorized
         case 404:
-            return .notFound
+            return .notFound(usefulMessage(parseDetail(from: data)))
         case 429:
             let detail = try? JSONDecoder().decode(APIErrorDetail.self, from: data).detail
             return .rateLimited(detail: detail)
@@ -299,6 +299,7 @@ final class APIClient: @unchecked Sendable {
     /// Tries {"detail": "string"} first, then {"detail": {"message": "..."}},
     /// then {"detail": [{"msg": ...}]}.
     private func parseDetail(from data: Data) -> String {
+        if let message = APIErrorEnvelope.message(from: data) { return message }
         // Shape 1: {"detail": "Username already taken"}
         if let obj = try? decoder.decode([String: String].self, from: data), let detail = obj["detail"] {
             return detail
@@ -315,5 +316,11 @@ final class APIClient: @unchecked Sendable {
             return messages.joined(separator: ". ")
         }
         return "Request failed"
+    }
+
+    /// A generic FastAPI 404 has no envelope message worth showing.
+    private func usefulMessage(_ message: String) -> String? {
+        if message == "Request failed" || message == "Not Found" { return nil }
+        return message
     }
 }
