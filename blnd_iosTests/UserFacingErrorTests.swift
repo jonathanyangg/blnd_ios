@@ -107,6 +107,19 @@ struct UserFacingErrorTests {
 
         #expect(UserFacingError.displayCopy(for: ASAuthorizationError(.canceled)) == nil)
 
+        let unknown = NSError(
+            domain: ASAuthorizationError.errorDomain,
+            code: 1000,
+            userInfo: [
+                NSLocalizedDescriptionKey: "com.apple.AuthenticationServices.AuthorizationError error 1000",
+            ]
+        )
+        let unknownCopy = UserFacingError.map(unknown)
+        #expect(unknownCopy.message == "Couldn't sign in with Apple. Try again or use email.")
+        #expect(unknownCopy.message != unknown.localizedDescription)
+        #expect(!unknownCopy.message.contains("1000"))
+        #expect(UserFacingError.diagnostic(unknown).contains("1000"))
+
         let other = NSError(
             domain: ASAuthorizationError.errorDomain,
             code: 1099,

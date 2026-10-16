@@ -1,0 +1,43 @@
+name: Apple auth proof
+
+on:
+  push:
+    branches: [cursor/friendly-error-handling-7de9]
+
+jobs:
+  simulator:
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unit tests and Apple error screenshot
+        run: |
+          set -euo pipefail
+          mkdir -p apple-auth-artifacts
+          DEVICE=$(xcrun simctl list devices available | grep -E '^[[:space:]]+iPhone' | head -1 | sed -E 's/^[[:space:]]+//; s/ \([A-F0-9-]+\).*//')
+          echo "Device: ${DEVICE}"
+          export TEST_RUNNER_APPLE_AUTH_SHOT="${GITHUB_WORKSPACE}/apple-auth-artifacts/apple-error.png"
+          set +e
+          xcodebuild test \
+            -project blnd_ios.xcodeproj \
+            -scheme blnd_ios \
+            -destination "platform=iOS Simulator,name=${DEVICE}" \
+            -only-testing:blnd_iosTests \
+            -only-testing:blnd_iosUITests/BlndIOSUITests/testAppleSignInFailureShowsFriendlyCopy \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            | tee apple-auth-artifacts/xcodebuild.log
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ -f apple-auth-artifacts/apple-error.png ]; then
+            echo "screenshot ok"
+          else
+            echo "screenshot missing"
+          fi
+          exit "${status}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: apple-auth-artifacts
+          path: apple-auth-artifacts/
+          if-no-files-found: warn
