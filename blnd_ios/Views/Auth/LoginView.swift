@@ -31,8 +31,7 @@ struct LoginView: View {
                         case let .success(authorization):
                             handleAppleSignIn(authorization)
                         case let .failure(error):
-                            let isCancelled = (error as? ASAuthorizationError)?.code == .canceled
-                            if !isCancelled {
+                            if UserFacingError.displayCopy(for: error) != nil {
                                 authState.error = UserFacingError.capture(error, screen: "Login")
                             }
                         }
