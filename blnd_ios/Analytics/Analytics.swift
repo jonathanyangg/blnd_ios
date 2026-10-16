@@ -39,6 +39,7 @@ enum Analytics {
         static let onboardingDropped = "onboarding_dropped"
         static let tutorialCompleted = "tutorial_completed"
         static let tutorialSkipped = "tutorial_skipped"
+        static let errorShown = "error_shown"
     }
 
     // MARK: - Source enums
@@ -345,6 +346,18 @@ enum Analytics {
         PostHogSDK.shared.capture(
             EventName.tutorialSkipped,
             properties: ["tutorial": tutorial.rawValue, "step": step]
+        )
+    }
+
+    /// Raw error detail for debugging. Callers must not put this string on screen.
+    static func errorShown(screen: String, category: String, detail: String) {
+        PostHogSDK.shared.capture(
+            EventName.errorShown,
+            properties: [
+                "screen": screen,
+                "category": category,
+                "detail": detail,
+            ]
         )
     }
 }

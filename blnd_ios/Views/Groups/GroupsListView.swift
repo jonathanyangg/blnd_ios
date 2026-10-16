@@ -5,7 +5,7 @@ struct GroupsListView: View {
     @Environment(DeepLinkState.self) private var deepLinkState
     @State private var groups: [GroupResponse] = []
     @State private var isLoading = true
-    @State private var errorMessage: String?
+    @State private var errorMessage: UserFacingError?
     @State private var showCreateGroup = false
     @State private var deepLinkGroupId: Int?
     @State private var searchQuery = ""
@@ -115,7 +115,7 @@ struct GroupsListView: View {
             return
         } catch {
             if groups.isEmpty {
-                errorMessage = error.localizedDescription
+                errorMessage = UserFacingError.capture(error, screen: "Groups")
             }
         }
         isLoading = false

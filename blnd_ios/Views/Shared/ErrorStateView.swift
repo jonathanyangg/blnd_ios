@@ -1,67 +1,107 @@
 import SwiftUI
 
-/// Shared error state with icon, message, and retry button.
-/// Detects network errors and shows a friendlier "no connection" state.
+/// Full-screen empty error. Title, message, and icon come from `UserFacingError` only.
 struct ErrorStateView: View {
-    let message: String
+    let message: UserFacingError
     var retry: (() -> Void)?
 
     var body: some View {
         VStack(spacing: 16) {
-            Image(systemName: icon)
+            Image(systemName: message.icon)
                 .font(.system(size: 28, weight: .light))
                 .foregroundStyle(AppTheme.textDim)
+                .accessibilityHidden(true)
 
             VStack(spacing: 6) {
-                Text(title)
+                Text(message.title)
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(.white)
 
-                Text(subtitle)
+                Text(message.message)
                     .font(.system(size: 13))
                     .foregroundStyle(AppTheme.textMuted)
                     .multilineTextAlignment(.center)
             }
 
             if let retry {
-                Button {
-                    retry()
-                } label: {
-                    Text("Retry")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(.black)
-                        .padding(.horizontal, 24)
-                        .padding(.vertical, 10)
-                        .background(.white)
-                        .clipShape(Capsule())
-                }
-                .padding(.top, 4)
+                Button("Retry", action: retry)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.black)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 10)
+                    .background(.white)
+                    .clipShape(Capsule())
+                    .padding(.top, 4)
             }
         }
         .frame(maxWidth: .infinity)
         .padding(.horizontal, 40)
     }
+}
 
-    private var isOffline: Bool {
-        let lower = message.lowercased()
-        return lower.contains("offline")
-            || lower.contains("internet connection")
-            || lower.contains("network")
-            || lower.contains("not connected")
-            || lower.contains("timed out")
+/// Form and row error. Sits under a field. Retry is optional because the form button often is the retry.
+struct InlineError: View {
+    let message: UserFacingError
+    var retry: (() -> Void)?
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: message.icon)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(AppTheme.textDim)
+                .padding(.top, 1)
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text(message.message)
+                    .font(.system(size: 13))
+                    .foregroundStyle(AppTheme.textMuted)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                if let retry {
+                    Button("Retry", action: retry)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.white)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
+}
 
-    private var icon: String {
-        isOffline ? "wifi.slash" : "exclamationmark.triangle"
-    }
+/// Floating error. Same copy as the other two, in the capsule the reels already use.
+struct ErrorToast: View {
+    let message: UserFacingError
+    var retry: (() -> Void)?
+    var onDismiss: (() -> Void)?
 
-    private var title: String {
-        isOffline ? "No connection" : "Something went wrong"
-    }
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: message.icon)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(AppTheme.textMuted)
+                .accessibilityHidden(true)
 
-    private var subtitle: String {
-        isOffline
-            ? "Check your internet and try again"
-            : message
+            Text(message.message)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(.white)
+                .multilineTextAlignment(.leading)
+
+            if let retry {
+                Button("Retry") {
+                    onDismiss?()
+                    retry()
+                }
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(.white)
+                .underline()
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(.black.opacity(0.92))
+        .clipShape(Capsule())
+        .overlay(Capsule().stroke(AppTheme.border, lineWidth: 0.5))
+        .onTapGesture { onDismiss?() }
     }
 }

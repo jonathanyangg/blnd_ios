@@ -31,9 +31,8 @@ struct LoginView: View {
                         case let .success(authorization):
                             handleAppleSignIn(authorization)
                         case let .failure(error):
-                            let isCancelled = (error as? ASAuthorizationError)?.code == .canceled
-                            if !isCancelled {
-                                authState.error = error.localizedDescription
+                            if UserFacingError.displayCopy(for: error) != nil {
+                                authState.error = UserFacingError.capture(error, screen: "Login")
                             }
                         }
                     }
@@ -65,9 +64,7 @@ struct LoginView: View {
                     AppTextField(placeholder: "Password", text: $password, isSecure: true)
 
                     if let error = authState.error {
-                        Text(error)
-                            .font(.system(size: 13))
-                            .foregroundStyle(AppTheme.destructive)
+                        InlineError(message: error)
                             .padding(.bottom, 8)
                     }
 

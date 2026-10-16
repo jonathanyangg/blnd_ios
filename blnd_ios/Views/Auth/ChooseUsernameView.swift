@@ -5,7 +5,7 @@ struct ChooseUsernameView: View {
     @Environment(OnboardingState.self) var onboardingState
     @Binding var path: NavigationPath
     @State private var isLoading = false
-    @State private var error: String?
+    @State private var error: UserFacingError?
 
     var body: some View {
         @Bindable var state = onboardingState
@@ -30,12 +30,18 @@ struct ChooseUsernameView: View {
                     AppTextField(placeholder: "Username", text: $state.username)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
+                    if let note = error?.inline(for: "username") {
+                        InlineError(message: note)
+                            .padding(.bottom, 8)
+                    }
                     PhoneNumberInputField(phoneNumber: $state.phoneNumber)
+                    if let note = error?.inline(for: "phone_number") {
+                        InlineError(message: note)
+                            .padding(.bottom, 8)
+                    }
 
-                    if let error {
-                        Text(error)
-                            .font(.system(size: 13))
-                            .foregroundStyle(AppTheme.destructive)
+                    if let error, error.fields.isEmpty {
+                        InlineError(message: error)
                             .padding(.bottom, 8)
                     }
 
@@ -114,10 +120,10 @@ struct ChooseUsernameView: View {
                 onboardingState.appleRawNonce = nil
                 onboardingState.appleDisplayName = nil
                 onboardingState.appleAuthCode = nil
-                self.error = error.localizedDescription
+                self.error = UserFacingError.capture(error, screen: "ChooseUsername")
             } else {
                 // completeOnboarding failed (e.g. username taken) — keep Apple state
-                self.error = error.localizedDescription
+                self.error = UserFacingError.capture(error, screen: "ChooseUsername")
             }
         }
     }

@@ -29,14 +29,13 @@ extension GroupDetailView {
             groupReelMovies = recsData.results.map { ReelMovie(from: $0) }
             watchlist = watchlistData.results
         } catch {
+            let copy = UserFacingError.capture(error, screen: "Blend")
             if case APIError.rateLimited = error {
-                showToast(
-                    "Woah, slow down! Try again in a minute"
-                )
+                showToast(copy)
             } else if group == nil {
-                loadError = error.localizedDescription
+                loadError = copy
             } else {
-                showToast(error.localizedDescription)
+                showToast(copy) { Task { await loadAll(forceRefresh: true) } }
             }
         }
         isLoading = false
@@ -66,7 +65,9 @@ extension GroupDetailView {
             }
         } catch {
             if !Task.isCancelled {
-                showToast(error.localizedDescription)
+                showToast(UserFacingError.capture(error, screen: "BlendFeed")) {
+                    Task { await loadMoreRecs() }
+                }
             }
         }
         isLoadingMoreRecs = false
@@ -76,11 +77,11 @@ extension GroupDetailView {
         let trimmed = editedName
             .trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
-            showToast("Name can't be empty")
+            showToast(.client(.validation, message: "Name can't be empty"))
             return
         }
         guard trimmed.count <= 30 else {
-            showToast("Name must be 30 characters or less")
+            showToast(.client(.validation, message: "Name must be 30 characters or less"))
             return
         }
         guard trimmed != group?.name else { return }
@@ -93,18 +94,20 @@ extension GroupDetailView {
                 )
             } catch {
                 group?.name = oldName
-                showToast("Failed to rename blend")
+                showToast(UserFacingError.capture(error, screen: "RenameBlend"))
             }
         }
     }
 
-    func showToast(_ message: String) {
+    func showToast(_ message: UserFacingError, retry: (() -> Void)? = nil) {
         toastTask?.cancel()
         toastMessage = message
+        toastRetry = retry
         toastTask = Task {
             try? await Task.sleep(for: .seconds(3))
             if !Task.isCancelled {
                 toastMessage = nil
+                toastRetry = nil
             }
         }
     }
