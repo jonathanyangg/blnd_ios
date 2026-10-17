@@ -155,6 +155,7 @@ struct SearchView: View {
                             : "Search movies & actors...",
                         text: $searchText
                     )
+                    .accessibilityIdentifier("search.field")
                     .font(.system(size: 15))
                     .foregroundStyle(.white)
                     .focused($isFieldFocused)
@@ -297,6 +298,7 @@ struct SearchView: View {
                     )
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("search.result")
             }
         }
         .padding(.horizontal, 24)
@@ -411,6 +413,7 @@ private extension SearchView {
                         )
                     }
                     .buttonStyle(.plain)
+                .accessibilityIdentifier("search.result")
                 }
             }
             .padding(.horizontal, 24)

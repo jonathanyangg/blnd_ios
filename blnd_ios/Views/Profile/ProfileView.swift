@@ -169,6 +169,7 @@ struct ProfileView: View {
                     .font(.system(size: 20))
                     .foregroundStyle(AppTheme.textDim)
             }
+            .accessibilityIdentifier("profile.settings")
         }
         .padding(.top, 20)
         .padding(.horizontal, 24)

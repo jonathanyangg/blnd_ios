@@ -49,6 +49,7 @@ struct WelcomeView: View {
                     AppButton(label: "Sign In", style: .ghost) {
                         path.append(AuthRoute.login)
                     }
+                    .accessibilityIdentifier("auth.welcome.sign-in")
                 }
                 .padding(.bottom, 48)
             }

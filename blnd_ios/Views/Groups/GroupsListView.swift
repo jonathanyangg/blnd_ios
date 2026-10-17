@@ -27,6 +27,7 @@ struct GroupsListView: View {
                                 .font(.system(size: 22, weight: .medium))
                                 .foregroundStyle(.white)
                         }
+                        .accessibilityIdentifier("blends.create")
                     }
                     .padding(.top, 20)
                     .padding(.horizontal, 24)
@@ -71,6 +72,7 @@ struct GroupsListView: View {
                                 GroupCardRow(group: group)
                             }
                             .buttonStyle(.plain)
+                            .accessibilityIdentifier("blends.group")
                         }
                     }
                 }

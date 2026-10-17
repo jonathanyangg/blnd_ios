@@ -123,6 +123,7 @@ struct PaywallView: View {
                             .font(.system(size: 13))
                             .foregroundStyle(AppTheme.textMuted)
                     }
+                    .accessibilityIdentifier("paywall.feature")
                     Spacer()
                 }
                 .padding(.vertical, 14)

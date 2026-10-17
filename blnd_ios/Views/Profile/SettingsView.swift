@@ -112,6 +112,7 @@ struct SettingsView: View {
                             .background(AppTheme.card)
                             .clipShape(RoundedRectangle(cornerRadius: AppTheme.cornerRadiusLarge))
                     }
+                    .accessibilityIdentifier("profile.log-out")
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, 20)

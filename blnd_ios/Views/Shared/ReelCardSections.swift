@@ -154,6 +154,7 @@ extension ReelCardView {
                     )
             }
         }
+        .accessibilityIdentifier("reel.poster")
     }
 
     // MARK: - Details

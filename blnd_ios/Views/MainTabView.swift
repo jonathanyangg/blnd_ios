@@ -18,6 +18,7 @@ struct MainTabView: View {
                 .tabItem {
                     Image(systemName: "house")
                     Text("Home")
+                        .accessibilityIdentifier("home.tab.home")
                 }
                 .tag(0)
 
@@ -40,6 +41,7 @@ struct MainTabView: View {
                 .tabItem {
                     Image(systemName: "person.circle")
                     Text("Profile")
+                        .accessibilityIdentifier("profile.tab")
                 }
                 .tag(3)
         }

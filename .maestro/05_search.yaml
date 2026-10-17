@@ -1,0 +1,22 @@
+appId: com.jonathan.blnd-ios
+---
+- launchApp
+- runFlow:
+    when:
+      visible:
+        id: auth.welcome.sign-in
+    file: subflows/00_sign_in_steps.yaml
+- assertVisible:
+    id: find-movie-now.entry
+- tapOn:
+    id: reels.tutorial.skip
+    optional: true
+- tapOn:
+    id: home.search
+- assertVisible:
+    id: search.field
+- tapOn:
+    id: search.field
+- inputText: Inception
+- assertVisible:
+    id: search.result
