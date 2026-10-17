@@ -112,16 +112,20 @@ final class APIClient: @unchecked Sendable {
         try await refreshOrSignOut()
     }
 
-    /// Runs the refresh call. 401 posts a forced logout. Transient failures
-    /// are retried inside the refresher, then surfaced without deleting tokens.
+    /// Runs the refresh call. A 401 posts a forced logout only when the
+    /// refresh token that failed is still the one in the Keychain. Transient
+    /// failures are retried inside the refresher, then surfaced without deleting tokens.
     private func refreshOrSignOut() async throws {
+        let attempted = KeychainManager.readString(key: "refreshToken")
         do {
             try await tokenRefresher.refresh()
         } catch APIError.unauthorized {
-            NotificationCenter.default.post(
-                name: Self.forceLogoutNotification,
-                object: nil
-            )
+            if KeychainManager.readString(key: "refreshToken") == attempted {
+                NotificationCenter.default.post(
+                    name: Self.forceLogoutNotification,
+                    object: nil
+                )
+            }
             throw APIError.unauthorized
         } catch is CancellationError {
             throw CancellationError()
