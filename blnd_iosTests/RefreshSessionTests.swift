@@ -73,6 +73,13 @@ struct RefreshSessionTests {
             await waitUntilSignedOut()
         }
 
+        await assertRefreshResult(expects, auth: auth)
+    }
+
+    private func assertRefreshResult(
+        _ expects: SessionExpectation,
+        auth: AuthState
+    ) async {
         switch expects {
         case .signedOut:
             #expect(RefreshHTTPStub.refreshCount == 1)
@@ -371,9 +378,11 @@ final class RefreshHTTPStub: URLProtocol, @unchecked Sendable {
         return URLSession(configuration: configuration)
     }
 
-    override class func canInit(with request: URLRequest) -> Bool { true }
+    override static func canInit(with request: URLRequest) -> Bool {
+        true
+    }
 
-    override class func canonicalRequest(for request: URLRequest) -> URLRequest {
+    override static func canonicalRequest(for request: URLRequest) -> URLRequest {
         request
     }
 
