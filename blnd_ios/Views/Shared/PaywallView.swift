@@ -26,12 +26,12 @@ struct PaywallView: View {
         PremiumFeature(
             icon: "sparkles",
             title: "AI-Powered Search",
-            subtitle: "Find movies by describing what you're in the mood for"
+            subtitle: "2 AI searches a day free, 50 on blnd+"
         ),
         PremiumFeature(
             icon: "person.3.fill",
-            title: "Larger Groups",
-            subtitle: "Create blends with up to 12 friends"
+            title: "Larger Blends",
+            subtitle: "4 members free, 12 on blnd+"
         ),
         PremiumFeature(
             icon: "star.fill",
