@@ -175,7 +175,7 @@ class AuthState {
             guard isCurrentSession(generation) else { return }
             // Failed check: keep a session that already signed in. Tokens stay either way.
             guard phase != .authenticated else { return }
-            self.error = "Couldn't reach the server - check your connection and try again."
+            self.error = UserFacingError.capture(error, screen: "CheckSession")
             phase = .unauthenticated
         }
     }
