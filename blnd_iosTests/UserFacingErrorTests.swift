@@ -1,4 +1,5 @@
 @testable import blnd_ios
+import AuthenticationServices
 import Foundation
 import Testing
 
@@ -86,5 +87,78 @@ struct UserFacingErrorTests {
             #expect(!item.message.contains("Username"))
         }
         #expect(UserFacingError.diagnostic(APIError.decode(status: 400, data: envelope)).contains("SECRET_BODY"))
+    }
+
+    @Test func appleAuthorizationCodesMapToFriendlyCopy() {
+        #expect(ASAuthorizationError.unknown.rawValue == 1000)
+        #expect(ASAuthorizationError.canceled.rawValue == 1001)
+
+        let shown: [ASAuthorizationError.Code] = [
+            .unknown, .failed, .invalidResponse, .notHandled, .notInteractive,
+        ]
+        for code in shown {
+            let error = ASAuthorizationError(code)
+            let copy = UserFacingError.map(error)
+            #expect(copy.message == "Couldn't sign in with Apple. Try again or use email.")
+            #expect(copy.title == "Couldn't sign in")
+            #expect(UserFacingError.displayCopy(for: error)?.message == copy.message)
+            #expect(copy.message != (error as NSError).localizedDescription)
+        }
+
+        #expect(UserFacingError.displayCopy(for: ASAuthorizationError(.canceled)) == nil)
+
+        let unknown = NSError(
+            domain: ASAuthorizationError.errorDomain,
+            code: 1000,
+            userInfo: [
+                NSLocalizedDescriptionKey: "com.apple.AuthenticationServices.AuthorizationError error 1000",
+            ]
+        )
+        let unknownCopy = UserFacingError.map(unknown)
+        #expect(unknownCopy.message == "Couldn't sign in with Apple. Try again or use email.")
+        #expect(unknownCopy.message != unknown.localizedDescription)
+        #expect(!unknownCopy.message.contains("1000"))
+        #expect(UserFacingError.diagnostic(unknown).contains("1000"))
+
+        let other = NSError(
+            domain: ASAuthorizationError.errorDomain,
+            code: 1099,
+            userInfo: [
+                NSLocalizedDescriptionKey: "com.apple.AuthenticationServices.AuthorizationError error 1099",
+            ]
+        )
+        let otherCopy = UserFacingError.map(other)
+        #expect(otherCopy.message == "Couldn't sign in with Apple. Try again or use email.")
+        #expect(!otherCopy.message.contains("1099"))
+        #expect(!otherCopy.message.contains("com.apple"))
+        #expect(UserFacingError.diagnostic(other).contains("1099"))
+        #expect(UserFacingError.displayCopy(for: NSError(domain: ASAuthorizationError.errorDomain, code: 1001)) == nil)
+    }
+
+    @Test func authFailuresNeverShowARawNSError() {
+        let raw = "com.apple.AuthenticationServices.AuthorizationError error 1000"
+        let ns = NSError(domain: "UnitTest", code: 1000, userInfo: [NSLocalizedDescriptionKey: raw])
+        let copy = UserFacingError.map(ns)
+
+        #expect(copy.message == "Please try again in a moment.")
+        #expect(copy.message != ns.localizedDescription)
+        #expect(!copy.message.contains("com.apple"))
+        #expect(!copy.title.contains(raw))
+        #expect(UserFacingError.diagnostic(ns).contains(raw))
+
+        let known = Data("""
+        {"error":{"code":"VALIDATION_ERROR","message":"body.email: Value is not a valid email address"},"detail":"\(raw)"}
+        """.utf8)
+        let fromEnvelope = UserFacingError.map(APIError.decode(status: 422, data: known))
+        #expect(fromEnvelope.fields["email"] == "That email doesn't look right.")
+        #expect(!fromEnvelope.message.contains("com.apple"))
+
+        let leaked = Data("""
+        {"error":{"code":"BAD_REQUEST","message":"\(raw)"},"detail":"\(raw)"}
+        """.utf8)
+        let fallback = UserFacingError.map(APIError.decode(status: 400, data: leaked))
+        #expect(fallback.message == "Something in that didn't look right.")
+        #expect(!fallback.message.contains("com.apple"))
+        #expect(!fallback.message.contains("1000"))
     }
 }

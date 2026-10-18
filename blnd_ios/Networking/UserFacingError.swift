@@ -1,3 +1,4 @@
+import AuthenticationServices
 import Foundation
 
 /// Categories the user can actually act on. Raw server text never lands in one of these.
@@ -58,8 +59,20 @@ struct UserFacingError: Equatable, Sendable {
         )
     }
 
+    /// Copy a screen may show. Sign in with Apple cancel is `nil` (show nothing).
+    /// Every other error uses the envelope sentence or a friendly fallback, never `localizedDescription`.
+    static func displayCopy(for error: Error) -> UserFacingError? {
+        if appleAuthorizationCode(error) == ASAuthorizationError.canceled.rawValue {
+            return nil
+        }
+        return map(error)
+    }
+
     /// Maps any error onto friendly copy. Does not log.
     static func map(_ error: Error) -> UserFacingError {
+        if let code = appleAuthorizationCode(error), code != ASAuthorizationError.canceled.rawValue {
+            return client(.server, title: "Couldn't sign in", message: appleSignInMessage)
+        }
         if let api = error as? APIError {
             return mapAPI(api)
         }
@@ -67,6 +80,18 @@ struct UserFacingError: Equatable, Sendable {
             return mapURL(url)
         }
         return copy(for: .server)
+    }
+
+    private static let appleSignInMessage = "Couldn't sign in with Apple. Try again or use email."
+
+    /// Code for an Apple authorization failure, including an `NSError` in that domain.
+    private static func appleAuthorizationCode(_ error: Error) -> Int? {
+        if let apple = error as? ASAuthorizationError {
+            return apple.code.rawValue
+        }
+        let ns = error as NSError
+        guard ns.domain == ASAuthorizationError.errorDomain else { return nil }
+        return ns.code
     }
 
     /// Maps the error, prints the raw detail, and sends that detail to PostHog.
