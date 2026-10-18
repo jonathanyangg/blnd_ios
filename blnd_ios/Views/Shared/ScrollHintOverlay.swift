@@ -112,6 +112,7 @@ struct ScrollHintOverlay: View {
                             .background(.white)
                             .clipShape(Capsule())
                     }
+                    .accessibilityIdentifier("reels.tutorial.next")
 
                     if !isLastStep {
                         Button {
@@ -124,6 +125,7 @@ struct ScrollHintOverlay: View {
                                     AppTheme.textMuted
                                 )
                         }
+                        .accessibilityIdentifier("reels.tutorial.skip")
                     }
                 }
                 .padding(.bottom, 60)

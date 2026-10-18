@@ -1,0 +1,25 @@
+appId: com.jonathan.blnd-ios
+---
+- launchApp
+- runFlow:
+    when:
+      visible:
+        id: auth.welcome.sign-in
+    file: subflows/00_sign_in_steps.yaml
+- assertVisible:
+    id: find-movie-now.entry
+- tapOn:
+    id: reels.tutorial.skip
+    optional: true
+- tapOn:
+    text: Discover
+- assertVisible:
+    id: reel.poster
+- waitForAnimationToEnd
+- swipe:
+    from:
+      id: reel.poster
+    direction: RIGHT
+    duration: 700
+- assertVisible:
+    id: reel.toast

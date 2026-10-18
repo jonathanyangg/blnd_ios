@@ -1,0 +1,21 @@
+appId: com.jonathan.blnd-ios
+---
+- launchApp:
+    clearState: true
+- runFlow:
+    when:
+      visible:
+        id: find-movie-now.entry
+    commands:
+      - tapOn:
+          text: Profile
+      - tapOn:
+          id: profile.settings
+      - tapOn:
+          id: profile.log-out
+      - waitForAnimationToEnd
+- assertVisible:
+    id: auth.welcome.sign-in
+- runFlow: subflows/00_sign_in_steps.yaml
+- assertVisible:
+    id: find-movie-now.entry

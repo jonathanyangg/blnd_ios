@@ -113,6 +113,7 @@ struct ReelsFeedView: View {
                     actionLabel: toastActionLabel(toast),
                     onAction: { handleToastAction(toast) }
                 )
+                .accessibilityIdentifier("reel.toast")
                 .padding(.bottom, 24)
                 .transition(
                     .move(edge: .top)

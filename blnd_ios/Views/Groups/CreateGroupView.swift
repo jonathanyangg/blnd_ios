@@ -43,8 +43,10 @@ struct CreateGroupView: View {
                 .foregroundStyle(
                     canCreate ? .white : AppTheme.textDim
                 )
+                .accessibilityIdentifier("blends.name")
                 .font(.system(size: 16, weight: .semibold))
                 .disabled(!canCreate)
+                .accessibilityIdentifier("blends.create.submit")
             }
             .padding(.top, 20)
             .padding(.horizontal, 24)

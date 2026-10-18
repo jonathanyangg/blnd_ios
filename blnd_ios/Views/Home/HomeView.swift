@@ -142,6 +142,7 @@ struct HomeView: View {
                                 .font(.system(size: 20, weight: .bold))
                                 .foregroundStyle(AppTheme.premiumGoldGradient)
                         }
+                        .accessibilityIdentifier("home.paywall")
                     }
                     Button {
                         withAnimation(.easeInOut(duration: 0.2)) {
@@ -162,6 +163,7 @@ struct HomeView: View {
                             .font(.system(size: 20))
                             .foregroundStyle(.white)
                     }
+                    .accessibilityIdentifier("home.search")
                 }
             }
             .padding(.top, 8)

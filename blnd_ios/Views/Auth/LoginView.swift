@@ -59,10 +59,12 @@ struct LoginView: View {
                     // MARK: - Email Form
 
                     AppTextField(placeholder: "Email", text: $email)
+                        .accessibilityIdentifier("auth.email")
                         .textContentType(.emailAddress)
                         .keyboardType(.emailAddress)
                         .textInputAutocapitalization(.never)
                     AppTextField(placeholder: "Password", text: $password, isSecure: true)
+                        .accessibilityIdentifier("auth.password")
 
                     if let error = authState.error {
                         Text(error)
@@ -79,6 +81,7 @@ struct LoginView: View {
                             await authState.login(email: email, password: password)
                         }
                     }
+                    .accessibilityIdentifier("auth.submit")
 
                     Button {
                         path.append(AuthRoute.forgotPassword)

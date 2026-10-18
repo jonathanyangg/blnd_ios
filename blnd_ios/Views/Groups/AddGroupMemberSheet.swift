@@ -89,6 +89,7 @@ struct AddGroupMemberSheet: View {
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(.white)
             }
+            .accessibilityIdentifier("blends.members.done")
         }
         .padding(.top, 20)
         .padding(.horizontal, 24)
