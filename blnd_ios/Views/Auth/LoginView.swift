@@ -33,7 +33,7 @@ struct LoginView: View {
                         case let .failure(error):
                             let isCancelled = (error as? ASAuthorizationError)?.code == .canceled
                             if !isCancelled {
-                                authState.error = error.localizedDescription
+                                authState.error = UserFacingError.capture(error, screen: "Login")
                             }
                         }
                     }
@@ -67,9 +67,7 @@ struct LoginView: View {
                         .accessibilityIdentifier("auth.password")
 
                     if let error = authState.error {
-                        Text(error)
-                            .font(.system(size: 13))
-                            .foregroundStyle(AppTheme.destructive)
+                        InlineError(message: error)
                             .padding(.bottom, 8)
                     }
 

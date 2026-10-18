@@ -30,11 +30,13 @@ extension ReelCardView {
 
             Spacer(minLength: 0)
 
-            HStack(spacing: 14) {
+            HStack(spacing: 8) {
                 ForEach(1 ... 5, id: \.self) { index in
                     ratingStar(index: index)
                 }
             }
+            .accessibilityIdentifier("reel.stars")
+            .reelTutorialFrame(.stars, active: isActive)
 
             Spacer(minLength: 0)
 
@@ -64,7 +66,7 @@ extension ReelCardView {
         } else {
             "star"
         }
-        let tint: Color = rating >= half ? .white : AppTheme.border
+        let tint: Color = rating >= half ? .white : .white.opacity(0.35)
 
         HStack(spacing: 0) {
             Color.clear
@@ -78,7 +80,7 @@ extension ReelCardView {
         }
         .overlay {
             Image(systemName: icon)
-                .font(.system(size: 32))
+                .font(.system(size: 20))
                 .foregroundStyle(tint)
                 .allowsHitTesting(false)
         }
@@ -88,6 +90,7 @@ extension ReelCardView {
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
         let cache = UserActionCache.shared
         let wasWatched = cache.isWatched(movie.tmdbId)
+        let previousRating = cache.rating(for: movie.tmdbId)
         let fromWatchlist = cache.isWatchlisted(movie.tmdbId)
         cache.didRate(movie.tmdbId, rating: value)
 
@@ -106,7 +109,13 @@ extension ReelCardView {
                     isUpdate: wasWatched
                 )
             } catch {
-                // Non-critical — cache stays updated; user can retry
+                if let previousRating {
+                    cache.didRate(movie.tmdbId, rating: previousRating)
+                } else {
+                    cache.didUnwatch(movie.tmdbId)
+                }
+                let copy = UserFacingError.capture(error, screen: "RateMovie")
+                onMutationFailed?(copy) { saveRating(value) }
             }
         }
 

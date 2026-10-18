@@ -10,7 +10,9 @@ struct MovieDetailView: View {
     @Environment(AuthState.self) var authState
     @State var movie: MovieResponse?
     @State var isLoading = true
-    @State var errorMessage: String?
+    @State var errorMessage: UserFacingError?
+    @State var actionToast: UserFacingError?
+    @State var actionRetry: (() -> Void)?
     @State var isInWatchlist = false
     @State var isWatched = false
     @State var userRating: Double?
@@ -21,7 +23,7 @@ struct MovieDetailView: View {
     @State var showCommentsSheet = false
     @State var showLogSheet = false
     @State var overviewExpanded = false
-    @State var watchOptions: [StreamingOption] = []
+    @State var whereToWatch: WhereToWatch?
     @State var watchLoading = true
     @State var watchFailed = false
 
@@ -83,8 +85,9 @@ struct MovieDetailView: View {
                             isHidden ? .red : AppTheme.textMuted
                         )
                     }
+                    .accessibilityLabel(isHidden ? "Hidden" : "Not for me")
                     .confirmationDialog(
-                        "Not interested?",
+                        "Not for me?",
                         isPresented: $showHideConfirm,
                         titleVisibility: .visible
                     ) {
@@ -104,6 +107,16 @@ struct MovieDetailView: View {
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
                 .presentationBackground(AppTheme.card)
+        }
+        .overlay(alignment: .top) {
+            if let actionToast {
+                ErrorToast(message: actionToast, retry: actionRetry, onDismiss: {
+                    self.actionToast = nil
+                    actionRetry = nil
+                })
+                .padding(.horizontal, 24)
+                .padding(.top, 8)
+            }
         }
         .task {
             Analytics.movieDetailViewed(tmdbId: tmdbId, source: source)

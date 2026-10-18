@@ -6,9 +6,9 @@ struct StreamingSheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(AuthState.self) private var authState
-    @State private var options: [StreamingOption] = []
+    @State private var payload: WhereToWatch?
     @State private var isLoading = true
-    @State private var errorMessage: String?
+    @State private var errorMessage: UserFacingError?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -20,22 +20,20 @@ struct StreamingSheet: View {
                 Spacer()
             } else if let error = errorMessage {
                 Spacer()
-                Text(error)
-                    .font(.system(size: 14))
-                    .foregroundStyle(AppTheme.textMuted)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 24)
+                ErrorStateView(message: error) {
+                    Task { await fetchStreaming() }
+                }
                 Spacer()
             } else {
                 ScrollView {
                     WhereToWatchSection(
-                        options: options,
+                        payload: payload,
                         isLoading: false,
-                        failed: false,
+                        failed: payload == nil,
                         isPremium: authState.isPremium,
                         showsTitle: false
-                    ) { offer in
-                        Task { await WatchLinkOpener.open(offer) }
+                    ) { offer, kind in
+                        Task { await WatchLinkOpener.open(offer, kind: kind) }
                     }
                     .padding(.horizontal, 24)
                 }
@@ -67,13 +65,21 @@ struct StreamingSheet: View {
     }
 
     private func fetchStreaming() async {
+        isLoading = true
+        errorMessage = nil
         do {
             let response = try await MoviesAPI.getStreaming(tmdbId: tmdbId)
-            options = response.options
+            payload = response.whereToWatch
+            if response.whereToWatch == nil {
+                errorMessage = UserFacingError.client(
+                    .server,
+                    message: "Couldn't load where to watch"
+                )
+            }
         } catch is CancellationError {
             // View dismissed before load finished
         } catch {
-            errorMessage = "Couldn't load streaming options"
+            errorMessage = UserFacingError.capture(error, screen: "Streaming")
         }
         isLoading = false
     }

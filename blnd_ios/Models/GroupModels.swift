@@ -27,13 +27,27 @@ struct GroupResponse: Decodable, Identifiable {
     let createdBy: String
     let memberCount: Int
     let memberAvatars: [String?]
+    let memberNames: [String]?
     let createdAt: String
+
+    /// True when the blend has no stored name and the list payload has no member names.
+    var needsMemberNameLookup: Bool {
+        name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && (memberNames ?? []).isEmpty
+    }
+
+    func displayTitle(resolvedNames: [String] = []) -> String {
+        let payload = memberNames ?? []
+        let names = payload.isEmpty ? resolvedNames : payload
+        return BlendDisplayName.title(storedName: name, memberNames: names)
+    }
 
     enum CodingKeys: String, CodingKey {
         case id, name
         case createdBy = "created_by"
         case memberCount = "member_count"
         case memberAvatars = "member_avatars"
+        case memberNames = "member_names"
         case createdAt = "created_at"
     }
 }
@@ -44,6 +58,13 @@ struct GroupDetailResponse: Decodable, Identifiable {
     let createdBy: String
     let members: [GroupMemberResponse]
     let createdAt: String
+
+    var displayTitle: String {
+        BlendDisplayName.title(
+            storedName: name,
+            memberNames: members.map(\.blendNameSource)
+        )
+    }
 
     enum CodingKeys: String, CodingKey {
         case id, name, members
@@ -57,6 +78,12 @@ struct GroupMemberResponse: Decodable, Identifiable {
     let username: String
     let displayName: String?
     let avatarUrl: String?
+
+    var blendNameSource: String {
+        let display = displayName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if display.isEmpty { return username }
+        return display
+    }
 
     enum CodingKeys: String, CodingKey {
         case id, username
@@ -85,6 +112,7 @@ struct GroupRecMovieResponse: Decodable, Identifiable {
     let backdropPath: String?
     let matchScore: Double
     let commentCount: Int?
+    let mediaType: MediaType?
 
     var id: Int {
         tmdbId
@@ -119,6 +147,7 @@ struct GroupRecMovieResponse: Decodable, Identifiable {
         case backdropPath = "backdrop_path"
         case matchScore = "match_score"
         case commentCount = "comment_count"
+        case mediaType = "media_type"
     }
 }
 

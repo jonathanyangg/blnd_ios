@@ -27,9 +27,8 @@ enum NowPickQuery {
     }
 }
 
-/// Poster grid and screenshot stand-in for `/recommendations/now`.
-/// The live app calls the API. This catalog is used when that route is
-/// absent (the endpoint ships in blnd_backend#10) and for UI previews.
+/// Poster grid for the `-UITestScreen` preview. The live app calls
+/// `GET /recommendations/now`.
 enum NowCatalog {
     static let movies: [RecommendedMovieResponse] = [
         movie(27205, "Inception", 2010, "/oYuLEt3zVCKq57qu2F8dT7NIa6f.jpg", 878, "Science Fiction", 148, "Christopher Nolan", 0.94),
@@ -102,7 +101,8 @@ enum NowCatalog {
             tagline: nil,
             backdropPath: nil,
             matchScore: matchScore,
-            commentCount: 0
+            commentCount: 0,
+            mediaType: .movie
         )
     }
 }

@@ -18,25 +18,20 @@ struct GroupDetailView: View {
     @State var blendCurrentId: Int?
     @State var watchlistCurrentId: Int?
     @State var isLoading = true
-    @State var loadError: String?
+    @State var loadError: UserFacingError?
     @State var showMembers = false
     @State var selectedTab: GroupTab = .blendPicks
     @State var viewMode: ViewMode = .reels
-    @State var toastMessage: String?
+    @State var toastMessage: UserFacingError?
+    @State var toastRetry: (() -> Void)?
     @State var toastTask: Task<Void, Never>?
     @State var timelineReload = 0
     @State var isEditingName = false
     @State var editedName = ""
     @Namespace var tabNamespace
+    @State var catalogFilters = CatalogFilterStore.shared
     @Environment(\.dismiss) var dismiss
     @Environment(TabState.self) var tabState
-
-    var groupContext: ReelCardView.GroupContext? {
-        guard let group else { return nil }
-        return .init(
-            groupId: groupId, groupName: group.name
-        )
-    }
 
     var currentUserId: String {
         KeychainManager.readString(key: "userId") ?? ""
@@ -79,7 +74,9 @@ struct GroupDetailView: View {
         .navigationBarBackButtonHidden()
         .toolbar(.hidden, for: .navigationBar)
         .swipeBackGesture()
-        .task { await loadAll() }
+        .task(id: catalogFilters.filter) {
+            await loadAll(forceRefresh: group != nil)
+        }
         .refreshable { await loadAll(forceRefresh: true) }
         .sheet(isPresented: $showMembers) {
             membersSheet
@@ -98,23 +95,17 @@ struct GroupDetailView: View {
         }
         .overlay(alignment: .top) {
             if let toast = toastMessage {
-                Text(toast)
-                    .font(.system(
-                        size: 13, weight: .medium
-                    ))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .background(.red.opacity(0.85))
-                    .clipShape(Capsule())
-                    .padding(.top, 60)
-                    .transition(
-                        .move(edge: .top)
-                            .combined(with: .opacity)
-                    )
-                    .onTapGesture {
-                        toastMessage = nil
-                    }
+                ErrorToast(
+                    message: toast,
+                    retry: toastRetry,
+                    onDismiss: { toastMessage = nil; toastRetry = nil }
+                )
+                .padding(.horizontal, 24)
+                .padding(.top, 60)
+                .transition(
+                    .move(edge: .top)
+                        .combined(with: .opacity)
+                )
             }
         }
         .animation(
@@ -172,7 +163,14 @@ struct GroupDetailView: View {
 
             groupTabPicker
                 .padding(.horizontal, 24)
-                .padding(.bottom, 4)
+                .padding(.bottom, 8)
+
+            HStack {
+                CatalogFilterButton()
+                Spacer()
+            }
+            .padding(.horizontal, 24)
+            .padding(.bottom, 8)
 
             Divider().overlay(AppTheme.border)
         }
@@ -249,7 +247,7 @@ struct GroupDetailView: View {
             isEditingName = true
         } label: {
             HStack(spacing: 6) {
-                Text(group.name)
+                Text(group.displayTitle)
                     .font(.system(size: 17, weight: .bold))
                     .foregroundStyle(.white)
                     .lineLimit(1)

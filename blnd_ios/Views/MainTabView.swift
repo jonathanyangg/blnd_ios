@@ -22,20 +22,12 @@ struct MainTabView: View {
                 }
                 .tag(0)
 
-            FriendsListView()
-                .tabItem {
-                    Image(systemName: "person.2")
-                    Text("Friends")
-                }
-                .tag(1)
-                .badge(tabState.pendingRequestCount)
-
             GroupsListView()
                 .tabItem {
                     Image(systemName: "circle.grid.2x2")
                     Text("Blends")
                 }
-                .tag(2)
+                .tag(1)
 
             ProfileView()
                 .tabItem {
@@ -43,7 +35,8 @@ struct MainTabView: View {
                     Text("Profile")
                         .accessibilityIdentifier("profile.tab")
                 }
-                .tag(3)
+                .tag(2)
+                .badge(tabState.pendingRequestCount)
         }
         .tint(.white)
         .environment(tabState)
@@ -51,20 +44,19 @@ struct MainTabView: View {
             await tabState.refreshPendingCount()
         }
         .onChange(of: tabState.selectedTab) { _, tab in
-            if tab == 1 {
-                Task {
-                    await tabState.refreshPendingCount()
-                }
+            if tab == 2 {
+                Task { await tabState.refreshPendingCount() }
             }
         }
         .onChange(of: deepLinkState.pending) { _, newValue in
             guard let link = newValue else { return }
             switch link {
             case .friendRequests:
-                tabState.selectedTab = 1
-            case .groupDetail:
                 tabState.selectedTab = 2
-            case .movieDetail:
+                tabState.openNotifications = true
+            case .groupDetail:
+                tabState.selectedTab = 1
+            case .movieDetail, .comments:
                 tabState.selectedTab = 0
             }
         }

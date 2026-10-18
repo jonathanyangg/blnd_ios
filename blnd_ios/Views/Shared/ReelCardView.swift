@@ -3,18 +3,16 @@ import SwiftUI
 struct ReelCardView: View {
     let movie: ReelMovie
     let isActive: Bool
-    var groupContext: GroupContext?
     var position: Int = 0
     var feed: Analytics.FeedSource = .fyp
-    var onWatchlistAdded: ((String) -> Void)?
+    var onSwipeResult: ((ReelSwipeResult) -> Void)?
+    var onRequestWatchlist: (() -> Void)?
     var onRated: ((Double) -> Void)?
+    var onMutationFailed: ((UserFacingError, @escaping () -> Void) -> Void)?
     var onShowDetail: (() -> Void)?
     var onShowFriend: ((FriendResponse) -> Void)?
-
-    struct GroupContext {
-        let groupId: Int
-        let groupName: String
-    }
+    var tutorialNudge: ReelTutorialNudge = .rest
+    var showsTutorial = false
 
     @State var swipeOffset: CGFloat = 0
     @State var swipeTriggeredHaptic = false
@@ -43,84 +41,44 @@ struct ReelCardView: View {
     }
 
     var showTrailer: Bool {
-        !APIConfig.screenshotMode
+        !showsTutorial
+            && !APIConfig.screenshotMode
             && isActive && trailerReady && trailerVideoId != nil
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            titleLine
-                .padding(.top, 22)
-                .padding(.horizontal, 20)
-                .layoutPriority(10)
-
-            // Title ↔ meta: small flexible gap (8–10pt).
-            Spacer(minLength: 8)
-                .frame(maxHeight: 10)
-
-            metaLine
-                .padding(.horizontal, 20)
-                .layoutPriority(10)
-
-            if !genres.isEmpty {
-                genrePills
-                    .padding(.top, 12)
-                    .padding(.horizontal, 20)
-                    .layoutPriority(5)
-            }
-
-            mediaSection
-                .padding(.top, 12)
-                .padding(.horizontal, 4)
-                .background(GeometryReader { geo in
-                    Color.clear.preference(
-                        key: MediaBottomYKey.self,
-                        value: geo.frame(in: .named("reelCard")).maxY
-                    )
-                })
-                .layoutPriority(10)
-
-            // Video ↔ actions: the main flexible gap that fills remaining height.
-            Spacer(minLength: 10)
-
-            // Action block: Comments → Watched by → Rating.
-            VStack(spacing: 12) {
-                commentsButton
+        ZStack {
+            posterBackground
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            trailerOverlay
+            scrim
+            VStack(alignment: .leading, spacing: 8) {
+                Spacer(minLength: 0)
+                titleLine
+                metaLine
+                if !genres.isEmpty {
+                    genreLine
+                }
                 watchedByRow
+                commentsButton
+                watchlistButton
                 inlineRatingBar
+                watchNowButton
                 watchedWithButton
             }
             .padding(.horizontal, 20)
-            .padding(.bottom, 12)
-            .layoutPriority(10)
-
-            Divider()
-                .overlay(AppTheme.border)
-                .padding(.horizontal, 20)
-                .padding(.bottom, 12)
-                .layoutPriority(10)
-
-            // Watch Now is the bottom-anchored primary CTA.
-            watchNowButton
-                .padding(.horizontal, 20)
-                .padding(.bottom, 22)
-                .layoutPriority(10)
+            .padding(.bottom, 16)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
         .background(Color.black)
+        .clipped()
         .coordinateSpace(name: "reelCard")
         .onPreferenceChange(MediaBottomYKey.self) { mediaBottomY = $0 }
-        .clipShape(RoundedRectangle(cornerRadius: 22))
-        .overlay(
-            RoundedRectangle(cornerRadius: 22)
-                .stroke(AppTheme.border, lineWidth: 0.5)
-        )
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .offset(x: swipeOffset)
+        .offset(x: swipeOffset + tutorialNudge.x, y: tutorialNudge.y)
         .rotationEffect(
-            .degrees(Double(swipeOffset) * 0.02)
+            .degrees(Double(swipeOffset) * 0.02 + tutorialNudge.degrees)
         )
+        .reelTutorialFrame(.card, active: isActive)
         .simultaneousGesture(horizontalSwipe)
         .overlay { swipeIndicators }
         .onTapGesture {
@@ -180,7 +138,7 @@ struct ReelCardView: View {
             .presentationBackground(AppTheme.card)
         }
         .onAppear {
-            if isActive {
+            if isActive, !showsTutorial {
                 trailerReady = true
                 activeStartTime = Date()
                 if let vid = trailerVideoId {
@@ -188,12 +146,22 @@ struct ReelCardView: View {
                 }
             }
         }
+        .onChange(of: showsTutorial) { _, showing in
+            guard isActive else { return }
+            if showing {
+                trailerReady = false
+                TrailerPlayer.shared.stop()
+            } else if let vid = trailerVideoId {
+                trailerReady = true
+                TrailerPlayer.shared.play(videoId: vid)
+            }
+        }
         .onChange(of: isActive) { _, active in
             if active {
-                trailerReady = true
                 activeStartTime = Date()
                 loadFriends()
-                if let vid = trailerVideoId {
+                if !showsTutorial, let vid = trailerVideoId {
+                    trailerReady = true
                     TrailerPlayer.shared.play(videoId: vid)
                 }
             } else {

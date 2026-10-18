@@ -10,7 +10,10 @@ enum AuthRoute: Hashable {
     case onboardingComplete
     case findFriends
     case forgotPassword
+    case letterboxdImport
     case onboardingV2
+
+    static let nextAfterLetterboxdImport = AuthRoute.findFriends
 }
 
 /// Landing screen that routes to Sign Up or Login.
@@ -74,6 +77,11 @@ struct WelcomeView: View {
                     FindFriendsView(path: $path)
                 case .forgotPassword:
                     ForgotPasswordView(path: $path)
+                case .letterboxdImport:
+                    MovieImportFlow(
+                        onComplete: { path.append(AuthRoute.nextAfterLetterboxdImport) },
+                        onSkip: { path.append(AuthRoute.nextAfterLetterboxdImport) }
+                    )
                 case .onboardingV2:
                     OnboardingV2View(path: $path)
                 }

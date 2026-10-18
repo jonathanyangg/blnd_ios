@@ -155,7 +155,8 @@ struct ActorProfileView: View {
                             posterPath: movie.posterPath,
                             width: cardWidth,
                             height: cardHeight,
-                            scorePercent: movie.matchPercent
+                            scorePercent: movie.matchPercent,
+                            mediaType: movie.mediaType
                         )
                     }
                     .buttonStyle(.plain)

@@ -662,7 +662,7 @@ struct OnboardingV2View: View {
     }
 
     private func finish() {
-        UserDefaults.standard.set(true, forKey: "hasSeenReelsTutorial")
+        // The v2 tour ends on the home reel. The first-run coach plays there once.
         OnboardingFeedSeed.store(NowCatalog.feed)
         onboardingState.reset()
         Analytics.onboardingCompleted()

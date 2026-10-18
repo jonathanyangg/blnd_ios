@@ -21,13 +21,11 @@ struct WatchTimelineScreen: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var entries: [TimelineEntry] = []
-    @State private var total = 0
+    @State private var nextCursor: String?
     @State private var isLoading = false
     @State private var isLoadingMore = false
     @State private var failure: TimelineLoadFailure?
     @State private var loadGeneration = 0
-
-    private let pageSize = 24
 
     var body: some View {
         Group {
@@ -71,7 +69,7 @@ struct WatchTimelineScreen: View {
                 Section {
                     ForEach(section.entries) { entry in
                         NavigationLink {
-                            MovieDetailView(tmdbId: entry.tmdbId, title: entry.title, source: detailSource)
+                            MovieDetailView(tmdbId: entry.media.tmdbId, title: entry.media.title, source: detailSource)
                         } label: {
                             TimelineEntryCard(entry: entry, showsViewer: showsViewer, reduceMotion: reduceMotion)
                         }
@@ -155,7 +153,9 @@ struct WatchTimelineScreen: View {
             .padding(.horizontal, 40)
             .padding(.top, 48)
         case let .message(message):
-            ErrorStateView(message: message) {
+            ErrorStateView(
+                message: UserFacingError.client(.server, message: message)
+            ) {
                 Task { await loadFirst() }
             }
             .padding(.top, 32)
@@ -180,7 +180,7 @@ struct WatchTimelineScreen: View {
     private func loadFirst() async {
         if case let .preview(items) = source {
             entries = items
-            total = items.count
+            nextCursor = nil
             failure = nil
             isLoading = false
             return
@@ -193,10 +193,10 @@ struct WatchTimelineScreen: View {
         defer { if generation == loadGeneration { isLoading = false } }
 
         do {
-            let page = try await fetch(offset: 0)
+            let page = try await fetch(cursor: nil)
             guard generation == loadGeneration else { return }
             entries = page.results
-            total = page.total
+            nextCursor = page.nextCursor
         } catch is CancellationError {
             return
         } catch {
@@ -206,16 +206,16 @@ struct WatchTimelineScreen: View {
     }
 
     private func loadMore() async {
-        guard !isLoading, !isLoadingMore, entries.count < total else { return }
+        guard let cursor = nextCursor, !isLoading, !isLoadingMore else { return }
         let generation = loadGeneration
         isLoadingMore = true
         defer { isLoadingMore = false }
 
         do {
-            let page = try await fetch(offset: entries.count)
+            let page = try await fetch(cursor: cursor)
             guard generation == loadGeneration else { return }
             if page.results.isEmpty {
-                total = entries.count
+                nextCursor = nil
                 return
             }
             var seen = Set(entries.map(\.id))
@@ -224,11 +224,7 @@ struct WatchTimelineScreen: View {
                 entries.append(entry)
                 added += 1
             }
-            if added == 0 {
-                total = entries.count
-                return
-            }
-            total = page.total
+            nextCursor = added == 0 ? nil : page.nextCursor
             failure = nil
         } catch is CancellationError {
             return
@@ -238,16 +234,16 @@ struct WatchTimelineScreen: View {
         }
     }
 
-    private func fetch(offset: Int) async throws -> TimelinePage {
+    private func fetch(cursor: String?) async throws -> TimelinePage {
         switch source {
         case .own:
-            try await TimelineAPI.own(limit: pageSize, offset: offset)
+            try await TimelineAPI.own(cursor: cursor)
         case let .user(userId):
-            try await TimelineAPI.user(userId, limit: pageSize, offset: offset)
+            try await TimelineAPI.user(userId, cursor: cursor)
         case let .blend(groupId):
-            try await TimelineAPI.blend(groupId, limit: pageSize, offset: offset)
+            try await TimelineAPI.blend(groupId, cursor: cursor)
         case let .preview(items):
-            TimelinePage(results: Array(items.dropFirst(offset).prefix(pageSize)), total: items.count)
+            TimelinePage(results: items, nextCursor: nil)
         }
     }
 }
@@ -270,13 +266,13 @@ private struct TimelineEntryCard: View {
                         .foregroundStyle(AppTheme.textDim)
                 }
 
-                Text(entry.title)
+                Text(entry.media.title)
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundStyle(.white)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
 
-                if let year = entry.year {
+                if let year = entry.media.year {
                     Text(String(year))
                         .font(.system(size: 12))
                         .foregroundStyle(AppTheme.textDim)
@@ -286,10 +282,10 @@ private struct TimelineEntryCard: View {
                     TimelineStars(rating: rating)
                 }
 
-                if showsViewer, let viewer = entry.watchedBy {
+                if showsViewer {
                     HStack(spacing: 6) {
-                        AvatarView(url: viewer.avatarUrl, size: 18)
-                        Text(viewer.name)
+                        AvatarView(url: entry.user.avatar, size: 18)
+                        Text(entry.user.name)
                             .font(.system(size: 13, weight: .medium))
                             .foregroundStyle(.white)
                             .lineLimit(1)
@@ -323,8 +319,25 @@ private struct TimelineEntryCard: View {
     }
 
     private var poster: some View {
+        ZStack(alignment: .topLeading) {
+            posterImage
+            if entry.media.isTV {
+                Text("TV")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(.black.opacity(0.7))
+                    .clipShape(Capsule())
+                    .padding(6)
+                    .accessibilityIdentifier("tv-show-badge")
+            }
+        }
+    }
+
+    private var posterImage: some View {
         Group {
-            if let posterPath, let url = URL(string: "https://image.tmdb.org/t/p/w342\(posterPath)") {
+            if let url = posterURL {
                 CachedAsyncImage(url: url) { image in
                     image.resizable().aspectRatio(contentMode: .fill).posterBlur()
                 } placeholder: {
@@ -336,28 +349,36 @@ private struct TimelineEntryCard: View {
         }
     }
 
-    private var posterPath: String? { entry.posterPath }
+    private var posterURL: URL? {
+        guard let poster = entry.media.poster, !poster.isEmpty else { return nil }
+        if poster.hasPrefix("http://") || poster.hasPrefix("https://") {
+            return URL(string: poster)
+        }
+        let path = poster.hasPrefix("/") ? poster : "/\(poster)"
+        return URL(string: "https://image.tmdb.org/t/p/w342\(path)")
+    }
 
     private var posterFallback: some View {
         RoundedRectangle(cornerRadius: 12, style: .continuous)
-            .fill(AppTheme.posterGradient(angle: entry.tmdbId * 37))
+            .fill(AppTheme.posterGradient(angle: entry.media.tmdbId * 37))
             .overlay {
-                Image(systemName: "film")
+                Image(systemName: entry.media.isTV ? "tv" : "film")
                     .font(.system(size: 22, weight: .light))
                     .foregroundStyle(.white.opacity(0.85))
             }
     }
 
     private var accessibilityText: String {
-        var parts = [entry.title]
+        var parts = [entry.media.title]
+        if entry.media.isTV { parts.append("TV show") }
         if let day = TimelineDate.dayParts(of: entry) {
             parts.append("\(TimelineDate.monthName(day.month)) \(day.day), \(day.year)")
         }
         if let rating = entry.rating {
             parts.append("rated \(rating)")
         }
-        if showsViewer, let name = entry.watchedBy?.name {
-            parts.append("logged by \(name)")
+        if showsViewer {
+            parts.append("logged by \(entry.user.name)")
         }
         if let line = DiaryCopy.watchedWithLine(entry.watchedWith) {
             parts.append(line)
