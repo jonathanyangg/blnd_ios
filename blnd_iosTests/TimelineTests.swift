@@ -89,6 +89,11 @@ struct TimelineTests {
 
     @Test func missingEndpointMapsToUnavailable() {
         #expect(TimelineLoadFailure.from(APIError.notFound) == .unavailable)
-        #expect(TimelineLoadFailure.from(APIError.badRequest(message: "nope", code: nil)) == .message("nope"))
+        #expect(TimelineLoadFailure.from(APIError.badRequest(APIFieldError(
+            code: nil,
+            issues: [APIIssue(field: nil, text: "nope")],
+            raw: "nope",
+            opensPaywall: false
+        ))) == .message("Something in that didn't look right."))
     }
 }

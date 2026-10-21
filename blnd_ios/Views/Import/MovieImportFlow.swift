@@ -108,6 +108,6 @@ func movieImportScreen(
     case .paste:
         PasteNotesView(router: router)
     case .notesReview(let draft):
-        NotesImportReviewView(draft: draft, onDone: onComplete)
+        notesImportReview(text: draft.text, onDone: onComplete)
     }
 }

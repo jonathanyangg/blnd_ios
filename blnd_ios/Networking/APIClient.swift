@@ -21,6 +21,13 @@ func apiErrorMessage(from data: Data, fallback: String = "Request failed") -> St
     return raw.isEmpty ? fallback : raw
 }
 
+enum APIErrorEnvelope {
+    static func message(in data: Data) -> String? {
+        let raw = APIFieldError.parse(data).raw
+        return raw == "Request failed" ? nil : raw
+    }
+}
+
 enum APIError: LocalizedError {
     case invalidURL
     case unauthorized
@@ -28,7 +35,7 @@ enum APIError: LocalizedError {
     case badRequest(APIFieldError)
     case notFound
     case rateLimited(detail: String?)
-    case serverError(Int)
+    case serverError(Int, String?)
     case decodingError
     case networkError(Error)
 
@@ -55,7 +62,7 @@ enum APIError: LocalizedError {
         case 400 ..< 500:
             return .badRequest(info)
         default:
-            return .serverError(status)
+            return .serverError(status, info.raw.isEmpty ? nil : info.raw)
         }
     }
 }
@@ -262,7 +269,7 @@ final class APIClient: @unchecked Sendable {
         case 401:
             throw APIError.unauthorized
         case 403, 500, 503:
-            throw APIError.serverError(http.statusCode)
+            throw APIError.serverError(http.statusCode, nil)
         default:
             throw mapError(status: http.statusCode, data: data)
         }
@@ -354,7 +361,7 @@ final class APIClient: @unchecked Sendable {
         }
 
         guard let http = response as? HTTPURLResponse else {
-            throw APIError.serverError(0)
+            throw APIError.serverError(0, nil)
         }
 
         return (http, data)

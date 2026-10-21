@@ -23,7 +23,7 @@ struct MovieDetailView: View {
     @State var showCommentsSheet = false
     @State var showLogSheet = false
     @State var overviewExpanded = false
-    @State var whereToWatch: WhereToWatch?
+    @State var watchOptions: [StreamingOption] = []
     @State var watchLoading = true
     @State var watchFailed = false
 

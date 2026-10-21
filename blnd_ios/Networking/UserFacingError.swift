@@ -268,7 +268,7 @@ struct UserFacingError: Equatable, Sendable {
             case let .badRequest(info): "badRequest: \(info.code ?? "") \(info.raw)"
             case .notFound: "notFound"
             case let .rateLimited(detail): "rateLimited: \(detail ?? "")"
-            case let .serverError(code): "serverError: \(code)"
+            case let .serverError(code, message): "serverError: \(code) \(message ?? "")"
             case .decodingError: "decodingError"
             case let .networkError(inner): "networkError: \(diagnostic(inner))"
             }

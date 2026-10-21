@@ -44,9 +44,15 @@ struct NotesImportReviewView: View {
                 case .review:
                     reviewContent
                 case .empty:
-                    ErrorStateView(message: "We didn't find any titles in that note.")
+                    ErrorStateView(
+                        message: .client(
+                            .notFound,
+                            title: "No titles found",
+                            message: "We didn't find any titles in that note."
+                        )
+                    )
                 case let .failed(message):
-                    ErrorStateView(message: message) {
+                    ErrorStateView(message: .client(.server, message: message)) {
                         Task { await load() }
                     }
                 }
