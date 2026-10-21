@@ -17,7 +17,7 @@ extension GroupDetailView {
                 ReelsFeedView(
                     movies: groupReelMovies,
                     feed: .blend,
-                    isTabVisible: tabState.selectedTab == 2,
+                    isTabVisible: tabState.selectedTab == 1,
                     onLoadMore: { await loadMoreRecs() },
                     onRefresh: { await loadAll(forceRefresh: true) },
                     externalCurrentId: $blendCurrentId
@@ -38,7 +38,7 @@ extension GroupDetailView {
                         ReelMovie(from: $0)
                     },
                     feed: .blend,
-                    isTabVisible: tabState.selectedTab == 2,
+                    isTabVisible: tabState.selectedTab == 1,
                     onRefresh: { await loadAll(forceRefresh: true) },
                     externalCurrentId: $watchlistCurrentId
                 )

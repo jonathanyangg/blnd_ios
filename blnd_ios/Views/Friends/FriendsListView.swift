@@ -20,12 +20,17 @@ struct FriendsListView: View {
                             .foregroundStyle(.white)
                         Spacer()
                         Button {
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
                             showAddFriend = true
                         } label: {
-                            Image(systemName: "magnifyingglass")
-                                .font(.system(size: 22, weight: .medium))
-                                .foregroundStyle(.white)
+                            Text("Add")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundStyle(.black)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 8)
+                                .background(.white, in: Capsule())
                         }
+                        .accessibilityLabel("Add friends")
                     }
                     .padding(.top, 20)
                     .padding(.horizontal, 24)
@@ -89,7 +94,12 @@ struct FriendsListView: View {
             emptyState(
                 icon: "person.2",
                 title: "No friends yet",
-                subtitle: "Add friends to see them here"
+                subtitle: "Search by username and send a request.",
+                actionTitle: "Add a friend",
+                action: {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    showAddFriend = true
+                }
             )
         } else {
             ForEach(friends) { friend in
@@ -118,7 +128,7 @@ struct FriendsListView: View {
             emptyState(
                 icon: "envelope",
                 title: "No pending requests",
-                subtitle: "Friend requests will appear here"
+                subtitle: "When someone adds you, the request shows up here."
             )
         } else {
             if !incoming.isEmpty {
@@ -194,9 +204,11 @@ struct FriendsListView: View {
     private func emptyState(
         icon: String,
         title: String,
-        subtitle: String
+        subtitle: String,
+        actionTitle: String? = nil,
+        action: (() -> Void)? = nil
     ) -> some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 12) {
             Image(systemName: icon)
                 .font(.system(size: 36))
                 .foregroundStyle(AppTheme.textDim)
@@ -206,7 +218,20 @@ struct FriendsListView: View {
             Text(subtitle)
                 .font(.system(size: 14))
                 .foregroundStyle(AppTheme.textMuted)
+                .multilineTextAlignment(.center)
+            if let actionTitle, let action {
+                Button(action: action) {
+                    Text(actionTitle)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(.black)
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 10)
+                        .background(.white, in: Capsule())
+                }
+                .padding(.top, 4)
+            }
         }
+        .padding(.horizontal, 40)
         .padding(.top, 60)
     }
 
