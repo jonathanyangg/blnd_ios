@@ -61,10 +61,10 @@ struct MainTabView: View {
             guard let link = newValue else { return }
             switch link {
             case .friendRequests:
-                tabState.selectedTab = 1
+                tabState.selectedTab = 3
             case .groupDetail:
                 tabState.selectedTab = 2
-            case .movieDetail:
+            case .movieDetail, .comments:
                 tabState.selectedTab = 0
             }
         }
