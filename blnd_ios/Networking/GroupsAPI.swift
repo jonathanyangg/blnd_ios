@@ -10,6 +10,31 @@ enum GroupsAPI {
         )
     }
 
+    /// Names for blends whose list row has no title and no `member_names`.
+    /// shortcut: one detail request per unnamed blend, until GET /groups/ returns member_names
+    static func memberNamesForUnnamedGroups(
+        _ groups: [GroupResponse]
+    ) async -> [Int: [String]] {
+        let pending = groups.filter(\.needsMemberNameLookup)
+        guard !pending.isEmpty else { return [:] }
+        return await withTaskGroup(of: (Int, [String])?.self) { taskGroup in
+            for group in pending {
+                taskGroup.addTask {
+                    guard let detail = try? await getGroup(groupId: group.id) else {
+                        return nil
+                    }
+                    return (group.id, detail.members.map(\.blendNameSource))
+                }
+            }
+            var namesById: [Int: [String]] = [:]
+            for await pair in taskGroup {
+                guard let (id, names) = pair else { continue }
+                namesById[id] = names
+            }
+            return namesById
+        }
+    }
+
     /// GET /groups/{id} — get group detail with members
     static func getGroup(groupId: Int) async throws -> GroupDetailResponse {
         try await APIClient.shared.request(
