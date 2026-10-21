@@ -3,18 +3,13 @@ import SwiftUI
 struct ReelCardView: View {
     let movie: ReelMovie
     let isActive: Bool
-    var groupContext: GroupContext?
     var position: Int = 0
     var feed: Analytics.FeedSource = .fyp
-    var onWatchlistAdded: ((String) -> Void)?
+    var onSwipeResult: ((ReelSwipeResult) -> Void)?
+    var onRequestWatchlist: (() -> Void)?
     var onRated: ((Double) -> Void)?
     var onShowDetail: (() -> Void)?
     var onShowFriend: ((FriendResponse) -> Void)?
-
-    struct GroupContext {
-        let groupId: Int
-        let groupName: String
-    }
 
     @State var swipeOffset: CGFloat = 0
     @State var swipeTriggeredHaptic = false
@@ -83,9 +78,10 @@ struct ReelCardView: View {
             // Video ↔ actions: the main flexible gap that fills remaining height.
             Spacer(minLength: 10)
 
-            // Action block: Comments → Watched by → Rating.
+            // Action block: Comments → Watchlist → Watched by → Rating.
             VStack(spacing: 12) {
                 commentsButton
+                watchlistButton
                 watchedByRow
                 inlineRatingBar
                 watchedWithButton

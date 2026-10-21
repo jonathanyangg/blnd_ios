@@ -1,5 +1,30 @@
 import SwiftUI
 
+enum ReelSwipeResult {
+    case hidden
+    case interested
+    case interestFailed
+    case notForMeFailed
+}
+
+enum ReelSwipeDecision: Equatable {
+    case notForMe
+    case interested
+    case ignore
+}
+
+/// Horizontal swipe past the threshold. Right is a taste signal, never a watchlist add.
+func reelSwipeDecision(
+    deltaX: CGFloat,
+    deltaY: CGFloat,
+    threshold: CGFloat
+) -> ReelSwipeDecision {
+    guard abs(deltaX) > abs(deltaY) * 1.5 else { return .ignore }
+    if deltaX < -threshold { return .notForMe }
+    if deltaX > threshold { return .interested }
+    return .ignore
+}
+
 // MARK: - Gestures & Actions
 
 extension ReelCardView {
@@ -53,16 +78,17 @@ extension ReelCardView {
     }
 
     func handleSwipeEnded(deltaX: CGFloat, deltaY: CGFloat) {
-        let absX = abs(deltaX)
-        let absY = abs(deltaY)
-        guard absX > absY * 1.5 else {
-            resetSwipe()
-            return
-        }
-        if deltaX < -swipeThreshold {
-            Task { await hideMovie() }
-        } else if deltaX > swipeThreshold {
-            addToWatchlist()
+        switch reelSwipeDecision(
+            deltaX: deltaX,
+            deltaY: deltaY,
+            threshold: swipeThreshold
+        ) {
+        case .notForMe:
+            Task { await markNotForMe() }
+        case .interested:
+            Task { await markInterested() }
+        case .ignore:
+            break
         }
         resetSwipe()
     }
@@ -75,39 +101,24 @@ extension ReelCardView {
         swipeTriggeredHaptic = false
     }
 
-    func addToWatchlist() {
-        UINotificationFeedbackGenerator()
-            .notificationOccurred(.success)
-        Analytics.watchlistAdded(tmdbId: movie.tmdbId, source: .reels)
-
-        // Optimistic — show toast + update cache
-        if let ctx = groupContext {
-            onWatchlistAdded?(
-                "Added to \(ctx.groupName) Watchlist"
-            )
-        } else {
-            UserActionCache.shared.didWatchlist(
-                movie.tmdbId
-            )
-            onWatchlistAdded?("Added to My Watchlist")
+    /// Positive taste signal only. Watchlist adds go through the card button.
+    func markInterested() async {
+        if APIConfig.screenshotMode {
+            onSwipeResult?(.interested)
+            return
         }
-
-        // Fire API in background
-        Task {
-            do {
-                if let ctx = groupContext {
-                    _ = try await GroupsAPI.addToWatchlist(
-                        groupId: ctx.groupId,
-                        tmdbId: movie.tmdbId
-                    )
-                } else {
-                    _ = try await TrackingAPI.addToWatchlist(
-                        tmdbId: movie.tmdbId
-                    )
-                }
-            } catch {
-                onWatchlistAdded?("Already in Watchlist")
-            }
+        do {
+            try await RecommendationsAPI.markInterested(
+                tmdbId: movie.tmdbId
+            )
+            UINotificationFeedbackGenerator()
+                .notificationOccurred(.success)
+            Analytics.movieInterested(tmdbId: movie.tmdbId)
+            onSwipeResult?(.interested)
+        } catch {
+            UINotificationFeedbackGenerator()
+                .notificationOccurred(.warning)
+            onSwipeResult?(.interestFailed)
         }
     }
 
@@ -138,16 +149,19 @@ extension ReelCardView {
         }
     }
 
-    func hideMovie() async {
-        UINotificationFeedbackGenerator()
-            .notificationOccurred(.success)
-        onWatchlistAdded?("Won't show again")
+    /// Left swipe. A weak negative signal, not a watchlist change and not a hide.
+    func markNotForMe() async {
         do {
-            _ = try await RecommendationsAPI.hideMovie(
-                tmdbId: movie.tmdbId
-            )
+            try await RecommendationsAPI.markNotForMe(tmdbId: movie.tmdbId)
+            UINotificationFeedbackGenerator()
+                .notificationOccurred(.success)
             Analytics.movieHidden(tmdbId: movie.tmdbId)
-        } catch {}
+            onSwipeResult?(.hidden)
+        } catch {
+            UINotificationFeedbackGenerator()
+                .notificationOccurred(.warning)
+            onSwipeResult?(.notForMeFailed)
+        }
     }
 
     func posterURL(_ path: String) -> URL? {
