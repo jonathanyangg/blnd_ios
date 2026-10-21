@@ -1,8 +1,9 @@
 import SwiftUI
 
-/// 4-state Letterboxd import screen.
+/// Letterboxd import screen. Onboarding starts it at `.question`.
 struct ImportContextView: View {
     enum ImportViewState {
+        case question
         case instructions
         case loading
         case results(ImportSummaryResponse)
@@ -13,12 +14,17 @@ struct ImportContextView: View {
     @State var showWebView = false
     @State var capturedZipData: Data?
     @State var uploadTask: Task<Void, Never>?
+    var onComplete: (() -> Void)?
+    var onSkip: (() -> Void)?
+    var importHandler: ((Data) async throws -> ImportSummaryResponse)?
 
     @Environment(\.dismiss) var dismiss
 
     var body: some View {
         Group {
             switch viewState {
+            case .question:
+                questionContent
             case .instructions:
                 instructionsContent
             case .loading:
@@ -50,6 +56,7 @@ struct ImportContextView: View {
 
     var stateKey: String {
         switch viewState {
+        case .question: return "question"
         case .instructions: return "instructions"
         case .loading: return "loading"
         case .results: return "results"
@@ -65,9 +72,7 @@ struct ImportContextView: View {
             else { return }
             do {
                 let summary =
-                    try await ImportAPI.upload(
-                        zipData: zipData
-                    )
+                    try await uploadImport(zipData: zipData)
                 withAnimation {
                     viewState = .results(summary)
                 }
@@ -80,6 +85,29 @@ struct ImportContextView: View {
                     }
                 }
             }
+        }
+    }
+
+    func uploadImport(zipData: Data) async throws -> ImportSummaryResponse {
+        if let importHandler {
+            return try await importHandler(zipData)
+        }
+        return try await ImportAPI.upload(zipData: zipData)
+    }
+
+    func answerUsesLetterboxd(_ usesLetterboxd: Bool) {
+        if usesLetterboxd {
+            withAnimation { viewState = .instructions }
+        } else {
+            onSkip?()
+        }
+    }
+
+    func finish() {
+        if let onComplete {
+            onComplete()
+        } else {
+            dismiss()
         }
     }
 }

@@ -109,7 +109,7 @@ struct OnboardingCompleteView: View {
         if let uid = KeychainManager.readString(key: "userId") {
             await authState.logInRevenueCat(userId: uid)
         }
-        path.append(AuthRoute.findFriends)
+        path.append(AuthRoute.letterboxdImport)
     }
 }
 

@@ -3,6 +3,39 @@ import SwiftUI
 // MARK: - View Sections
 
 extension ImportContextView {
+    // MARK: - Question
+
+    var questionContent: some View {
+        VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Do you use Letterboxd?")
+                    .font(.system(size: 26, weight: .bold))
+                    .foregroundStyle(.white)
+
+                Text("We can import your watched movies and ratings.")
+                    .font(.system(size: 15))
+                    .foregroundStyle(AppTheme.textMuted)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, 32)
+            .padding(.horizontal, 24)
+
+            Spacer()
+
+            AppButton(label: "Yes") { answerUsesLetterboxd(true) }
+                .accessibilityIdentifier("import.question.yes")
+                .padding(.horizontal, 24)
+                .padding(.bottom, 8)
+
+            AppButton(label: "No", style: .ghost) { answerUsesLetterboxd(false) }
+                .accessibilityIdentifier("import.question.no")
+                .padding(.horizontal, 24)
+                .padding(.bottom, 16)
+        }
+        .background(AppTheme.background)
+        .transition(.opacity)
+    }
+
     // MARK: - Instructions
 
     var instructionsContent: some View {
@@ -51,8 +84,18 @@ extension ImportContextView {
             AppButton(label: "Continue") {
                 showWebView = true
             }
+            .accessibilityIdentifier("import.continue")
             .padding(.horizontal, 24)
-            .padding(.bottom, 16)
+            .padding(.bottom, onSkip == nil ? 16 : 8)
+
+            if let onSkip {
+                AppButton(label: "Skip", style: .ghost) {
+                    onSkip()
+                }
+                .accessibilityIdentifier("import.skip")
+                .padding(.horizontal, 24)
+                .padding(.bottom, 16)
+            }
         }
         .background(AppTheme.background)
         .navigationBarBackButtonHidden(false)
@@ -88,8 +131,10 @@ extension ImportContextView {
                 }
                 .padding(.horizontal, 24)
             }
+            .accessibilityIdentifier("import.results")
 
-            AppButton(label: "Done") { dismiss() }
+            AppButton(label: "Done") { finish() }
+                .accessibilityIdentifier("import.done")
                 .padding(.horizontal, 24)
                 .padding(.bottom, 16)
         }
