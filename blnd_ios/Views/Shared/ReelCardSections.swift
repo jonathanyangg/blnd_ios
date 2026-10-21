@@ -26,6 +26,17 @@ extension ReelCardView {
                 .lineLimit(1)
                 .truncationMode(.tail)
 
+            if movie.mediaType == .tv {
+                Text("TV")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(.black.opacity(0.7))
+                    .clipShape(Capsule())
+                    .accessibilityIdentifier("tv-show-badge")
+            }
+
             if let pct = displayScorePercent {
                 matchBadge(pct)
             }

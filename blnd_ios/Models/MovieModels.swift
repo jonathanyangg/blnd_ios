@@ -61,6 +61,7 @@ struct SemanticSearchResultItem: Decodable, Identifiable {
     let runtime: Int?
     let voteAverage: Double?
     let matchScore: Double
+    let mediaType: MediaType?
 
     var id: Int {
         tmdbId
@@ -76,6 +77,7 @@ struct SemanticSearchResultItem: Decodable, Identifiable {
         case posterPath = "poster_path"
         case voteAverage = "vote_average"
         case matchScore = "match_score"
+        case mediaType = "media_type"
     }
 }
 
@@ -304,6 +306,7 @@ struct RecommendedMovieResponse: Codable, Identifiable {
     let backdropPath: String?
     let matchScore: Double
     let commentCount: Int?
+    let mediaType: MediaType?
 
     var id: Int {
         tmdbId
@@ -338,6 +341,7 @@ struct RecommendedMovieResponse: Codable, Identifiable {
         case backdropPath = "backdrop_path"
         case matchScore = "match_score"
         case commentCount = "comment_count"
+        case mediaType = "media_type"
     }
 }
 
@@ -363,6 +367,11 @@ struct HiddenMovieResponse: Decodable, Identifiable {
 struct HiddenMoviesListResponse: Decodable {
     let results: [HiddenMovieResponse]
     let total: Int
+}
+
+struct NowPickResponse: Decodable {
+    let movie: RecommendedMovieResponse
+    let reason: String
 }
 
 struct RecommendationsResponse: Decodable {

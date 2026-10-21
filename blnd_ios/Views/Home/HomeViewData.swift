@@ -8,20 +8,32 @@ extension HomeView {
     }
 
     func hideMovie(_ tmdbId: Int) {
+        guard let index = recommendations.firstIndex(where: { $0.tmdbId == tmdbId }) else { return }
+        let movie = recommendations[index]
         withAnimation {
             recommendations.removeAll { $0.tmdbId == tmdbId }
-            fypReelMovies.removeAll { $0.tmdbId == tmdbId }
+            rebuildReelMovies()
         }
         Task {
-            _ = try? await RecommendationsAPI.hideMovie(
-                tmdbId: tmdbId
-            )
+            do {
+                _ = try await RecommendationsAPI.hideMovie(tmdbId: tmdbId)
+            } catch {
+                withAnimation {
+                    recommendations.insert(movie, at: min(index, recommendations.count))
+                    rebuildReelMovies()
+                }
+                showToast(UserFacingError.capture(error, screen: "HideMovie")) {
+                    hideMovie(tmdbId)
+                }
+            }
         }
     }
 
     func loadForYou() async {
         guard recommendations.isEmpty else { return }
-        if UITestLaunch.screen == .findNowEntry || UITestLaunch.screen == .onboardFeed {
+        if UITestLaunch.screen == .findNowEntry
+            || UITestLaunch.screen == .onboardFeed
+            || UITestLaunch.screen == .reelTutorial {
             recommendations = NowCatalog.feed
             rebuildReelMovies()
             return
@@ -29,11 +41,13 @@ extension HomeView {
         isLoadingFYP = true
         fypError = nil
         do {
-            let response = try await RecommendationsAPI.getFeed()
-            if response.results.isEmpty, let seeded = OnboardingFeedSeed.take() {
+            let filter = catalogFilters.current()
+            let page = try await nextFilteredFeed(filter: filter)
+            guard !Task.isCancelled else { return }
+            if page.isEmpty, let seeded = OnboardingFeedSeed.take() {
                 recommendations = seeded
             } else {
-                recommendations = response.results
+                recommendations = page
                 _ = OnboardingFeedSeed.take()
             }
             seenFYPIds = Set(recommendations.map(\.tmdbId))
@@ -47,7 +61,33 @@ extension HomeView {
                 handleLoadError(error)
             }
         }
+        guard !Task.isCancelled else { return }
         isLoadingFYP = false
+    }
+
+    /// Requests up to three pages so a client-side filter can still fill the feed.
+    /// shortcut: stops after 3 pages, so a filter the backend ignores can stay short until media_type and year params are honored.
+    func nextFilteredFeed(filter: CatalogFilter) async throws -> [RecommendedMovieResponse] {
+        var matched: [RecommendedMovieResponse] = []
+        var pages = 0
+        while matched.isEmpty, pages < 3 {
+            if Task.isCancelled { return [] }
+            pages += 1
+            let response = try await RecommendationsAPI.getFeed(
+                exclude: Array(seenFYPIds),
+                filter: filter
+            )
+            if Task.isCancelled { return [] }
+            if response.results.isEmpty { break }
+            for movie in response.results {
+                seenFYPIds.insert(movie.tmdbId)
+            }
+            matched = response.results.filter {
+                filter.matches(mediaType: $0.mediaType, year: $0.year)
+            }
+            if response.results.count < 20 { break }
+        }
+        return matched
     }
 
     func loadMoreFYP() async {
@@ -56,12 +96,8 @@ extension HomeView {
         let batchNum = (seenFYPIds.count / 20) + 1
         Analytics.feedLoadMore(source: .fyp, batchNum: batchNum)
         do {
-            let response = try await RecommendationsAPI.getFeed(
-                exclude: Array(seenFYPIds)
-            )
-            let newMovies = response.results.filter {
-                !seenFYPIds.contains($0.tmdbId)
-            }
+            let filter = catalogFilters.current()
+            let newMovies = try await nextFilteredFeed(filter: filter)
             if !newMovies.isEmpty {
                 recommendations.append(contentsOf: newMovies)
                 for movie in newMovies {
@@ -83,8 +119,11 @@ extension HomeView {
         fypError = nil
         Analytics.feedRefreshed(source: .fyp)
         do {
-            let resp = try await RecommendationsAPI.refresh()
-            recommendations = resp.results
+            let filter = catalogFilters.current()
+            let resp = try await RecommendationsAPI.refresh(filter: filter)
+            recommendations = resp.results.filter {
+                filter.matches(mediaType: $0.mediaType, year: $0.year)
+            }
             seenFYPIds = Set(resp.results.map(\.tmdbId))
             rebuildReelMovies()
         } catch {
@@ -104,22 +143,25 @@ extension HomeView {
     }
 
     func handleLoadError(_ error: Error) {
+        let copy = UserFacingError.capture(error, screen: "ForYou")
         if case APIError.rateLimited = error {
-            showToast("Woah, slow down! Try again in a minute")
+            showToast(copy)
         } else if recommendations.isEmpty {
-            fypError = error.localizedDescription
+            fypError = copy
         } else {
-            showToast(error.localizedDescription)
+            showToast(copy) { Task { await refreshFYP() } }
         }
     }
 
-    func showToast(_ message: String) {
+    func showToast(_ message: UserFacingError, retry: (() -> Void)? = nil) {
         toastTask?.cancel()
         toastMessage = message
+        toastRetry = retry
         toastTask = Task {
             try? await Task.sleep(for: .seconds(3))
             if !Task.isCancelled {
                 toastMessage = nil
+                toastRetry = nil
             }
         }
     }
@@ -127,5 +169,6 @@ extension HomeView {
     func dismissToast() {
         toastTask?.cancel()
         toastMessage = nil
+        toastRetry = nil
     }
 }

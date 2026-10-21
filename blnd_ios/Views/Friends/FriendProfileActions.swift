@@ -19,36 +19,57 @@ extension FriendProfileView {
         } catch { /* Non-critical */ }
 
         // Watched movies require friendship — 403 means not friends yet
+        watchedRequest += 1
+        let request = watchedRequest
         do {
+            let filter = catalogFilters.current()
             let watchedResult = try await ProfileAPI.getPublicWatched(
                 userId: friend.id,
                 limit: 20,
                 offset: 0,
-                sort: watchedSort
+                sort: watchedSort,
+                filter: filter
             )
-            watchedMovies = watchedResult.results
-            watchedTotal = watchedResult.total
+            if request == watchedRequest {
+                watchedFetchedCount = watchedResult.results.count
+                watchedMovies = watchedResult.results.filter {
+                    filter.matches(mediaType: $0.mediaType, year: $0.year)
+                }
+                watchedTotal = watchedResult.total
+            }
         } catch is CancellationError {
             return
         } catch {
             // 403 (not friends) or any other error → show gated state
-            watchedGated = true
+            if request == watchedRequest {
+                watchedGated = true
+            }
         }
 
-        isLoading = false
+        if request == watchedRequest {
+            isLoading = false
+        }
     }
 
     func loadMoreWatched() async {
         guard !isLoadingMore, watchedMovies.count < watchedTotal else { return }
         isLoadingMore = true
+        let request = watchedRequest
         do {
+            let filter = catalogFilters.current()
             let next = try await ProfileAPI.getPublicWatched(
                 userId: friend.id,
                 limit: 20,
-                offset: watchedMovies.count,
-                sort: watchedSort
+                offset: watchedFetchedCount,
+                sort: watchedSort,
+                filter: filter
             )
-            watchedMovies.append(contentsOf: next.results)
+            if request == watchedRequest {
+                watchedFetchedCount += next.results.count
+                watchedMovies.append(contentsOf: next.results.filter {
+                    filter.matches(mediaType: $0.mediaType, year: $0.year)
+                })
+            }
         } catch is CancellationError {
             return
         } catch { /* Non-critical — pagination stops */ }
@@ -57,14 +78,22 @@ extension FriendProfileView {
 
     func reloadWatched() async {
         guard !watchedGated else { return }
+        watchedRequest += 1
+        let request = watchedRequest
         do {
+            let filter = catalogFilters.current()
             let result = try await ProfileAPI.getPublicWatched(
                 userId: friend.id,
                 limit: 20,
                 offset: 0,
-                sort: watchedSort
+                sort: watchedSort,
+                filter: filter
             )
-            watchedMovies = result.results
+            guard request == watchedRequest else { return }
+            watchedFetchedCount = result.results.count
+            watchedMovies = result.results.filter {
+                filter.matches(mediaType: $0.mediaType, year: $0.year)
+            }
             watchedTotal = result.total
         } catch is CancellationError {
             return

@@ -197,6 +197,13 @@ struct FindMovieNowView: View {
         do {
             let next = try await fetch(excluding: excluded)
             apply(next)
+        } catch let error as APIError {
+            isLoading = false
+            if case .notFound = error {
+                errorMessage = "Nothing matches those filters"
+            } else {
+                errorMessage = error.localizedDescription
+            }
         } catch {
             isLoading = false
             errorMessage = error.localizedDescription
@@ -219,7 +226,11 @@ struct FindMovieNowView: View {
         if UITestLaunch.usesMockNow {
             return NowCatalog.pick(excluding: excluding, lovedTitles: lovedTitles)
         }
-        return try await RecommendationsAPI.findNow(genre: nil, exclude: excluding)
+        return try await RecommendationsAPI.findNow(
+            genre: nil,
+            exclude: excluding,
+            filter: CatalogFilterStore.shared.current()
+        )
     }
 
     private func apply(_ next: NowPickResponse) {

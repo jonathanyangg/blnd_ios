@@ -1,10 +1,5 @@
 import SwiftUI
 
-private enum SearchMode {
-    case standard
-    case aiSearch
-}
-
 struct SearchView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AuthState.self) private var authState
@@ -13,13 +8,16 @@ struct SearchView: View {
     @State private var searchText = ""
     @State private var debouncedQuery = ""
     @State private var results: [MovieResponse] = []
+    @State private var tvResults: [TVShowResponse] = []
     @State private var actorResults: [PersonResult] = []
+    @State private var userResults: [UserSearchResult] = []
+    @State private var blends: [GroupResponse] = []
     @State private var aiResults: [SemanticSearchResultItem] = []
     @State private var isLoading = false
     @State private var hasSearched = false
     @State private var debounceTask: Task<Void, Never>?
     @State private var selectedActor: PersonResult?
-    @State private var searchMode: SearchMode = .standard
+    @State private var segment: SearchSegment = .all
     @State private var showPaywall = false
 
     private let columns = [
@@ -30,12 +28,11 @@ struct SearchView: View {
     private var autocompleteSuggestion: String? {
         guard !searchText.isEmpty else { return nil }
         let lower = searchText.lowercased()
-        // Check actors first, then movies
-        if let actor = actorResults.first, actor.name.lowercased().hasPrefix(lower) {
-            return actor.name
-        }
         if let movie = results.first, movie.title.lowercased().hasPrefix(lower) {
             return movie.title
+        }
+        if let actor = actorResults.first, actor.name.lowercased().hasPrefix(lower) {
+            return actor.name
         }
         return nil
     }
@@ -54,22 +51,14 @@ struct SearchView: View {
             }
         }
         .onChange(of: searchText) { _, newValue in
-            if searchMode == .standard {
-                debounceSearch(newValue)
-            }
+            if segment != .assist { debounceSearch(newValue) }
         }
-        .onChange(of: searchMode) {
-            // Clear results when switching modes
-            results = []
-            actorResults = []
-            aiResults = []
-            hasSearched = false
+        .task {
+            await loadBlends()
         }
         .task(id: debouncedQuery) {
-            guard !debouncedQuery.isEmpty else { return }
-            if searchMode == .standard {
-                await search(query: debouncedQuery)
-            }
+            guard !debouncedQuery.isEmpty, segment != .assist else { return }
+            await searchAll(query: debouncedQuery)
         }
         .sheet(item: $selectedActor) { actor in
             NavigationStack {
@@ -91,38 +80,29 @@ struct SearchView: View {
     // MARK: - Mode Toggle
 
     private var modeToggle: some View {
-        HStack(spacing: 8) {
-            modeChip("Movies", mode: .standard, icon: "film")
-            modeChip("AI Search", mode: .aiSearch, icon: "sparkles")
-            Spacer()
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(SearchSegment.allCases) { item in
+                    modeChip(item.rawValue, segment: item)
+                }
+                CatalogFilterButton()
+            }
+            .padding(.horizontal, 24)
         }
-        .padding(.horizontal, 24)
         .padding(.bottom, 12)
     }
 
-    private func modeChip(
-        _ label: String,
-        mode: SearchMode,
-        icon: String
-    ) -> some View {
+    private func modeChip(_ label: String, segment item: SearchSegment) -> some View {
         Button {
-            searchMode = mode
+            segment = item
         } label: {
-            HStack(spacing: 5) {
-                Image(systemName: icon)
-                    .font(.system(size: 11))
-                Text(label)
-                    .font(.system(size: 13, weight: .medium))
-            }
-            .foregroundStyle(
-                searchMode == mode
-                    ? AnyShapeStyle(Color.black)
-                    : AnyShapeStyle(Color.white)
-            )
-            .padding(.vertical, 7)
-            .padding(.horizontal, 12)
-            .background(searchMode == mode ? .white : AppTheme.card)
-            .clipShape(Capsule())
+            Text(label)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(segment == item ? Color.black : Color.white)
+                .padding(.vertical, 7)
+                .padding(.horizontal, 12)
+                .background(segment == item ? Color.white : AppTheme.card)
+                .clipShape(Capsule())
         }
     }
 
@@ -150,9 +130,9 @@ struct SearchView: View {
                     }
 
                     TextField(
-                        searchMode == .aiSearch
+                        segment == .assist
                             ? "Describe what you want to watch..."
-                            : "Search movies & actors...",
+                            : "Search",
                         text: $searchText
                     )
                     .accessibilityIdentifier("search.field")
@@ -162,7 +142,7 @@ struct SearchView: View {
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
                     .onSubmit {
-                        if searchMode == .aiSearch {
+                        if segment == .assist {
                             Task { await aiSearch() }
                         }
                     }
@@ -173,7 +153,9 @@ struct SearchView: View {
                         searchText = ""
                         debouncedQuery = ""
                         results = []
+                        tvResults = []
                         actorResults = []
+                        userResults = []
                         hasSearched = false
                     } label: {
                         Image(systemName: "xmark.circle.fill")
@@ -202,54 +184,32 @@ struct SearchView: View {
     private var resultsBody: some View {
         GeometryReader { geo in
             ScrollView {
-                if searchMode == .aiSearch {
+                if segment == .assist {
                     aiResultsBody(cardWidth: (geo.size.width - 24 * 2 - 12) / 2)
                 } else {
-                    standardResultsBody(cardWidth: (geo.size.width - 24 * 2 - 12) / 2)
+                    UnifiedSearchResults(
+                        segment: segment,
+                        movies: results,
+                        shows: tvResults,
+                        actors: actorResults,
+                        users: userResults,
+                        blends: blends,
+                        query: debouncedQuery,
+                        isLoading: isLoading,
+                        hasSearched: hasSearched,
+                        onSelectActor: { selectedActor = $0 }
+                    )
                 }
             }
         }
     }
+}
 
-    private func standardResultsBody(cardWidth: CGFloat) -> some View {
-        Group {
-            if isLoading, results.isEmpty, actorResults.isEmpty {
-                ProgressView()
-                    .tint(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, 40)
-            } else if hasSearched, results.isEmpty, actorResults.isEmpty {
-                VStack(spacing: 8) {
-                    Text("No results for \"\(debouncedQuery)\"")
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundStyle(.white)
-                    Text("Try a different search term")
-                        .font(.system(size: 13))
-                        .foregroundStyle(AppTheme.textDim)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.top, 60)
-            } else if hasSearched {
-                VStack(alignment: .leading, spacing: 0) {
-                    if !actorResults.isEmpty {
-                        actorsSection
-                    }
-                    if !results.isEmpty {
-                        moviesSection(cardWidth: cardWidth)
-                    }
-                }
-            } else {
-                Text("Search for movies & actors")
-                    .font(.system(size: 14))
-                    .foregroundStyle(AppTheme.textDim)
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, 60)
-            }
-        }
-    }
+// MARK: - SearchView sections
 
+private extension SearchView {
     @ViewBuilder
-    private func aiResultsBody(cardWidth: CGFloat) -> some View {
+    func aiResultsBody(cardWidth: CGFloat) -> some View {
         if isLoading {
             aiLoadingState
         } else if hasSearched, aiResults.isEmpty {
@@ -261,13 +221,13 @@ struct SearchView: View {
         }
     }
 
-    private var aiLoadingState: some View {
+    var aiLoadingState: some View {
         AISearchLoadingView()
             .frame(maxWidth: .infinity)
             .padding(.top, 60)
     }
 
-    private var aiEmptyState: some View {
+    var aiEmptyState: some View {
         VStack(spacing: 8) {
             Text("No results found")
                 .font(.system(size: 15, weight: .medium))
@@ -282,29 +242,23 @@ struct SearchView: View {
         .padding(.horizontal, 40)
     }
 
-    private func aiResultsGrid(cardWidth: CGFloat) -> some View {
+    func aiResultsGrid(cardWidth: CGFloat) -> some View {
         LazyVGrid(columns: columns, spacing: 16) {
             ForEach(aiResults) { movie in
-                NavigationLink {
-                    MovieDetailView(tmdbId: movie.tmdbId, title: movie.title, source: .search)
-                } label: {
-                    MovieCard(
-                        tmdbId: movie.tmdbId,
-                        title: movie.title,
-                        year: movie.yearString,
-                        posterPath: movie.posterPath,
-                        width: cardWidth,
-                        height: cardWidth * 1.5
-                    )
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("search.result")
+                SearchResultCard(
+                    tmdbId: movie.tmdbId,
+                    title: movie.title,
+                    year: movie.yearString,
+                    posterPath: movie.posterPath,
+                    mediaType: movie.mediaType,
+                    cardWidth: cardWidth
+                )
             }
         }
         .padding(.horizontal, 24)
     }
 
-    private var aiPromptState: some View {
+    var aiPromptState: some View {
         VStack(spacing: 8) {
             Text("Describe what you're in the mood for")
                 .font(.system(size: 14))
@@ -316,109 +270,6 @@ struct SearchView: View {
         .frame(maxWidth: .infinity)
         .padding(.top, 60)
     }
-}
-
-// MARK: - SearchView sections
-
-private extension SearchView {
-    // MARK: - Actors Section
-
-    var actorsSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Actors")
-                .font(.system(size: 15, weight: .bold))
-                .foregroundStyle(.white)
-                .padding(.horizontal, 24)
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 14) {
-                    ForEach(actorResults) { actor in
-                        Button {
-                            selectedActor = actor
-                        } label: {
-                            actorChip(actor)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(.horizontal, 24)
-            }
-        }
-        .padding(.bottom, 20)
-    }
-
-    func actorChip(_ actor: PersonResult) -> some View {
-        VStack(spacing: 4) {
-            Group {
-                let base = "https://image.tmdb.org/t/p/w185"
-                if let path = actor.profilePath, let url = URL(string: "\(base)\(path)") {
-                    CachedAsyncImage(url: url) { image in
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                    } placeholder: {
-                        Circle()
-                            .fill(AppTheme.card)
-                    }
-                } else {
-                    ZStack {
-                        Circle()
-                            .fill(AppTheme.card)
-                        Image(systemName: "person.fill")
-                            .font(.system(size: 18))
-                            .foregroundStyle(AppTheme.textDim)
-                    }
-                }
-            }
-            .frame(width: 48, height: 48)
-            .clipShape(Circle())
-
-            Text(actor.name)
-                .font(.system(size: 11))
-                .foregroundStyle(AppTheme.textMuted)
-                .lineLimit(1)
-                .frame(width: 56)
-        }
-    }
-
-    // MARK: - Movies Section
-
-    func moviesSection(cardWidth: CGFloat) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            if !actorResults.isEmpty {
-                Text("Movies")
-                    .font(.system(size: 15, weight: .bold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 24)
-            }
-
-            LazyVGrid(columns: columns, spacing: 16) {
-                ForEach(results) { movie in
-                    NavigationLink {
-                        MovieDetailView(
-                            tmdbId: movie.tmdbId,
-                            title: movie.title,
-                            source: .search,
-                            mediaType: movie.mediaType
-                        )
-                    } label: {
-                        MovieCard(
-                            tmdbId: movie.tmdbId,
-                            title: movie.title,
-                            year: movie.yearString,
-                            posterPath: movie.posterPath,
-                            width: cardWidth,
-                            height: cardWidth * 1.5,
-                            mediaType: movie.mediaType
-                        )
-                    }
-                    .buttonStyle(.plain)
-                .accessibilityIdentifier("search.result")
-                }
-            }
-            .padding(.horizontal, 24)
-        }
-    }
 
     // MARK: - Search Logic
 
@@ -428,7 +279,9 @@ private extension SearchView {
         if trimmed.isEmpty {
             debouncedQuery = ""
             results = []
+            tvResults = []
             actorResults = []
+            userResults = []
             hasSearched = false
             return
         }
@@ -439,28 +292,43 @@ private extension SearchView {
         }
     }
 
-    func search(query: String) async {
+    func searchAll(query: String) async {
         isLoading = true
-        do {
-            async let movieResponse = MoviesAPI.search(query: query)
-            async let actorResponse = MoviesAPI.searchPerson(query: query)
-            let (movies, actors) = try await (movieResponse, actorResponse)
-            if debouncedQuery == query {
-                results = movies.results
-                actorResults = actors.results
-                hasSearched = true
-                Analytics.searchPerformed(
-                    queryLength: query.count,
-                    resultCount: movies.results.count + actors.results.count
-                )
-            }
-        } catch {
-            if !Task.isCancelled {
-                hasSearched = true
-                Analytics.searchPerformed(queryLength: query.count, resultCount: 0)
-            }
+        let filter = CatalogFilterStore.shared.current()
+        let years = filter.yearsOnly
+        async let actorCall = MoviesAPI.searchPerson(query: query)
+        async let userCall = AuthAPI.searchUsers(query: query)
+        let movies = filter.media == .tv
+            ? nil
+            : try? await MoviesAPI.search(query: query, filter: years)
+        let shows = filter.media == .movies
+            ? nil
+            : try? await TVAPI.search(query: query, filter: years)
+        let actors = try? await actorCall
+        let users = try? await userCall
+        guard debouncedQuery == query else {
+            isLoading = false
+            return
         }
+        results = (movies?.results ?? []).filter {
+            filter.matches(mediaType: $0.mediaType ?? .movie, year: $0.year)
+        }
+        tvResults = (shows?.results ?? []).filter {
+            filter.matches(mediaType: .tv, year: $0.year)
+        }
+        actorResults = actors?.results ?? []
+        userResults = users?.results ?? []
+        hasSearched = true
+        Analytics.searchPerformed(
+            queryLength: query.count,
+            resultCount: results.count + tvResults.count
+                + actorResults.count + userResults.count
+        )
         isLoading = false
+    }
+
+    func loadBlends() async {
+        blends = await (try? GroupsAPI.listGroups().groups) ?? blends
     }
 
     func aiSearch() async {
