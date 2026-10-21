@@ -21,7 +21,6 @@ enum UITestLaunch {
         case tutorialTaste
         case onboardFriends
         case onboardFeed
-        case reelTutorial
         case notifications
         case notificationsPrivacy
         case notificationsError
@@ -43,18 +42,6 @@ enum UITestLaunch {
     static var prefersGrid: Bool {
         screen == .findNowEntry || screen == .onboardFeed
     }
-
-    /// Opens the first-run reel overlay on a chosen step. `-UITestTutorialStep 2`.
-    static var tutorialStep: Int? {
-        #if DEBUG
-        let args = ProcessInfo.processInfo.arguments
-        guard let index = args.firstIndex(of: "-UITestTutorialStep"),
-              index + 1 < args.count else { return nil }
-        return Int(args[index + 1])
-        #else
-        return nil
-        #endif
-    }
 }
 
 struct UITestHost: View {
@@ -66,8 +53,7 @@ struct UITestHost: View {
 
     init(screen: UITestLaunch.Screen) {
         self.screen = screen
-        let seen = screen != .reelTutorial
-        UserDefaults.standard.set(seen, forKey: ReelTutorialStore.seenKey)
+        UserDefaults.standard.set(true, forKey: "hasSeenReelsTutorial")
     }
 
     var body: some View {
@@ -113,20 +99,12 @@ struct UITestHost: View {
             OnboardingV2View(path: .constant(NavigationPath()), preview: .taste)
         case .onboardFriends:
             OnboardingV2View(path: .constant(NavigationPath()), preview: .friends)
-        case .reelTutorial:
-            HomeView()
         case .notifications:
-            NavigationStack {
-                ActivityFeedView(preview: ActivityPreview.sample())
-            }
+            NavigationStack { ActivityFeedView(preview: ActivityPreview.sample()) }
         case .notificationsPrivacy:
-            NavigationStack {
-                NotificationsSettingsView(preview: NotificationPrivacyPrefs())
-            }
+            NavigationStack { NotificationsSettingsView(preview: NotificationPrivacyPrefs()) }
         case .notificationsError:
-            NavigationStack {
-                ActivityFeedView(forcedError: "No internet connection")
-            }
+            NavigationStack { ActivityFeedView(forcedError: "No internet connection") }
         }
     }
 }

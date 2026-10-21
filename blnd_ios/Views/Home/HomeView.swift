@@ -29,11 +29,10 @@ struct HomeView: View {
     @State var seenFYPIds: Set<Int> = []
     @State var isLoadingFYP = false
     @State var isLoadingMoreFYP = false
-    @State var fypError: UserFacingError?
+    @State var fypError: String?
     @State var fypCurrentId: Int?
     @State var discoverCurrentId: Int?
-    @State var toastMessage: UserFacingError?
-    @State var toastRetry: (() -> Void)?
+    @State var toastMessage: String?
     @State var toastTask: Task<Void, Never>?
     @State var showStickySearch = false
     @State var lastScrollOffset: CGFloat = 0
@@ -41,18 +40,8 @@ struct HomeView: View {
     @State var catalogFilters = CatalogFilterStore.shared
     @State var deepLinkCommentsId: Int?
 
-    /// Show the reel coach once. The key matches `ReelTutorialStore`.
-    @AppStorage(ReelTutorialStore.seenKey) private var hasSeenTutorial = false
-    @State var tutorialNudge = ReelTutorialNudge.rest
-    @State var tutorialFrames: [ReelTutorialTarget: CGRect] = [:]
-
-    var showReelTutorial: Bool {
-        !hasSeenTutorial
-            && viewMode == .reels
-            && selectedTab == .forYou
-            && !isLoadingFYP
-            && !fypReelMovies.isEmpty
-    }
+    /// Show tutorial overlay on first launch only
+    @AppStorage("hasSeenReelsTutorial") private var hasSeenTutorial = false
 
     var body: some View {
         NavigationStack {
@@ -60,20 +49,7 @@ struct HomeView: View {
                 homeHeader
                 if viewMode == .reels {
                     reelsFeed
-                        .task { await loadForYou() }
-                        .allowsHitTesting(!showReelTutorial)
-                        .coordinateSpace(name: "homeReel")
-                        .onPreferenceChange(ReelTutorialFrameKey.self) { tutorialFrames = $0 }
-                        .overlay {
-                            if showReelTutorial {
-                                ReelTutorialOverlay(
-                                    frames: tutorialFrames,
-                                    nudge: $tutorialNudge,
-                                    initialIndex: UITestLaunch.tutorialStep,
-                                    onDismiss: dismissReelTutorial
-                                )
-                            }
-                        }
+                        .allowsHitTesting(hasSeenTutorial || isLoadingFYP || fypReelMovies.isEmpty)
                 } else {
                     gridFeed
                 }
@@ -101,6 +77,13 @@ struct HomeView: View {
                 PaywallView(source: .aiSearch)
                     .environment(authState)
             }
+            .overlay {
+                if !hasSeenTutorial, viewMode == .reels, !isLoadingFYP, !fypReelMovies.isEmpty {
+                    ScrollHintOverlay {
+                        hasSeenTutorial = true
+                    }
+                }
+            }
             .onChange(of: tabState.homeRefreshTrigger) {
                 Task { await refreshFYP() }
             }
@@ -118,13 +101,22 @@ struct HomeView: View {
             }
             .overlay(alignment: .top) {
                 if let toast = toastMessage {
-                    ErrorToast(message: toast, retry: toastRetry, onDismiss: dismissToast)
-                        .padding(.horizontal, 24)
+                    Text(toast)
+                        .font(.system(
+                            size: 13,
+                            weight: .medium
+                        ))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .background(.red.opacity(0.85))
+                        .clipShape(Capsule())
                         .padding(.top, 60)
                         .transition(
                             .move(edge: .top)
                                 .combined(with: .opacity)
                         )
+                        .onTapGesture { dismissToast() }
                 }
             }
             .animation(
@@ -174,12 +166,6 @@ struct HomeView: View {
                         .font(.system(size: 18))
                         .foregroundStyle(.white)
                     }
-                    Button { showFindNow = true } label: {
-                        Image(systemName: "sparkle")
-                            .font(.system(size: 20))
-                            .foregroundStyle(.white)
-                    }
-                    .accessibilityIdentifier("find-movie-now-button")
                     Button { showSearch = true } label: {
                         Image(systemName: "magnifyingglass")
                             .font(.system(size: 20))
@@ -211,27 +197,20 @@ struct HomeView: View {
                 .clipShape(Capsule())
             }
             .accessibilityIdentifier("find-movie-now.entry")
-            .padding(.horizontal, 20)
-            .padding(.bottom, 10)
-
+            .padding(.horizontal, 24)
+            .padding(.bottom, 12)
             HStack {
                 CatalogFilterButton()
                 Spacer()
             }
             .padding(.horizontal, 24)
-            .padding(.bottom, 8)
+            .padding(.bottom, 10)
 
             homeTabPicker()
                 .padding(.horizontal, 20)
                 .padding(.bottom, 8)
         }
         .background(AppTheme.background)
-    }
-
-    func dismissReelTutorial() {
-        tutorialNudge = .rest
-        ReelTutorialStore.markSeen()
-        hasSeenTutorial = true
     }
 
     func homeTabPicker() -> some View {

@@ -89,6 +89,7 @@ enum NowCatalog {
     ) -> RecommendedMovieResponse {
         RecommendedMovieResponse(
             tmdbId: tmdbId,
+            mediaType: .movie,
             title: title,
             year: year,
             overview: nil,
