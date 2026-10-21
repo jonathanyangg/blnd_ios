@@ -19,12 +19,14 @@ extension ReelCardView {
     }
 
     var titleLine: some View {
-        HStack(alignment: .center, spacing: 8) {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
             Text(displayTitle)
-                .font(.system(size: 22, weight: .bold))
+                .font(.system(size: 28, weight: .semibold))
                 .foregroundStyle(.white)
-                .lineLimit(1)
-                .truncationMode(.tail)
+                .lineLimit(2)
+                .minimumScaleFactor(0.75)
+
+            Spacer(minLength: 8)
 
             if movie.mediaType == .tv {
                 Text("TV")
@@ -38,10 +40,11 @@ extension ReelCardView {
             }
 
             if let pct = displayScorePercent {
-                matchBadge(pct)
+                Text("\(pct)% match")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.75))
+                    .lineLimit(1)
             }
-
-            Spacer()
         }
     }
 
@@ -55,28 +58,15 @@ extension ReelCardView {
         }
         .foregroundStyle(.black)
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 12)
+        .padding(.vertical, 13)
         .background(.white)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .clipShape(RoundedRectangle(cornerRadius: 14))
         .contentShape(Rectangle())
         .highPriorityGesture(
             TapGesture().onEnded { showStreamingSheet = true }
         )
-    }
-
-    func matchBadge(_ pct: Int) -> some View {
-        HStack(spacing: 3) {
-            Image(systemName: "sparkles")
-                .font(.system(size: 10))
-                .foregroundStyle(AppTheme.aiPurple)
-            Text("\(pct)% match")
-                .font(.system(size: 12, weight: .bold))
-                .foregroundStyle(AppTheme.aiGradient)
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(AppTheme.aiPurple.opacity(0.12))
-        .clipShape(Capsule())
+        .accessibilityIdentifier("reel.watchNow")
+        .reelTutorialFrame(.watchNow, active: isActive)
     }
 
     var metaLine: some View {
@@ -88,8 +78,9 @@ extension ReelCardView {
                 Text(meta)
             }
         }
-        .font(.system(size: 14))
-        .foregroundStyle(AppTheme.textMuted)
+        .font(.system(size: 14, weight: .medium))
+        .foregroundStyle(.white.opacity(0.75))
+        .lineLimit(1)
     }
 
     var metaParts: [String] {
@@ -125,47 +116,68 @@ extension ReelCardView {
 
     // MARK: - Media
 
-    var mediaSection: some View {
+    /// Full-bleed poster. The 16:9 trailer sits on top of this instead of in a black gap.
+    var posterBackground: some View {
         ZStack {
-            if APIConfig.screenshotMode {
-                // Screenshot mode: gradient placeholder + play icon, no real art
-                RoundedRectangle(cornerRadius: 14)
-                    .fill(AppTheme.posterGradient)
-                    .aspectRatio(16 / 9, contentMode: .fit)
-                    .overlay {
-                        Image(systemName: "play.circle.fill")
-                            .font(.system(size: 56, weight: .regular))
-                            .foregroundStyle(.white.opacity(0.9))
-                    }
-            } else if let path = movie.backdropPath, let url = URL(string: "https://image.tmdb.org/t/p/w780\(path)") {
+            AppTheme.posterGradient
+            if !APIConfig.screenshotMode, let path = movie.posterPath ?? movie.backdropPath, let url = posterURL(path) {
                 CachedAsyncImage(url: url) { image in
                     image
                         .resizable()
-                        .aspectRatio(16 / 9, contentMode: .fit)
+                        .scaledToFill()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .clipped()
                         .posterBlur()
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
                 } placeholder: {
-                    RoundedRectangle(cornerRadius: 14)
-                        .fill(AppTheme.posterGradient)
-                        .aspectRatio(16 / 9, contentMode: .fit)
+                    AppTheme.posterGradient
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-            } else {
-                RoundedRectangle(cornerRadius: 14)
-                    .fill(AppTheme.posterGradient)
-                    .aspectRatio(16 / 9, contentMode: .fit)
-            }
-
-            if showTrailer, let videoId = trailerVideoId {
-                ReelTrailerView(videoId: videoId)
-                    .aspectRatio(
-                        16 / 9, contentMode: .fit
-                    )
-                    .clipShape(
-                        RoundedRectangle(cornerRadius: 14)
-                    )
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .clipped()
+        .contentShape(Rectangle())
         .accessibilityIdentifier("reel.poster")
+    }
+
+    /// Trailer stays 16:9. Touches pass through so a vertical drag scrolls the feed.
+    @ViewBuilder
+    var trailerOverlay: some View {
+        if showTrailer, let videoId = trailerVideoId {
+            VStack(spacing: 0) {
+                ReelTrailerView(videoId: videoId)
+                    .aspectRatio(16 / 9, contentMode: .fit)
+                    .padding(.top, 8)
+                    .background(GeometryReader { geo in
+                        Color.clear.preference(
+                            key: MediaBottomYKey.self,
+                            value: geo.frame(in: .named("reelCard")).maxY
+                        )
+                    })
+                Spacer(minLength: 0)
+            }
+            .allowsHitTesting(false)
+        }
+    }
+
+    var scrim: some View {
+        LinearGradient(
+            stops: [
+                .init(color: .clear, location: 0.32),
+                .init(color: .black.opacity(0.45), location: 0.58),
+                .init(color: .black.opacity(0.88), location: 1),
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+        .allowsHitTesting(false)
+    }
+
+    var genreLine: some View {
+        Text(genres.prefix(3).compactMap(\.name).joined(separator: "  ·  "))
+            .font(.system(size: 13, weight: .medium))
+            .foregroundStyle(.white.opacity(0.7))
+            .lineLimit(1)
     }
 
     // MARK: - Details
@@ -190,7 +202,7 @@ extension ReelCardView {
             HStack(spacing: 10) {
                 Text("Watched by")
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(AppTheme.textMuted)
+                    .foregroundStyle(.white.opacity(0.75))
 
                 overlappingAvatars
 
@@ -340,14 +352,16 @@ extension ReelCardView {
                 .font(.system(size: 14, weight: .medium))
             Spacer()
         }
-        .foregroundStyle(AppTheme.textMuted)
-        .padding(.vertical, 8)
+        .foregroundStyle(.white.opacity(0.85))
+        .padding(.vertical, 2)
         .contentShape(Rectangle())
         .highPriorityGesture(
             TapGesture().onEnded {
                 onRequestWatchlist?()
             }
         )
+        .accessibilityIdentifier("reel.watchlist")
+        .reelTutorialFrame(.watchlist, active: isActive)
     }
 
     // MARK: - Comments Button
@@ -365,8 +379,8 @@ extension ReelCardView {
             }
             Spacer()
         }
-        .foregroundStyle(AppTheme.textMuted)
-        .padding(.vertical, 8)
+        .foregroundStyle(.white.opacity(0.85))
+        .padding(.vertical, 2)
         .contentShape(Rectangle())
         .highPriorityGesture(
             TapGesture().onEnded {

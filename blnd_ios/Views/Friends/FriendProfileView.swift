@@ -36,6 +36,8 @@ struct FriendProfileView: View {
     @State var isLoading = true
     @State var isLoadingMore = false
     @State var watchedGated = false
+    @State var profileError: String?
+    @State var watchedError: String?
 
     @State var selectedTab: FriendProfileTab = .watched
     @State var watchedSort: MovieSortOption = .dateDesc
@@ -57,13 +59,19 @@ struct FriendProfileView: View {
 
     var body: some View {
         ScrollView {
-            scrollContent
-                .padding(.bottom, 32)
-                .opacity(publicProfile == nil ? 0 : 1)
-                .animation(.easeOut(duration: 0.2), value: publicProfile == nil)
+            Group {
+                if isLoading, publicProfile == nil {
+                    loadingProfile
+                } else if publicProfile == nil, let profileError {
+                    failedProfile(profileError)
+                } else {
+                    scrollContent
+                }
+            }
+            .padding(.bottom, 32)
         }
         .background(AppTheme.background.ignoresSafeArea())
-        .animation(.easeInOut(duration: 0.25), value: publicProfile == nil)
+        .task { await loadData() }
         .navigationBarBackButtonHidden()
         .toolbarBackground(AppTheme.background, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
@@ -195,7 +203,6 @@ extension FriendProfileView {
                 tasteSection
             }
         }
-        .task { await loadData() }
         .onChange(of: catalogFilters.filter) { Task { await reloadWatched() } }
         .onChange(of: showFriendsList) {
             if showFriendsList {
@@ -386,6 +393,25 @@ extension FriendProfileView {
         ])
     }
 
+    private var loadingProfile: some View {
+        VStack(spacing: 0) {
+            profileHeader
+            ProgressView()
+                .tint(.white)
+                .padding(.top, 48)
+        }
+    }
+
+    private func failedProfile(_ message: String) -> some View {
+        VStack(spacing: 0) {
+            profileHeader
+            ErrorStateView(message: UserFacingError.client(.server, message: message)) {
+                Task { await loadData() }
+            }
+            .padding(.top, 32)
+        }
+    }
+
     @ViewBuilder
     private var diarySection: some View {
         if publicProfile == nil {
@@ -405,8 +431,15 @@ extension FriendProfileView {
 
     @ViewBuilder
     private var watchedSection: some View {
-        if publicProfile == nil {
-            EmptyView()
+        if isLoading, watchedMovies.isEmpty, watchedError == nil, !watchedGated {
+            ProgressView()
+                .tint(.white)
+                .padding(.top, 40)
+        } else if let watchedError {
+            ErrorStateView(message: UserFacingError.client(.server, message: watchedError)) {
+                Task { await reloadWatched() }
+            }
+            .padding(.top, 24)
         } else if watchedGated {
             watchedGatedView
         } else if watchedMovies.isEmpty {

@@ -5,6 +5,9 @@ import SwiftUI
 extension FriendProfileView {
     func loadData() async {
         isLoading = true
+        profileError = nil
+        watchedError = nil
+        watchedGated = false
 
         // Profile + mutuals always load (no friendship required)
         async let profile = ProfileAPI.getPublicProfile(userId: friend.id)
@@ -16,11 +19,21 @@ extension FriendProfileView {
             mutualCount = mutualsResult.count
         } catch is CancellationError {
             return
-        } catch { /* Non-critical */ }
+        } catch {
+            profileError = error.localizedDescription
+            isLoading = false
+            return
+        }
 
-        // Watched movies require friendship — 403 means not friends yet
+        await fetchWatched()
+        isLoading = false
+    }
+
+    /// 403 or a not-friends message means the viewer is not friends yet.
+    private func fetchWatched() async {
         watchedRequest += 1
         let request = watchedRequest
+        watchedError = nil
         do {
             let filter = catalogFilters.current()
             let watchedResult = try await ProfileAPI.getPublicWatched(
@@ -30,24 +43,30 @@ extension FriendProfileView {
                 sort: watchedSort,
                 filter: filter
             )
-            if request == watchedRequest {
-                watchedFetchedCount = watchedResult.results.count
-                watchedMovies = watchedResult.results.filter {
-                    filter.matches(mediaType: $0.mediaType, year: $0.year)
-                }
-                watchedTotal = watchedResult.total
+            guard request == watchedRequest else { return }
+            watchedFetchedCount = watchedResult.results.count
+            watchedMovies = watchedResult.results.filter {
+                filter.matches(mediaType: $0.mediaType, year: $0.year)
             }
+            watchedTotal = watchedResult.total
+            watchedGated = false
         } catch is CancellationError {
             return
-        } catch {
-            // 403 (not friends) or any other error → show gated state
-            if request == watchedRequest {
+        } catch let error as APIError {
+            guard request == watchedRequest else { return }
+            if case let .badRequest(info) = error,
+               info.code == "NOT_FRIENDS"
+                || info.raw.localizedCaseInsensitiveContains("not friends") {
                 watchedGated = true
+                watchedError = nil
+            } else {
+                watchedGated = false
+                watchedError = error.localizedDescription
             }
-        }
-
-        if request == watchedRequest {
-            isLoading = false
+        } catch {
+            guard request == watchedRequest else { return }
+            watchedGated = false
+            watchedError = error.localizedDescription
         }
     }
 
@@ -78,6 +97,7 @@ extension FriendProfileView {
 
     func reloadWatched() async {
         guard !watchedGated else { return }
+        watchedError = nil
         watchedRequest += 1
         let request = watchedRequest
         do {
@@ -97,7 +117,10 @@ extension FriendProfileView {
             watchedTotal = result.total
         } catch is CancellationError {
             return
-        } catch { /* Non-critical — keep current results */ }
+        } catch {
+            guard request == watchedRequest else { return }
+            watchedError = error.localizedDescription
+        }
     }
 
     func loadTaste() async {

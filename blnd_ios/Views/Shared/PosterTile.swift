@@ -6,56 +6,66 @@ struct PosterTile: View {
     var mediaType: MediaType? = nil
 
     var body: some View {
-        ZStack(alignment: .bottomTrailing) {
-            if let posterPath, let url = URL(string: "https://image.tmdb.org/t/p/w342\(posterPath)") {
-                CachedAsyncImage(url: url) { image in
-                    image
-                        .resizable()
-                        .aspectRatio(2 / 3, contentMode: .fill)
-                        .posterBlur()
-                } placeholder: {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(AppTheme.posterGradient)
-                        .aspectRatio(2 / 3, contentMode: .fill)
-                }
-            } else {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(AppTheme.posterGradient)
-                    .aspectRatio(2 / 3, contentMode: .fill)
-            }
+        // Fit, not fill. A LazyVGrid proposes a huge height, and
+        // aspectRatio(fill) stretches the placeholder to that height.
+        Color.clear
+            .aspectRatio(2.0 / 3.0, contentMode: .fit)
+            .overlay { poster }
+            .overlay(alignment: .bottomTrailing) { ratingBadge }
+            .overlay(alignment: .topLeading) { tvBadge }
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .contentShape(RoundedRectangle(cornerRadius: 8))
+    }
 
-            if let rating {
-                HStack(spacing: 2) {
-                    Image(systemName: "star.fill")
-                        .font(.system(size: 8))
-                    Text(
-                        rating.truncatingRemainder(dividingBy: 1) == 0
-                            ? String(format: "%.0f", rating)
-                            : String(format: "%.1f", rating)
-                    )
-                    .font(.system(size: 10, weight: .bold))
-                }
+    @ViewBuilder
+    private var poster: some View {
+        if let posterPath, let url = URL(string: "https://image.tmdb.org/t/p/w342\(posterPath)") {
+            CachedAsyncImage(url: url) { image in
+                image
+                    .resizable()
+                    .scaledToFill()
+                    .posterBlur()
+            } placeholder: {
+                AppTheme.posterGradient
+            }
+        } else {
+            AppTheme.posterGradient
+        }
+    }
+
+    @ViewBuilder
+    private var ratingBadge: some View {
+        if let rating {
+            HStack(spacing: 2) {
+                Image(systemName: "star.fill")
+                    .font(.system(size: 8))
+                Text(
+                    rating.truncatingRemainder(dividingBy: 1) == 0
+                        ? String(format: "%.0f", rating)
+                        : String(format: "%.1f", rating)
+                )
+                .font(.system(size: 10, weight: .bold))
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, 5)
+            .padding(.vertical, 3)
+            .background(.black.opacity(0.55), in: Capsule())
+            .padding(4)
+        }
+    }
+
+    @ViewBuilder
+    private var tvBadge: some View {
+        if mediaType == .tv {
+            Text("TV")
+                .font(.system(size: 10, weight: .bold))
                 .foregroundStyle(.white)
-                .padding(.horizontal, 5)
+                .padding(.horizontal, 6)
                 .padding(.vertical, 3)
                 .background(.black.opacity(0.7))
                 .clipShape(Capsule())
                 .padding(4)
-            }
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-        .overlay(alignment: .topLeading) {
-            if mediaType == .tv {
-                Text("TV")
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 3)
-                    .background(.black.opacity(0.7))
-                    .clipShape(Capsule())
-                    .padding(4)
-                    .accessibilityIdentifier("tv-show-badge")
-            }
+                .accessibilityIdentifier("tv-show-badge")
         }
     }
 }
