@@ -7,9 +7,13 @@ struct ReelsFeedView: View {
     var onLoadMore: (() async -> Void)?
     var onRefresh: (() async -> Void)?
     var externalCurrentId: Binding<Int?>?
+    var tutorialNudge: ReelTutorialNudge = .rest
+    var showsTutorial = false
 
     @State private var internalCurrentId: Int?
     @State private var toastMessage: String?
+    @State private var mutationError: UserFacingError?
+    @State private var mutationRetry: (() -> Void)?
     @State private var toastTask: Task<Void, Never>?
     @State private var watchlistTmdbId: Int?
     @State private var lastNotForMeTmdbId: Int?
@@ -26,7 +30,12 @@ struct ReelsFeedView: View {
 
     var body: some View {
         GeometryReader { geo in
-            let cardHeight = geo.size.height
+            // The floating tab bar overlaps this container. A page that
+            // includes that overlap leaves the next movie peeking under the bar.
+            // shortcut: iOS 26's floating tab bar overlaps the page when
+            // safeAreaInsets.bottom is 0. 80pt matches that bar on a Pro Max.
+            let overlap = max(geo.safeAreaInsets.bottom, 80)
+            let cardHeight = max(geo.size.height - overlap, 1)
 
             ScrollView(.vertical) {
                 LazyVStack(spacing: 0) {
@@ -59,15 +68,25 @@ struct ReelsFeedView: View {
                                 watchlistTmdbId = movie.tmdbId
                             },
                             onRated: { _ in },
+                            onMutationFailed: { copy, retry in
+                                noteMutationFailure(copy, retry: retry, tmdbId: movie.tmdbId)
+                            },
                             onShowDetail: {
                                 detailMovie = movie
                             },
                             onShowFriend: { friend in
                                 selectedFriend = friend
-                            }
+                            },
+                            tutorialNudge: movie.tmdbId == currentId ? tutorialNudge : .rest,
+                            showsTutorial: showsTutorial && movie.tmdbId == currentId
                         )
                         .frame(height: cardHeight)
                         .id(movie.tmdbId)
+                        .scrollTransition(.interactive, axis: .vertical) { content, phase in
+                            content
+                                .opacity(phase.isIdentity ? 1 : 0.7)
+                                .scaleEffect(phase.isIdentity ? 1 : 0.96)
+                        }
                     }
                 }
                 .scrollTargetLayout()
@@ -77,6 +96,8 @@ struct ReelsFeedView: View {
             )
             .scrollPosition(id: currentIdBinding)
             .scrollIndicators(.hidden)
+            .frame(height: cardHeight)
+            .clipped()
             .refreshable {
                 await onRefresh?()
             }
@@ -109,7 +130,14 @@ struct ReelsFeedView: View {
             FriendProfileView(friend: friend)
         }
         .overlay(alignment: .bottom) {
-            if let toast = toastMessage {
+            if let mutationError {
+                ErrorToast(message: mutationError, retry: mutationRetry, onDismiss: {
+                    self.mutationError = nil
+                    mutationRetry = nil
+                })
+                .padding(.horizontal, 24)
+                .padding(.bottom, 24)
+            } else if let toast = toastMessage {
                 ReelToast(
                     message: toast,
                     actionLabel: toastActionLabel(toast),
@@ -160,6 +188,20 @@ struct ReelsFeedView: View {
     }
 
     // MARK: - Toast
+
+    private func noteMutationFailure(
+        _ copy: UserFacingError,
+        retry: @escaping () -> Void,
+        tmdbId: Int
+    ) {
+        toastMessage = nil
+        if lastNotForMeTmdbId == tmdbId {
+            currentIdBinding.wrappedValue = tmdbId
+            lastNotForMeTmdbId = nil
+        }
+        mutationError = copy
+        mutationRetry = retry
+    }
 
     private func showToast(_ message: String) {
         toastTask?.cancel()

@@ -99,32 +99,17 @@ extension ImportContextView {
 
     // MARK: - Error
 
-    func errorContent(message: String) -> some View {
+    func errorContent(message: UserFacingError) -> some View {
         VStack(spacing: 0) {
             Spacer()
-            VStack(spacing: 14) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.system(size: 40))
-                    .foregroundStyle(.red)
-                Text("Import Failed")
-                    .font(.system(size: 22, weight: .bold))
-                    .foregroundStyle(.white)
-                Text(message)
-                    .font(.system(size: 15))
-                    .foregroundStyle(AppTheme.textMuted)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 24)
+            ErrorStateView(message: message) {
+                startUpload()
             }
             Spacer()
-            HStack(spacing: 12) {
-                AppButton(label: "Back", style: .ghost) {
-                    withAnimation {
-                        viewState = .instructions
-                        capturedZipData = nil
-                    }
-                }
-                AppButton(label: "Try Again") {
-                    startUpload()
+            AppButton(label: "Back", style: .ghost) {
+                withAnimation {
+                    viewState = .instructions
+                    capturedZipData = nil
                 }
             }
             .padding(.horizontal, 24)

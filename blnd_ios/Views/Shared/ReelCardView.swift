@@ -8,6 +8,7 @@ struct ReelCardView: View {
     var onSwipeResult: ((ReelSwipeResult) -> Void)?
     var onRequestWatchlist: (() -> Void)?
     var onRated: ((Double) -> Void)?
+    var onMutationFailed: ((UserFacingError, @escaping () -> Void) -> Void)?
     var onShowDetail: (() -> Void)?
     var onShowFriend: ((FriendResponse) -> Void)?
 

@@ -14,7 +14,7 @@ struct PaywallView: View {
     @Environment(AuthState.self) private var authState
     @State private var offering: Offering?
     @State private var isPurchasing = false
-    @State private var errorMessage: String?
+    @State private var errorMessage: UserFacingError?
     @State private var isRestoring = false
     @State private var didConvert = false
     @State private var isLoadingOffering = true
@@ -69,10 +69,14 @@ struct PaywallView: View {
                 Analytics.paywallDismissed(source: source)
             }
         }
-        .alert("Error", isPresented: .constant(errorMessage != nil)) {
-            Button("OK") { errorMessage = nil }
-        } message: {
-            Text(errorMessage ?? "")
+        .overlay(alignment: .bottom) {
+            if let errorMessage {
+                ErrorToast(message: errorMessage, onDismiss: {
+                    self.errorMessage = nil
+                })
+                .padding(.horizontal, 24)
+                .padding(.bottom, 24)
+            }
         }
     }
 
@@ -391,7 +395,7 @@ struct PaywallView: View {
                 dismiss()
             }
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = UserFacingError.capture(error, screen: "Paywall")
         }
         isPurchasing = false
     }
@@ -408,7 +412,7 @@ struct PaywallView: View {
                 dismiss()
             }
         } catch {
-            errorMessage = "Could not restore purchases."
+            errorMessage = UserFacingError.capture(error, screen: "Paywall")
         }
         isRestoring = false
     }

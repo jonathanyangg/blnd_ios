@@ -23,7 +23,7 @@ struct DiscoverSectionView: View {
     @State var movies: [MovieResponse] = []
     @State var discoverReelMovies: [ReelMovie] = []
     @State var isLoading = false
-    @State var errorMessage: String?
+    @State var errorMessage: UserFacingError?
     @State var selectedGenres: Set<String> = []
     @State var showGenreSheet = false
     @State var selectedActor: PersonResult?
@@ -94,18 +94,10 @@ struct DiscoverSectionView: View {
     }
 
     private func reelsError(
-        _ message: String
+        _ message: UserFacingError
     ) -> some View {
-        VStack(spacing: 12) {
-            Text(message)
-                .font(.system(size: 14))
-                .foregroundStyle(AppTheme.textMuted)
-                .multilineTextAlignment(.center)
-            Button("Retry") {
-                Task { await loadMovies() }
-            }
-            .font(.system(size: 14, weight: .semibold))
-            .foregroundStyle(.white)
+        ErrorStateView(message: message) {
+            Task { await loadMovies() }
         }
     }
 
@@ -308,7 +300,7 @@ struct DiscoverSectionView: View {
     }
 
     private func errorView(
-        message: String
+        message: UserFacingError
     ) -> some View {
         ErrorStateView(message: message) {
             Task { await loadMovies() }

@@ -13,7 +13,7 @@ class AuthState {
     var isCheckingSession: Bool
     var currentUser: UserResponse?
     var isLoading = false
-    var error: String?
+    var error: UserFacingError?
     var showPaywall = false
     /// Latest RevenueCat customer info. Nil until logIn, purchase, or restore refreshes it.
     private(set) var revenueCatCustomerInfo: CustomerInfo?
@@ -175,7 +175,7 @@ class AuthState {
             guard isCurrentSession(generation) else { return }
             // Failed check: keep a session that already signed in. Tokens stay either way.
             guard phase != .authenticated else { return }
-            self.error = "Couldn't reach the server - check your connection and try again."
+            self.error = UserFacingError.capture(error, screen: "CheckSession")
             phase = .unauthenticated
         }
     }
@@ -223,7 +223,7 @@ class AuthState {
             // Explicitly mark as needing onboarding (genres + ratings)
             phase = .onboardingPending
         } catch {
-            self.error = error.localizedDescription
+            self.error = UserFacingError.capture(error, screen: "SignUp")
         }
 
         isLoading = false
@@ -258,7 +258,7 @@ class AuthState {
             isLoading = false
             return response
         } catch {
-            self.error = error.localizedDescription
+            self.error = UserFacingError.capture(error, screen: "AppleLogin")
             isLoading = false
             return nil
         }
@@ -286,7 +286,7 @@ class AuthState {
             }
             await logInRevenueCat(userId: response.userId)
         } catch {
-            self.error = error.localizedDescription
+            self.error = UserFacingError.capture(error, screen: "Login")
         }
 
         isLoading = false
@@ -302,7 +302,7 @@ class AuthState {
             isLoading = false
             return true
         } catch {
-            self.error = error.localizedDescription
+            self.error = UserFacingError.capture(error, screen: "DeleteAccount")
             isLoading = false
             return false
         }

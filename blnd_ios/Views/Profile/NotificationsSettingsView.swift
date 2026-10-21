@@ -172,6 +172,7 @@ struct NotificationsSettingsView: View {
             loadError = nil
         } catch {
             guard !Task.isCancelled else { return }
+            _ = UserFacingError.capture(error, screen: "NotificationSettings")
             loadError = FriendlyCopy.refreshSettings
         }
         isLoading = false

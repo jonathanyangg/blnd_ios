@@ -5,7 +5,7 @@ struct FriendsListView: View {
     @State private var friends: [FriendResponse] = []
     @State private var pendingRequests: PendingRequestsResponse?
     @State private var isLoading = true
-    @State private var errorMessage: String?
+    @State private var errorMessage: UserFacingError?
     @State private var showAddFriend = false
     @State private var selectedTab = 0
 
@@ -219,7 +219,7 @@ struct FriendsListView: View {
         friends = cache.friends
         pendingRequests = cache.pendingRequests
         if friends.isEmpty, pendingRequests == nil, !cache.didLoadFriends {
-            errorMessage = "Could not load friends"
+            errorMessage = cache.friendsLoadError
         }
         isLoading = false
     }

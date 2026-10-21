@@ -53,7 +53,7 @@ extension DiscoverSectionView {
             hasMorePages = !response.results.isEmpty
         } catch {
             if !Task.isCancelled {
-                errorMessage = error.localizedDescription
+                errorMessage = UserFacingError.capture(error, screen: "Discover")
             }
         }
         isLoading = false

@@ -118,6 +118,7 @@ extension ReelCardView {
         } catch {
             UINotificationFeedbackGenerator()
                 .notificationOccurred(.warning)
+            _ = UserFacingError.capture(error, screen: "Interested")
             onSwipeResult?(.interestFailed)
         }
     }
@@ -160,6 +161,7 @@ extension ReelCardView {
         } catch {
             UINotificationFeedbackGenerator()
                 .notificationOccurred(.warning)
+            _ = UserFacingError.capture(error, screen: "NotForMe")
             onSwipeResult?(.notForMeFailed)
         }
     }

@@ -32,7 +32,9 @@ struct ActivityFeedView: View {
                     .tint(.white)
                     .padding(.top, 60)
             } else if let errorMessage, items.isEmpty, frozen == nil {
-                ErrorStateView(message: errorMessage) {
+                ErrorStateView(
+                    message: UserFacingError.client(.server, message: errorMessage)
+                ) {
                     Task { await load(reset: true) }
                 }
                 .padding(.top, 40)
