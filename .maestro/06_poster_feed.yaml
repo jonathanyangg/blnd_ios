@@ -1,0 +1,72 @@
+appId: com.jonathan.blnd-ios
+# Poster feed: tap fades the info overlay, the Details chip opens the shared
+# detail sheet, dragging it down returns to the same poster, and a long press
+# plays the trailer (or shows "No trailer available").
+# Run: maestro test -e EMAIL=... -e PASSWORD=... .maestro/06_poster_feed.yaml
+---
+- launchApp
+- runFlow:
+    when:
+      visible:
+        id: auth.welcome.sign-in
+    file: subflows/00_sign_in_steps.yaml
+- assertVisible:
+    id: home.search
+- extendedWaitUntil:
+    visible:
+      id: reel.poster
+    timeout: 20000
+- tapOn:
+    id: reel-tutorial.skip
+    optional: true
+- waitForAnimationToEnd
+- assertVisible:
+    id: reel.info.overlay
+
+# Tap the poster (above the info panel): overlay fades, tap again: it returns.
+- tapOn:
+    point: 50%,30%
+- waitForAnimationToEnd
+- assertNotVisible:
+    id: reel.info.overlay
+- tapOn:
+    point: 50%,30%
+- waitForAnimationToEnd
+- assertVisible:
+    id: reel.info.overlay
+
+# Details chip opens the shared sheet; dragging down returns to the same poster.
+- copyTextFrom:
+    id: reel.title
+- tapOn:
+    id: reel.detail.chip
+- assertVisible:
+    id: detail.sheet
+- swipe:
+    start: 50%,12%
+    end: 50%,95%
+    duration: 400
+- waitForAnimationToEnd
+- assertNotVisible:
+    id: detail.sheet
+- assertVisible:
+    id: reel.poster
+- assertVisible:
+    text: ${maestro.copiedText}
+
+# Long press: a >=1s hold locks the trailer on, or the no-trailer toast shows.
+- longPressOn:
+    point: 50%,30%
+- assertVisible:
+    id: "reel\\.trailer\\.(playing|unavailable)"
+- runFlow:
+    when:
+      visible:
+        id: reel.trailer.playing
+    commands:
+      - tapOn:
+          id: reel.sound.toggle
+      - tapOn:
+          point: 50%,50%
+      - assertNotVisible:
+          id: reel.trailer.playing
