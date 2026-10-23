@@ -11,6 +11,7 @@ struct MainTabView: View {
                 if newTab == 0, tabState.selectedTab == 0 {
                     tabState.homeRefreshTrigger += 1
                 }
+                if newTab != tabState.selectedTab { Haptics.play(.select) }
                 tabState.selectedTab = newTab
             }
         )) {

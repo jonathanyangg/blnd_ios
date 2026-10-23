@@ -32,10 +32,13 @@ struct ErrorStateView: View {
                     .background(.white)
                     .clipShape(Capsule())
                     .padding(.top, 4)
+                    .accessibilityIdentifier("state.retry")
             }
         }
         .frame(maxWidth: .infinity)
         .padding(.horizontal, 40)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("state.error")
     }
 }
 

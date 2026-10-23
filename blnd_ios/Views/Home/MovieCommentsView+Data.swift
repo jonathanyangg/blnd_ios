@@ -121,7 +121,7 @@ extension MovieCommentsView {
             let prevCount = comments[idx].likeCount
             comments[idx].likedByMe = !wasLiked
             comments[idx].likeCount = wasLiked ? max(0, prevCount - 1) : prevCount + 1
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            Haptics.play(.tap)
             Task {
                 do {
                     let result = wasLiked
@@ -149,7 +149,7 @@ extension MovieCommentsView {
                 let prevCount = comments[parentIdx].replies[replyIdx].likeCount
                 comments[parentIdx].replies[replyIdx].likedByMe = !wasLiked
                 comments[parentIdx].replies[replyIdx].likeCount = wasLiked ? max(0, prevCount - 1) : prevCount + 1
-                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                Haptics.play(.tap)
                 Task {
                     do {
                         let result = wasLiked

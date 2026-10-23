@@ -186,6 +186,7 @@ extension FriendProfileView {
             _ = try await FriendsService.sendRequest(username: friend.username)
             friendshipAction = "pending"
             Analytics.friendRequestSent()
+            Haptics.play(.success)
         } catch { /* Non-critical */ }
         isSendingRequest = false
     }

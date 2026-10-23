@@ -134,6 +134,7 @@ struct SettingsView: View {
         .sheet(isPresented: $showPaywall) {
             PaywallView(source: .settings)
                 .environment(authState)
+                .presentationBackground(AppTheme.card)
         }
         .navigationDestination(item: $destination) { dest in
             switch dest {

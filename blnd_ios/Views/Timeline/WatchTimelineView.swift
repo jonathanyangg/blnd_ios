@@ -49,14 +49,11 @@ struct WatchTimelineScreen: View {
     @ViewBuilder
     private var timelineBody: some View {
         if isLoading, entries.isEmpty {
-            ProgressView()
-                .tint(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.top, 48)
+            LoadingStateView()
         } else if entries.isEmpty, let failure {
             failureView(failure)
         } else if entries.isEmpty {
-            emptyView
+            EmptyStateView(icon: "film.stack", title: emptyTitle, message: emptyMessage)
         } else {
             loadedList
         }
@@ -114,24 +111,6 @@ struct WatchTimelineScreen: View {
         .padding(.bottom, 32)
     }
 
-    private var emptyView: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "film.stack")
-                .font(.system(size: 32, weight: .light))
-                .foregroundStyle(AppTheme.textDim)
-            Text(emptyTitle)
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(.white)
-            Text(emptyMessage)
-                .font(.system(size: 14))
-                .foregroundStyle(AppTheme.textMuted)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal, 40)
-        .padding(.top, 48)
-    }
-
     @ViewBuilder
     private func failureView(_ failure: TimelineLoadFailure) -> some View {
         switch failure {
@@ -152,6 +131,8 @@ struct WatchTimelineScreen: View {
             .frame(maxWidth: .infinity)
             .padding(.horizontal, 40)
             .padding(.top, 48)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("state.error")
         case let .message(message):
             ErrorStateView(message: .client(.server, message: message)) {
                 Task { await loadFirst() }
@@ -173,6 +154,7 @@ struct WatchTimelineScreen: View {
                 .clipShape(Capsule())
         }
         .padding(.top, 4)
+        .accessibilityIdentifier("state.retry")
     }
 
     private func loadFirst() async {
