@@ -39,14 +39,16 @@ appId: com.jonathan.blnd-ios
 - tapOn:
     id: profile.tab.watched
 - takeScreenshot: after-profile
-# Friends list: empty friends tab and empty requests tab.
+# Friends list loads (empty or populated; data-independent) and requests tab is empty.
 - tapOn:
     text: Friends
     index: 0
 - extendedWaitUntil:
-    visible:
-      id: state.empty
+    notVisible:
+      id: state.loading
     timeout: 15000
+- assertNotVisible:
+    id: state.error
 - takeScreenshot: after-friends
 - tapOn: Requests
 - assertVisible:
