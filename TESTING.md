@@ -5,16 +5,25 @@ Goal: Jonathan reviews a one-page **mini paper with screenshots**, not code. Eve
 ## Honest inventory (iOS dev 8e7986d, backend dev 8defb27; measured 2026-10-23; live copy: ~/cursor-work/test-audit/CERTAINTY.md)
 | Layer | Count | Result | Certainty |
 |---|---|---|---|
-| iOS unit (`blnd_iosTests`) | 167 | 167 pass, 0 fail, 0 skip (was 108 pass x3 on 217ecfd) | CERTAIN: fixtures + URLProtocol stub; RefreshSessionTests use tiny sleeps |
-| XCUITest (`blnd_iosUITests`) | 10 (on 217ecfd, not re-run) | 9 pass, 1 FAIL `NotesImportUITests.testReviewThenFound` | failure real until diagnosed |
-| Maestro | 13 flows | r5 + rerun: 13 of 13 green on the final flows (08_watchlist fixed after the sheet layout changed) | see below |
+| iOS unit (`blnd_iosTests`) | 182 (dev + #49) | 182 pass, 0 fail, 0 skip, 3 runs in a row (167 pass on 8e7986d; 108 pass x3 on 217ecfd) | CERTAIN: fixtures + URLProtocol stub; RefreshSessionTests use tiny sleeps |
+| XCUITest (`blnd_iosUITests`) | 10 (9 pass + `NotesImportUITests.testReviewThenFound`, last full run on 217ecfd) | `testReviewThenFound`: 3/3 pass on a quiet machine (dev 8ded991), 3/3 fail at load >=160 with "import.notes.hit.129 not hittable" (still not hittable after a 10s wait) | FLAKY under load: a timing race, not a deterministic app bug; treat as DOUBTFUL until the search-results list is waited on properly |
+| Maestro | 15 flows (14 required + 10_solo_flow) | 13 of 13 previously-required green (08_watchlist fixed after the sheet layout changed; 11_onboarding_tour new, green on r7); 10_solo_flow FAIL on r7 (search "Inception" result 0 is not Inception 2010 so `watch.hub` never shows) | see below |
 
-Maestro (iPhone 17 Pro clone `blnd-warm-1`, local backend, run r5 `~/cursor-work/qa/artifacts/maestro-r5`; screenshots in `<flow>/takeScreenshot/`):
-00 onboarding partial, 01 sign in, 02 swipe (DB-verified), 03 paywall, 04 create blend, 05 search, 06 poster feed, 07 detail/where to watch, 07 recent searches, 08 blend find movie, 08 watchlist (DB-verified, green on rerun r6), 09 empty states, 09 log/rate (DB-verified).
-Certain-ish: flows on seeded local data. DOUBTFUL (live TMDB / trailers / timing): 02, 05, 06, 07 detail, 08 blend find movie.
+Maestro (iPhone 17 Pro clone `blnd-warm-1`, local backend, runs r5-r7 under `~/cursor-work/qa/artifacts/`; screenshots in `<flow>/takeScreenshot/`):
+00 onboarding partial, 01 sign in, 02 swipe (DB-verified), 03 paywall, 04 create blend, 05 search, 06 poster feed, 07 detail/where to watch, 07 recent searches, 08 blend find movie, 08 watchlist (DB-verified), 09 empty states, 09 log/rate (DB-verified), 11 onboarding tour (mock host, deterministic).
+Certain-ish: flows on seeded local data. DOUBTFUL (live TMDB / trailers / timing): 02, 05, 06, 07 detail, 08 blend find movie, 10 solo.
 Each flow is green at least once on the current build; repetition counts are in CERTAINTY.md. Run each twice before calling it certain.
 
-Not covered yet (UNVERIFIED): onboarding after the taste picks (screen rendered blank on 217ecfd), real sign up, invitee side of Blends, StoreKit purchase, Sign in with Apple, push.
+**Known product bug (KNOWN-FAILING, `.maestro/known_failing/signup_gate.yaml`)**: on the real signed-out path, Continue on the "Movies you love" picks bounces straight back to the Welcome screen instead of showing the inline sign-up gate (`OnboardingAccountGate`, a NavigationStack nested inside the onboarding stack). On 217ecfd it looked like a blank screen with a back chevron. New users cannot finish v2 onboarding from a signed-out start.
+
+Not covered yet (UNVERIFIED): the real signed-out sign-up gate after the taste picks (broken, see above; the tour after it is covered on the mock host), real sign up, invitee side of Blends, StoreKit purchase, Sign in with Apple, push.
+
+## How Jonathan reviews (the short version)
+1. Look at the app: `tools/qa/warm.sh open` (brings the `blnd-warm-1` simulator to the front; already signed in as maya on the latest dev). Sign in as leo/sam with the demo accounts below if you need a friend or a free user.
+2. Read what changed: `open ~/cursor-work/papers/<date>-<slug>/index.html` (or `summary.md`). One page per feature or PR: GREEN / RED / UNVERIFIED verdict, the original task, what changed, test results and step screenshots. `ls -t ~/cursor-work/papers | head` shows the newest.
+3. After merging anything: `tools/qa/warm.sh refresh` (one command, ~5 min, rebuilds dev onto the warm sims and signs in).
+4. A specific PR on its own sim: `tools/qa/warm.sh pr <n>`. Clean up with `tools/qa/warm.sh gc`.
+You only need to act when a paper says RED or UNVERIFIED, or for the things only you can do (App Store Connect, repo settings, Render env vars).
 
 ## One-time setup (done on this Mac)
     brew install maestro      # already installed (2.11)
@@ -22,7 +31,8 @@ Not covered yet (UNVERIFIED): onboarding after the taste picks (screen rendered 
 
 ## Warm simulators (the "just let me look" setup)
     tools/qa/warm.sh up          # Docker + Supabase + seed + backend :8100 + boots blnd-warm-1/2/3 (9:41 status bar)
-    tools/qa/warm.sh refresh     # build origin/dev, install on all 3 sims, sign in. ~5 min, run it after every merge
+    tools/qa/warm.sh refresh     # ONE COMMAND: build origin/dev, install on all 3 sims, sign in. ~5 min, run it after every merge
+    make -f Makefile.qa refresh  # same thing
     tools/qa/warm.sh pr 52       # build PR #52 into its own sim "blnd-pr-52", signed in as maya, window opened
     tools/qa/warm.sh wt ~/cursor-work/blnd-2.0-f3   # same for a worktree, uncommitted work included: sim "blnd-wt-blnd-2.0-f3"
     tools/qa/warm.sh gc          # delete the per-PR / per-worktree sims

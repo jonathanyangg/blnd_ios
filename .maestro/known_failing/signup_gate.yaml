@@ -1,0 +1,13 @@
+# KNOWN FAILING (product bug, not a test flaw). Real signed-out path: Welcome > Create Account > pitches > 5 picks > Continue.
+# Expected: the inline sign-up gate ("Create account"). Actual on dev 8e7986d/8ded991: the app jumps straight back to the Welcome screen
+# (on 217ecfd it showed a blank black screen with only a back chevron for 20s+). Not in required.txt; run it by hand:
+#   maestro --device <udid> test .maestro/known_failing/signup_gate.yaml
+appId: com.jonathan.blnd-ios
+env: {EMAIL: maya@blnd.local, PASSWORD: Premium123!}
+---
+- runFlow: ../00_onboarding_partial.yaml
+- tapOn: {id: onboarding.continue}
+- waitForAnimationToEnd
+# Maestro text matching is case-insensitive: "Create account" would also match the Welcome button, so assert on the Welcome id.
+- assertNotVisible: {id: auth.welcome.sign-in}
+- takeScreenshot: signup-gate

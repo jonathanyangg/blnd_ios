@@ -1,4 +1,4 @@
-# Feed: swipe right on a Discover reel -> "Added to My Watchlist" feedback (toast lasts 2s, so swipe fast).
+# Feed: swipe right on a Discover reel -> "Interested" toast, card advances (toast lasts 2s, so swipe fast). Saves ONLY a movie_interactions row via POST /recommendations/{id}/interested; watchlist adds go through the card button (older builds said "Added to My Watchlist" while saving only that interaction; fixed in the app).
 appId: com.jonathan.blnd-ios
 env: {EMAIL: maya@blnd.local, PASSWORD: Premium123!}
 ---
