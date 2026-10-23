@@ -15,7 +15,9 @@ xcrun simctl bootstatus "$SIM" -b >/dev/null 2>&1
 for f in .maestro/$GLOB; do
   name=$(basename "$f" .yaml); start=$(date +%s)
   "$(dirname "$0")/reset-state.sh" >/dev/null 2>&1 || true   # repeatable flows
-  if maestro --device "$SIM" test -e EMAIL="${EMAIL:-maya@blnd.local}" -e PASSWORD="${PASSWORD:-Premium123!}" -e USERNAME_B="${USERNAME_B:-leo}" -e EMAIL_A="${EMAIL_A:-sam@blnd.local}" --test-output-dir "$OUT/$name" "$f" >"$OUT/$name.log" 2>&1; then r=PASS; else r=FAIL; fi
+  # flows from feature branches have no env: header; give them the maya demo login (flows with a header keep their own)
+  if grep -q "^env:" "$f"; then ENVARGS=""; else ENVARGS="-e EMAIL=maya@blnd.local -e PASSWORD=Premium123! -e USERNAME_B=leo -e EMAIL_A=sam@blnd.local"; fi
+  if maestro --device "$SIM" test $ENVARGS --test-output-dir "$OUT/$name" "$f" >"$OUT/$name.log" 2>&1; then r=PASS; else r=FAIL; fi
   # optional server-side assertion: .maestro/<flow>.verify.sh must exit 0 (UI alone can't prove data was saved)
   if [ "$r" = PASS ] && [ -x ".maestro/$name.verify.sh" ] && ! ".maestro/$name.verify.sh" >>"$OUT/$name.log" 2>&1; then r=FAIL; echo "DB verify failed" >>"$OUT/$name.log"; fi
   # maestro nests output in a timestamp dir; flatten so paths are predictable
