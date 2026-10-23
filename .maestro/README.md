@@ -12,11 +12,14 @@ Run: `tools/qa/run-flows.sh <sim name|udid> [out-dir] [glob]` (resets demo data 
 | 01_sign_in_email | sign out, sign in as maya | |
 | 02_swipe_interested | feed right swipe | toast is best-effort (2s), `.verify.sh` checks the DB row |
 | 03_paywall_limits | free user paywall limits | as sam |
-| 04_create_blend | create Blend, invite Leo | |
+| 04_create_blend | create Blend with Leo | |
 | 05_search | search "Inception" | |
-| 06_search_recent | recent searches + clear | PENDING: fails until the recent-searches feature merges; not in required.txt |
+| 06_poster_feed | poster overlay, detail sheet, trailer long-press | from feature branch |
+| 07_recent_searches | recent searches, delete, clear all | from feature branch |
+| 08_blend_find_movie | Blend with friend, find a movie, where to watch, rate | from feature branch, needs USERNAME_B (leo) |
+| 09_empty_states | empty/error states | from feature branch, run as sam |
 | 07_detail_where_to_watch | movie detail, where to watch | |
-| 08_watchlist | add to watchlist | sheet is not in the accessibility tree, driven by coordinates; `.verify.sh` checks the DB |
+| 08_watchlist | add to watchlist | sheet rows are not in the accessibility tree, driven by coordinates (re-check if the sheet layout changes); `.verify.sh` checks the DB |
 | 09_log_rate | star rating, Watched with | `.verify.sh` checks the rating row |
 
 `<flow>.verify.sh` (optional) runs after a passing flow and must exit 0: it proves the server really saved what the UI showed.

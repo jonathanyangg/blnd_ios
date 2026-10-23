@@ -4,6 +4,10 @@
 03_paywall_limits
 04_create_blend
 05_search
+06_poster_feed
 07_detail_where_to_watch
+07_recent_searches
+08_blend_find_movie
 08_watchlist
+09_empty_states
 09_log_rate

@@ -17,9 +17,9 @@ env: {EMAIL: maya@blnd.local, PASSWORD: Premium123!}
 - waitForAnimationToEnd
 - takeScreenshot: 08-1-add-sheet
 - tapOn:
-    point: 30%,60%
+    point: 30%,66%
 - tapOn:
-    point: 92%,51%
+    point: 89%,51%
 - waitForAnimationToEnd
 - takeScreenshot: 08-2-saved
 # detail is a pushed page without the tab bar; relaunch (session persists) to get back to Home
