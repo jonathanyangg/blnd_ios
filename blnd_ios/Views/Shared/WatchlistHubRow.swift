@@ -24,7 +24,9 @@ struct WatchlistHubRow: View {
                 Spacer(minLength: 0)
                 Button {
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    PendingWatchStore().opened(tmdbId: movie.tmdbId, title: movie.title, posterPath: movie.posterPath)
+                    if movie.mediaType != .tv {
+                        PendingWatchStore().opened(tmdbId: movie.tmdbId, title: movie.title, posterPath: movie.posterPath)
+                    }
                     Task { await WatchLinkOpener.open(best.offer, kind: best.kind) }
                 } label: {
                     Text("Watch now")

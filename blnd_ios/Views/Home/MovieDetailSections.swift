@@ -54,7 +54,10 @@ extension MovieDetailView {
             failed: watchFailed,
             isPremium: authState.isPremium
         ) { offer, kind in
-            PendingWatchStore().opened(tmdbId: tmdbId, title: displayTitle, posterPath: movie?.posterPath)
+            // The log prompt rates through the movie API, so series aren't recorded.
+            if mediaType != .tv {
+                PendingWatchStore().opened(tmdbId: tmdbId, title: displayTitle, posterPath: movie?.posterPath)
+            }
             Task { await WatchLinkOpener.open(offer, kind: kind) }
         }
         .padding([.horizontal, .top], 14)

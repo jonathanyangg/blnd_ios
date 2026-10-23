@@ -5,6 +5,12 @@ appId: com.jonathan.blnd-ios
 # Run: maestro test -e EMAIL=... -e PASSWORD=... .maestro/10_solo_flow.yaml
 ---
 - launchApp
+# Let the session check finish so a signed-out launch shows the welcome screen.
+- extendedWaitUntil:
+    visible:
+      id: auth.welcome.sign-in
+    timeout: 20000
+    optional: true
 - runFlow:
     when:
       visible:
