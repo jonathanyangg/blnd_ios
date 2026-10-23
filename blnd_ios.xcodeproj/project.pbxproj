@@ -603,6 +603,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				API_BASE_URL = "http://127.0.0.1:8000";
+				SUPABASE_PROJECT_URL = "https://wtnbecnjsougjjcplhqf.supabase.co";
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = blnd_ios/blnd_ios.entitlements;
@@ -645,6 +646,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				API_BASE_URL = "https://blnd-backend.onrender.com";
+				SUPABASE_PROJECT_URL = "https://wtnbecnjsougjjcplhqf.supabase.co";
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = blnd_ios/blnd_ios.entitlements;
@@ -686,6 +688,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				API_BASE_URL = "https://blnd-backend-staging.onrender.com";
+				SUPABASE_PROJECT_URL = "https://dscyhvcajteutrzoatvf.supabase.co";
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = blnd_ios/blnd_ios.entitlements;
