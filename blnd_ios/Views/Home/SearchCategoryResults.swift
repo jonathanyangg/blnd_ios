@@ -26,6 +26,7 @@ struct UnifiedSearchResults: View {
     let hasSearched: Bool
     let onSelectActor: (PersonResult) -> Void
     @State private var detailItem: MovieDetailItem?
+    var onSelectResult: () -> Void = {}
 
     private var trimmedQuery: String {
         query.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -61,13 +62,13 @@ struct UnifiedSearchResults: View {
     var body: some View {
         if segment == .assist {
             EmptyView()
-        } else if !hasSearched {
-            prompt("Search movies, people, users, and blends")
         } else if isLoading, movies.isEmpty, actors.isEmpty, users.isEmpty {
             ProgressView()
                 .tint(.white)
                 .frame(maxWidth: .infinity)
                 .padding(.top, 40)
+        } else if !hasSearched {
+            prompt("Search movies, people, users, and blends")
         } else if nothingToShow {
             prompt("No results for \"\(query)\"")
         } else {
@@ -81,6 +82,7 @@ struct UnifiedSearchResults: View {
                                 movieRow(movie)
                             }
                             .buttonStyle(.plain)
+                            .accessibilityIdentifier("search.result")
                         }
                     }
                 }
@@ -136,6 +138,8 @@ struct UnifiedSearchResults: View {
                 MovieDetailSheet(tmdbId: item.tmdbId, title: item.title, source: .search)
             }
             .padding(.bottom, 24)
+            // Any result tap (movie, show, person, user, blend) counts as using the query.
+            .simultaneousGesture(TapGesture().onEnded(onSelectResult))
         }
     }
 
