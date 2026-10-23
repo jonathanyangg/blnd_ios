@@ -27,7 +27,7 @@ struct MovieDetailView: View {
     @State var watchLoading = true
     @State var watchFailed = false
 
-    private var displayTitle: String {
+    var displayTitle: String {
         movie?.title ?? title
     }
 
@@ -127,9 +127,10 @@ struct MovieDetailView: View {
                 await fetchMovie()
                 async let watch: () = loadWhereToWatch()
                 async let watched: () = checkWatchedStatus()
+                async let watchlisted: () = checkWatchlistStatus()
                 async let hidden: () = checkHiddenStatus()
                 async let friends: () = loadFriendsWhoWatched()
-                _ = await (watch, watched, hidden, friends)
+                _ = await (watch, watched, watchlisted, hidden, friends)
             }
         }
     }
@@ -203,6 +204,9 @@ struct MovieDetailView: View {
 
             metaRow(movie)
             genreRow(movie)
+            whereToWatchSection
+            actionBar
+            detailRatingBar
             taglineSection(movie)
             overviewSection(movie)
             CastSectionView(cast: movie.cast)
@@ -211,10 +215,6 @@ struct MovieDetailView: View {
                 .overlay(AppTheme.border)
                 .padding(.bottom, 20)
 
-            detailRatingBar
-            watchedWithRow
-            actionButtonsRow
-            whereToWatchSection
             FriendsWhoWatchedSection(friends: friendsWhoWatched)
             commentsRow(movie)
         }

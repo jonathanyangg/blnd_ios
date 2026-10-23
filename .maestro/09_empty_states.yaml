@@ -20,8 +20,8 @@ appId: com.jonathan.blnd-ios
 - tapOn:
     id: profile.tab.watchlist
 - extendedWaitUntil:
-    visible:
-      id: state.empty
+    notVisible:
+      id: state.loading
     timeout: 15000
 - assertNotVisible:
     id: state.error

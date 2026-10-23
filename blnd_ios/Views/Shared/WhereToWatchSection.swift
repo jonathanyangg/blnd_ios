@@ -45,13 +45,31 @@ struct WhereToWatchSection: View {
         .padding(.bottom, 20)
     }
 
+    /// Stream, Rent, and Buy groups. `watch.provider.<index>` counts across groups.
     private func rows(_ payload: WhereToWatch) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        let hub = payload.hubOffers
+        return VStack(alignment: .leading, spacing: 4) {
             ForEach(WatchOfferKind.allCases, id: \.self) { kind in
-                ForEach(payload.offers(kind)) { offer in
-                    offerButton(offer, kind: kind)
+                let indices = hub.indices.filter { hub[$0].kind == kind }
+                if !indices.isEmpty {
+                    Text(groupTitle(kind))
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(AppTheme.textDim)
+                        .padding(.top, 6)
+                    ForEach(indices, id: \.self) { index in
+                        offerButton(hub[index].offer, kind: kind)
+                            .accessibilityIdentifier("watch.provider.\(index)")
+                    }
                 }
             }
+        }
+    }
+
+    private func groupTitle(_ kind: WatchOfferKind) -> String {
+        switch kind {
+        case .watchNow: "STREAM"
+        case .rent: "RENT"
+        case .buy: "BUY"
         }
     }
 
