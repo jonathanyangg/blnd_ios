@@ -127,7 +127,7 @@ cmd_wt() { # build a worktree as-is into its own sim; never modifies the worktre
       -destination 'generic/platform=iOS Simulator' -derivedDataPath "$WORK/dd/wt-$slug" \
       "API_BASE_URL=http://localhost:$PORT" build >"$WORK/reports/build-wt-$slug.log" 2>&1 ) \
     || { log "BUILD FAILED, see $WORK/reports/build-wt-$slug.log"; tail -15 "$WORK/reports/build-wt-$slug.log" >&2; return 1; }
-  install_and_login "$u" "blnd-wt-1" "$WORK/dd/wt-$slug/Build/Products/Debug-iphonesimulator/blnd_ios.app"
+  install_and_login "$u" "blnd-wt-$slug" "$WORK/dd/wt-$slug/Build/Products/Debug-iphonesimulator/blnd_ios.app"
   xcrun simctl io "$u" screenshot "$WORK/artifacts/wt-$slug/home.png" >/dev/null 2>&1
   open -a Simulator --args -CurrentDeviceUDID "$u"
   log "worktree '$slug' ($(git -C "$dir" rev-parse --short HEAD 2>/dev/null) + uncommitted) is on sim '$n' (signed in as maya)"

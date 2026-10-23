@@ -11,3 +11,4 @@
 08_watchlist
 09_empty_states
 09_log_rate
+11_onboarding_tour
