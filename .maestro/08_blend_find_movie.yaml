@@ -1,0 +1,49 @@
+appId: com.jonathan.blnd-ios
+# maestro test -e EMAIL=... -e PASSWORD=... -e USERNAME_B=... .maestro/08_blend_find_movie.yaml
+---
+- launchApp
+- runFlow:
+    when:
+      visible:
+        id: auth.welcome.sign-in
+    file: subflows/00_sign_in_steps.yaml
+- assertVisible:
+    id: home.search
+- tapOn:
+    text: Blends
+- tapOn:
+    id: blends.create
+- assertVisible: New Blend
+- tapOn:
+    id: blends.members.search
+- inputText: ${USERNAME_B}
+- tapOn:
+    id: blends.member.${USERNAME_B}
+- assertVisible: Adding 1
+- tapOn:
+    id: blends.create.submit
+- extendedWaitUntil:
+    visible:
+      id: blend.findMovie
+    timeout: 15000
+- tapOn:
+    id: blend.findMovie
+- extendedWaitUntil:
+    visible:
+      id: blend.pick.title
+    timeout: 30000
+- tapOn:
+    id: blend.whereToWatch
+- assertVisible: Where to Watch
+- tapOn:
+    id: streaming.close
+- tapOn:
+    id: blend.watched
+- tapOn:
+    id: rating.star.4
+- tapOn:
+    id: rate.save
+- extendedWaitUntil:
+    visible:
+      id: blend.done
+    timeout: 15000

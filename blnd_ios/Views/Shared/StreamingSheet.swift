@@ -52,6 +52,7 @@ struct StreamingSheet: View {
                     .background(AppTheme.background)
                     .clipShape(Circle())
             }
+            .accessibilityIdentifier("streaming.close")
             Spacer()
             Text("Where to Watch")
                 .font(.system(size: 17, weight: .bold))

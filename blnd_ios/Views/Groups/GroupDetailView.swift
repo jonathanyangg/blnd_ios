@@ -27,6 +27,7 @@ struct GroupDetailView: View {
     @State var toastTask: Task<Void, Never>?
     @State var timelineReload = 0
     @State var isEditingName = false
+    @State var showPick = false
     @State var editedName = ""
     @Namespace var tabNamespace
     @State var catalogFilters = CatalogFilterStore.shared
@@ -80,6 +81,11 @@ struct GroupDetailView: View {
         .refreshable { await loadAll(forceRefresh: true) }
         .sheet(isPresented: $showMembers) {
             membersSheet
+        }
+        .sheet(isPresented: $showPick) {
+            BlendPickView(model: BlendPickModel(groupId: groupId))
+                .presentationDragIndicator(.visible)
+                .presentationBackground(AppTheme.background)
         }
         .overlay {
             if isEditingName {
@@ -160,6 +166,11 @@ struct GroupDetailView: View {
                 .padding(.top, 8)
                 .padding(.bottom, 12)
             }
+
+            AppButton(label: "Find a movie for us") { showPick = true }
+                .accessibilityIdentifier("blend.findMovie")
+                .padding(.horizontal, 24)
+                .padding(.bottom, 12)
 
             groupTabPicker
                 .padding(.horizontal, 24)

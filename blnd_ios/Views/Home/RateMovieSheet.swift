@@ -73,6 +73,7 @@ struct RateMovieSheet: View {
             ) {
                 Task { await save() }
             }
+            .accessibilityIdentifier("rate.save")
         }
         .padding(.horizontal, 20)
         .padding(.top, 20)

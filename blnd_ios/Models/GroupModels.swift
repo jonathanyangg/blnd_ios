@@ -113,6 +113,8 @@ struct GroupRecMovieResponse: Decodable, Identifiable {
     let matchScore: Double
     let commentCount: Int?
     let mediaType: MediaType?
+    /// Why the blend got this pick, e.g. "You both rated X highly". Older servers omit it.
+    let reason: String?
 
     var id: Int {
         tmdbId
@@ -148,6 +150,7 @@ struct GroupRecMovieResponse: Decodable, Identifiable {
         case matchScore = "match_score"
         case commentCount = "comment_count"
         case mediaType = "media_type"
+        case reason
     }
 }
 

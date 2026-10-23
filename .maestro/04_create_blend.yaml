@@ -21,11 +21,17 @@ appId: com.jonathan.blnd-ios
 - tapOn:
     text: Blend name...
     optional: true
+- eraseText
 - inputText: Maestro Blend
 - tapOn:
     id: blends.create.submit
-- assertVisible: "Add Member"
-- tapOn:
-    id: blends.members.done
+# Create opens the new blend directly; go back to see it in the list.
+- extendedWaitUntil:
+    visible:
+      id: blend.findMovie
+    timeout: 15000
+- swipe:
+    start: 2%, 50%
+    end: 80%, 50%
 - assertVisible:
     id: blends.group
