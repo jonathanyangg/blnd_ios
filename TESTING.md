@@ -7,7 +7,7 @@ Goal: Jonathan reviews a one-page **mini paper with screenshots**, not code. Eve
 |---|---|---|---|
 | iOS unit (`blnd_iosTests`) | 167 | 167 pass, 0 fail, 0 skip (was 108 pass x3 on 217ecfd) | CERTAIN: fixtures + URLProtocol stub; RefreshSessionTests use tiny sleeps |
 | XCUITest (`blnd_iosUITests`) | 10 (9 pass + `NotesImportUITests.testReviewThenFound`, last full run on 217ecfd) | `testReviewThenFound`: 3/3 pass on a quiet machine (dev 8ded991), 3/3 fail at load >=160 with "import.notes.hit.129 not hittable" (still not hittable after a 10s wait) | FLAKY under load: a timing race, not a deterministic app bug; treat as DOUBTFUL until the search-results list is waited on properly |
-| Maestro | 14 flows (13 required + 10_solo_flow) | 13 of 13 required green (08_watchlist fixed after the sheet layout changed; 11_onboarding_tour new, green on r7); 10_solo_flow FAIL on r7 (search "Inception" result 0 is not Inception 2010 so `watch.hub` never shows) | see below |
+| Maestro | 15 flows (14 required + 10_solo_flow) | 13 of 13 previously-required green (08_watchlist fixed after the sheet layout changed; 11_onboarding_tour new, green on r7); 10_solo_flow FAIL on r7 (search "Inception" result 0 is not Inception 2010 so `watch.hub` never shows) | see below |
 
 Maestro (iPhone 17 Pro clone `blnd-warm-1`, local backend, runs r5-r7 under `~/cursor-work/qa/artifacts/`; screenshots in `<flow>/takeScreenshot/`):
 00 onboarding partial, 01 sign in, 02 swipe (DB-verified), 03 paywall, 04 create blend, 05 search, 06 poster feed, 07 detail/where to watch, 07 recent searches, 08 blend find movie, 08 watchlist (DB-verified), 09 empty states, 09 log/rate (DB-verified), 11 onboarding tour (mock host, deterministic).
