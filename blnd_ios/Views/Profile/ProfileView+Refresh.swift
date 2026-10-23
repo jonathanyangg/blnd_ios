@@ -32,6 +32,7 @@ extension ProfileView {
         async let taste: () = loadTaste()
         async let unread: () = loadUnreadCount()
         _ = await (watched, watchlist, counts, taste, unread)
+        diaryReload += 1
         await authState.fetchCurrentUser()
     }
 }

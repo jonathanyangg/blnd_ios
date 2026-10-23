@@ -66,6 +66,7 @@ extension ReelCardView {
             TapGesture().onEnded { showStreamingSheet = true }
         )
         .accessibilityIdentifier("reel.watchNow")
+        .reelTutorialFrame(.watchNow, active: isActive)
     }
 
     var metaLine: some View {
@@ -360,6 +361,7 @@ extension ReelCardView {
             }
         )
         .accessibilityIdentifier("reel.watchlist")
+        .reelTutorialFrame(.watchlist, active: isActive)
     }
 
     // MARK: - Comments Button

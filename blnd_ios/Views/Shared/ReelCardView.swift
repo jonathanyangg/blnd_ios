@@ -11,6 +11,9 @@ struct ReelCardView: View {
     var onMutationFailed: ((UserFacingError, @escaping () -> Void) -> Void)?
     var onShowDetail: (() -> Void)?
     var onShowFriend: ((FriendResponse) -> Void)?
+    var tutorialNudge: ReelTutorialNudge = .rest
+    var showsTutorial = false
+
     @State var swipeOffset: CGFloat = 0
     @State var swipeTriggeredHaptic = false
     @State var isDragging = false
@@ -38,7 +41,8 @@ struct ReelCardView: View {
     }
 
     var showTrailer: Bool {
-        !APIConfig.screenshotMode
+        !showsTutorial
+            && !APIConfig.screenshotMode
             && isActive && trailerReady && trailerVideoId != nil
     }
 
@@ -70,10 +74,11 @@ struct ReelCardView: View {
         .clipped()
         .coordinateSpace(name: "reelCard")
         .onPreferenceChange(MediaBottomYKey.self) { mediaBottomY = $0 }
-        .offset(x: swipeOffset)
+        .offset(x: swipeOffset + tutorialNudge.x, y: tutorialNudge.y)
         .rotationEffect(
-            .degrees(Double(swipeOffset) * 0.02)
+            .degrees(Double(swipeOffset) * 0.02 + tutorialNudge.degrees)
         )
+        .reelTutorialFrame(.card, active: isActive)
         .simultaneousGesture(horizontalSwipe)
         .overlay { swipeIndicators }
         .onTapGesture {
@@ -133,7 +138,7 @@ struct ReelCardView: View {
             .presentationBackground(AppTheme.card)
         }
         .onAppear {
-            if isActive {
+            if isActive, !showsTutorial {
                 trailerReady = true
                 activeStartTime = Date()
                 if let vid = trailerVideoId {
@@ -141,11 +146,21 @@ struct ReelCardView: View {
                 }
             }
         }
+        .onChange(of: showsTutorial) { _, showing in
+            guard isActive else { return }
+            if showing {
+                trailerReady = false
+                TrailerPlayer.shared.stop()
+            } else if let vid = trailerVideoId {
+                trailerReady = true
+                TrailerPlayer.shared.play(videoId: vid)
+            }
+        }
         .onChange(of: isActive) { _, active in
             if active {
                 activeStartTime = Date()
                 loadFriends()
-                if let vid = trailerVideoId {
+                if !showsTutorial, let vid = trailerVideoId {
                     trailerReady = true
                     TrailerPlayer.shared.play(videoId: vid)
                 }

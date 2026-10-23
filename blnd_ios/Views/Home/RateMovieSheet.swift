@@ -18,6 +18,7 @@ struct RateMovieSheet: View {
     @State private var friends: [FriendResponse] = []
     @State private var selectedFriendIds: Set<String> = []
     @State private var didEditCompanions = false
+    @State private var companionNote: String?
     @State private var isLoadingFriends = false
     @State private var friendsError: String?
 
@@ -25,15 +26,12 @@ struct RateMovieSheet: View {
         existingRating != nil || savedRating != nil
     }
 
-    private var selectedCompanions: [WatchCompanion] {
+    private var selectedCompanions: [TimelinePerson] {
         friends.compactMap { friend in
             guard selectedFriendIds.contains(friend.id) else { return nil }
-            return WatchCompanion(
-                userId: friend.id,
-                username: friend.username,
-                displayName: friend.displayName,
-                avatarUrl: friend.avatarUrl
-            )
+            let trimmed = friend.displayName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let name = trimmed.isEmpty ? friend.username : trimmed
+            return TimelinePerson(id: friend.id, name: name, avatar: friend.avatarUrl)
         }
     }
 
@@ -131,6 +129,12 @@ struct RateMovieSheet: View {
                 .frame(maxHeight: 220)
             }
 
+            if let companionNote {
+                Text(companionNote)
+                    .font(.system(size: 13))
+                    .foregroundStyle(AppTheme.textMuted)
+            }
+
             if let line = DiaryCopy.watchedWithLine(selectedCompanions) {
                 Text(line)
                     .font(.system(size: 14, weight: .medium))
@@ -144,12 +148,10 @@ struct RateMovieSheet: View {
         let trimmedName = friend.displayName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let label = trimmedName.isEmpty ? friend.username : trimmedName
         return Button {
-            if isSelected {
-                selectedFriendIds.remove(friend.id)
-            } else {
-                selectedFriendIds.insert(friend.id)
-            }
-            didEditCompanions = true
+            let result = DiaryCopy.toggle(friend.id, in: selectedFriendIds)
+            selectedFriendIds = result.selected
+            companionNote = result.hitCap ? DiaryCopy.companionCapMessage : nil
+            if !result.hitCap { didEditCompanions = true }
         } label: {
             HStack(spacing: 10) {
                 AvatarView(url: friend.avatarUrl, size: 32)
@@ -207,7 +209,7 @@ struct RateMovieSheet: View {
         do {
             let existing = try await TimelineAPI.watchedWith(tmdbId: tmdbId)
             if !didEditCompanions {
-                selectedFriendIds = Set(existing.map(\.userId))
+                selectedFriendIds = Set(existing.map(\.id))
             }
         } catch {
             return

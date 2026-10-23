@@ -35,6 +35,8 @@ extension ReelCardView {
                     ratingStar(index: index)
                 }
             }
+            .accessibilityIdentifier("reel.stars")
+            .reelTutorialFrame(.stars, active: isActive)
 
             Spacer(minLength: 0)
 
