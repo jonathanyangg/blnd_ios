@@ -93,6 +93,7 @@ struct FriendProfileView: View {
                 currentStatus == "accepted" ? "Remove" : "Withdraw",
                 role: .destructive
             ) {
+                Haptics.play(.warning)
                 Task { await removeFriend() }
             }
         } message: {
@@ -105,6 +106,7 @@ struct FriendProfileView: View {
         .alert("Block @\(friend.username)?", isPresented: $showBlockAlert) {
             Button("Cancel", role: .cancel) {}
             Button("Block", role: .destructive) {
+                Haptics.play(.warning)
                 Task { await blockUser() }
             }
         } message: {

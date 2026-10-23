@@ -28,9 +28,7 @@ struct ActivityFeedView: View {
     var body: some View {
         ScrollView {
             if isLoading {
-                ProgressView()
-                    .tint(.white)
-                    .padding(.top, 60)
+                LoadingStateView()
             } else if let errorMessage, items.isEmpty, frozen == nil {
                 ErrorStateView(
                     message: UserFacingError.client(.server, message: errorMessage)
@@ -39,7 +37,11 @@ struct ActivityFeedView: View {
                 }
                 .padding(.top, 40)
             } else if feed.requests.isEmpty, feed.sections.isEmpty {
-                emptyState
+                EmptyStateView(
+                    icon: "bell.slash",
+                    title: "No notifications yet",
+                    message: "Activity from friends and blends will show up here"
+                )
             } else {
                 feedList
             }
@@ -59,7 +61,7 @@ struct ActivityFeedView: View {
         }
         .navigationDestination(item: $route) { destination($0) }
         .task { await open() }
-        .refreshable { await load(reset: true) }
+        .refreshable { Haptics.play(.refreshed(ok: await load(reset: true))) }
         .accessibilityIdentifier("notifications-feed")
     }
 
@@ -100,23 +102,6 @@ struct ActivityFeedView: View {
                     .padding(.vertical, 20)
             }
         }
-    }
-
-    private var emptyState: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "bell.slash")
-                .font(.system(size: 36))
-                .foregroundStyle(AppTheme.textDim)
-            Text("No notifications yet")
-                .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(.white)
-            Text("Activity from friends and blends will show up here")
-                .font(.system(size: 14))
-                .foregroundStyle(AppTheme.textMuted)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 40)
-        }
-        .padding(.top, 60)
     }
 
     private func sectionHeader(_ title: String) -> some View {
@@ -232,11 +217,14 @@ struct ActivityFeedView: View {
             if accept {
                 try await NotificationAPI.acceptInboxItem(id: request.inboxID)
                 Analytics.friendRequestAccepted()
+                Haptics.play(.success)
             } else {
                 try await NotificationAPI.declineInboxItem(id: request.inboxID)
                 Analytics.friendRequestRejected()
             }
-            items.removeAll { $0.id == request.inboxID }
+            withAnimation(.easeOut(duration: 0.2)) {
+                items.removeAll { $0.id == request.inboxID }
+            }
             await tabState.refreshPendingCount()
         } catch {
             actionError = FriendlyCopy.requestAction

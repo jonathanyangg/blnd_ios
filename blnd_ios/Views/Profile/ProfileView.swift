@@ -27,6 +27,8 @@ struct ProfileView: View {
     @State private var watchlistTotal = 0
     @State private var isLoadingWatched = false
     @State private var isLoadingWatchlist = false
+    @State private var watchedError: UserFacingError?
+    @State private var watchlistError: UserFacingError?
     @State private var friendsCount = 0
     @State private var groupsCount = 0
     @State var genreTaste: GenreTasteResponse?
@@ -90,7 +92,10 @@ struct ProfileView: View {
                 }
             }
             .background(AppTheme.background)
-            .refreshable { await refreshAll() }
+            .refreshable {
+                await refreshAll()
+                Haptics.play(.refreshed(ok: watchedError == nil && watchlistError == nil))
+            }
             .navigationDestination(isPresented: $showSettings) {
                 SettingsView()
             }
@@ -109,6 +114,7 @@ struct ProfileView: View {
             .sheet(isPresented: $showPaywall) {
                 PaywallView(source: .manual)
                     .environment(authState)
+                    .presentationBackground(AppTheme.card)
             }
             .fullScreenCover(isPresented: $showFullAvatar) {
                 FullAvatarView(url: authState.currentUser?.avatarUrl) {
@@ -289,6 +295,7 @@ struct ProfileView: View {
                 HStack(spacing: 22) {
                 ForEach(ProfileTab.allCases, id: \.self) { tab in
                     Button {
+                        if selectedTab != tab { Haptics.play(.select) }
                         withAnimation(.easeInOut(duration: 0.2)) {
                             selectedTab = tab
                         }
@@ -318,6 +325,7 @@ struct ProfileView: View {
                             }
                         }
                     }
+                    .accessibilityIdentifier("profile.tab.\(tab.rawValue.lowercased())")
                 }
                 }
             }
@@ -364,15 +372,19 @@ struct ProfileView: View {
 extension ProfileView {
     var watchedGrid: some View {
         Group {
-            if isLoadingWatched {
-                ProgressView()
-                    .tint(.white)
+            switch LoadState.resolve(isLoading: isLoadingWatched, error: watchedError, isEmpty: watchedMovies.isEmpty) {
+            case .loading:
+                LoadingStateView()
+            case let .error(error):
+                ErrorStateView(message: error) { Task { await loadWatched() } }
                     .padding(.top, 40)
-            } else if watchedMovies.isEmpty {
-                emptyState(message: catalogFilters.filter.isActive
-                    ? "Nothing matches this filter"
-                    : "No watched movies yet")
-            } else {
+            case .empty:
+                EmptyStateView(
+                    icon: "film",
+                    title: catalogFilters.filter.isActive ? "Nothing matches this filter" : "No watched movies yet",
+                    message: catalogFilters.filter.isActive ? nil : "Rate a movie and it shows up here."
+                )
+            case .content:
                 PosterGrid {
                     ForEach(watchedMovies) { movie in
                         NavigationLink {
@@ -394,15 +406,19 @@ extension ProfileView {
 
     var watchlistGrid: some View {
         Group {
-            if isLoadingWatchlist {
-                ProgressView()
-                    .tint(.white)
+            switch LoadState.resolve(isLoading: isLoadingWatchlist, error: watchlistError, isEmpty: watchlistMovies.isEmpty) {
+            case .loading:
+                LoadingStateView()
+            case let .error(error):
+                ErrorStateView(message: error) { Task { await loadWatchlist() } }
                     .padding(.top, 40)
-            } else if watchlistMovies.isEmpty {
-                emptyState(message: catalogFilters.filter.isActive
-                    ? "Nothing matches this filter"
-                    : "Your watchlist is empty")
-            } else {
+            case .empty:
+                EmptyStateView(
+                    icon: "bookmark",
+                    title: catalogFilters.filter.isActive ? "Nothing matches this filter" : "Your watchlist is empty",
+                    message: catalogFilters.filter.isActive ? nil : "Save movies you want to watch and they land here."
+                )
+            case .content:
                 PosterGrid {
                     ForEach(Array(watchlistMovies.enumerated()), id: \.element.id) { index, movie in
                         VStack(spacing: 6) {
@@ -466,14 +482,6 @@ extension ProfileView {
             }
         }
     }
-
-    func emptyState(message: String) -> some View {
-        Text(message)
-            .font(.system(size: 14))
-            .foregroundStyle(AppTheme.textMuted)
-            .frame(maxWidth: .infinity)
-            .padding(.top, 40)
-    }
 }
 
 // MARK: - Data Loading
@@ -494,6 +502,7 @@ extension ProfileView {
         watchedRequest += 1
         let request = watchedRequest
         isLoadingWatched = true
+        watchedError = nil
         do {
             let filter = catalogFilters.current()
             let response = try await TrackingAPI.getWatchHistory(
@@ -508,7 +517,9 @@ extension ProfileView {
             watchedTotal = response.total
         } catch is CancellationError {
             return
-        } catch { /* Non-critical — empty state shown */ }
+        } catch {
+            if request == watchedRequest { watchedError = UserFacingError.map(error) }
+        }
         if request == watchedRequest {
             isLoadingWatched = false
         }
@@ -526,6 +537,7 @@ extension ProfileView {
         watchlistRequest += 1
         let request = watchlistRequest
         isLoadingWatchlist = true
+        watchlistError = nil
         do {
             let filter = catalogFilters.current()
             let response = try await TrackingAPI.getWatchlist(
@@ -540,7 +552,9 @@ extension ProfileView {
             watchlistTotal = response.total
         } catch is CancellationError {
             return
-        } catch { /* Non-critical — empty state shown */ }
+        } catch {
+            if request == watchlistRequest { watchlistError = UserFacingError.map(error) }
+        }
         if request == watchlistRequest {
             isLoadingWatchlist = false
         }

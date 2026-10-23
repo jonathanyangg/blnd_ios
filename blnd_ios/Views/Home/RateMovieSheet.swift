@@ -234,6 +234,7 @@ struct RateMovieSheet: View {
                 }
                 savedRating = rating
                 UserActionCache.shared.didRate(tmdbId, rating: rating)
+                Haptics.play(.success)
                 Analytics.movieRated(
                     tmdbId: tmdbId,
                     rating: rating,
