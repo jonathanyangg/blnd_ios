@@ -25,6 +25,7 @@ struct UnifiedSearchResults: View {
     let isLoading: Bool
     let hasSearched: Bool
     let onSelectActor: (PersonResult) -> Void
+    @State private var detailItem: MovieDetailItem?
 
     private var trimmedQuery: String {
         query.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -74,12 +75,8 @@ struct UnifiedSearchResults: View {
                 if showsMovies, !movies.isEmpty || segment == .movies {
                     section("Movies", empty: movies.isEmpty) {
                         ForEach(movies) { movie in
-                            NavigationLink {
-                                MovieDetailView(
-                                    tmdbId: movie.tmdbId,
-                                    title: movie.title,
-                                    source: .search
-                                )
+                            Button {
+                                detailItem = MovieDetailItem(tmdbId: movie.tmdbId, title: movie.title)
                             } label: {
                                 movieRow(movie)
                             }
@@ -134,6 +131,9 @@ struct UnifiedSearchResults: View {
                         }
                     }
                 }
+            }
+            .sheet(item: $detailItem) { item in
+                MovieDetailSheet(tmdbId: item.tmdbId, title: item.title, source: .search)
             }
             .padding(.bottom, 24)
         }

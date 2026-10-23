@@ -27,21 +27,33 @@ struct SearchResultCard: View {
         SearchResultDestination.forMedia(mediaType, tmdbId: tmdbId)
     }
 
+    @State private var showDetail = false
+
     var body: some View {
-        NavigationLink {
-            switch destination {
-            case .movie:
-                MovieDetailView(tmdbId: tmdbId, title: title, source: .search)
-            case .tv:
+        switch destination {
+        case .movie:
+            Button { showDetail = true } label: { card }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(SearchResultDestination.rowTraits)
+                .sheet(isPresented: $showDetail) {
+                    MovieDetailSheet(tmdbId: tmdbId, title: title, source: .search)
+                }
+        case .tv:
+            NavigationLink {
                 TVDetailView(
                     tmdbId: tmdbId,
                     title: title,
                     year: year,
                     overview: overview
                 )
-            }
-        } label: {
-            MovieCard(
+            } label: { card }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(SearchResultDestination.rowTraits)
+        }
+    }
+
+    private var card: some View {
+        MovieCard(
                 tmdbId: tmdbId,
                 title: title,
                 year: year,
@@ -49,10 +61,7 @@ struct SearchResultCard: View {
                 width: cardWidth,
                 height: cardWidth * 1.5,
                 mediaType: mediaType
-            )
-        }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(SearchResultDestination.rowTraits)
+        )
     }
 }
 
