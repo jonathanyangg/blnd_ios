@@ -134,7 +134,7 @@ struct OnboardingV2View: View {
     private var chrome: some View {
         VStack(spacing: 14) {
             HStack {
-                if step != .valueTonight, !showingAccount {
+                if step != .valueTonight || showingAccount {
                     Button {
                         back()
                     } label: {
@@ -572,6 +572,10 @@ struct OnboardingV2View: View {
 
     private func back() {
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        if showingAccount {
+            showingAccount = false
+            return
+        }
         guard let previous = OnboardingV2Step(rawValue: step.rawValue - 1) else { return }
         withAnimation(.easeInOut(duration: 0.25)) { step = previous }
     }
@@ -671,23 +675,6 @@ struct OnboardingV2View: View {
             if authState.phase != .unauthenticated {
                 authState.phase = .authenticated
             }
-        }
-    }
-}
-
-private struct OnboardingAccountGate: View {
-    var onReady: () -> Void
-    var onSignIn: () -> Void
-    @State private var path = NavigationPath()
-
-    var body: some View {
-        NavigationStack(path: $path) {
-            SignUpView(path: $path, onAccountReady: onReady, onSignIn: onSignIn)
-                .navigationDestination(for: AuthRoute.self) { route in
-                    if route == .chooseUsername {
-                        ChooseUsernameView(path: $path, onAccountReady: onReady)
-                    }
-                }
         }
     }
 }

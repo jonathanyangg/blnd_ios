@@ -1,0 +1,49 @@
+# Onboarding v2 tutorial tour, taste picks -> swipe -> rate -> match -> blends -> now -> import -> taste -> friends.
+# Runs on the DEBUG mock host (-UITestScreen onboardTaste), which has 5 picks preselected and skips the account gate,
+# so it needs no backend and is deterministic. The real signed-out path (picks -> account gate -> sign up -> tour -> home)
+# is covered by 12_signup_onboarding.
+appId: com.jonathan.blnd-ios
+---
+- stopApp
+- launchApp:
+    clearState: true
+    arguments:
+      "-UITestScreen": onboardTaste
+- extendedWaitUntil: {visible: {id: onboarding.continue}, timeout: 20000}
+- takeScreenshot: 11-1-picks
+- tapOn: {id: onboarding.continue}
+- extendedWaitUntil: {visible: {id: tutorial.swipe}, timeout: 10000}
+- takeScreenshot: 11-2-swipe
+- tapOn: {text: "Interested"}
+- tapOn: {text: "Next"}
+- waitForAnimationToEnd
+- takeScreenshot: 11-3-rate
+- tapOn: {text: "Not for me"}
+- tapOn: {text: "Next"}
+- extendedWaitUntil: {visible: {id: tutorial.match}, timeout: 10000}
+- takeScreenshot: 11-4-match
+- tapOn: {text: "Next"}
+- extendedWaitUntil: {visible: {id: tutorial.blend}, timeout: 10000}
+- takeScreenshot: 11-5-blends
+- tapOn: {text: "Next"}
+- waitForAnimationToEnd
+- takeScreenshot: 11-6-next
+- tapOn: {text: "This one's mine"}
+- extendedWaitUntil: {visible: {text: "Not now"}, timeout: 10000}
+- takeScreenshot: 11-7-import
+- tapOn: {text: "Not now"}
+- extendedWaitUntil: {visible: {id: tutorial.taste}, timeout: 10000}
+- takeScreenshot: 11-8-taste
+- tapOn: {text: "Next"}
+- extendedWaitUntil: {visible: {text: "See your feed"}, timeout: 10000}
+- takeScreenshot: 11-9-friends
+- tapOn: {text: "See your feed"}
+- waitForAnimationToEnd
+- takeScreenshot: 11-10-after-feed
+# The mock host has no AuthState transition, so "See your feed" itself can't navigate here. Open the populated feed host.
+- stopApp
+- launchApp:
+    arguments:
+      "-UITestScreen": onboardFeed
+- extendedWaitUntil: {visible: {id: home.search}, timeout: 20000}
+- takeScreenshot: 11-11-home-feed
