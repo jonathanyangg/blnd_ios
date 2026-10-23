@@ -28,6 +28,13 @@ extension HomeView {
                 }
             }
             .contentMargins(.bottom, 96, for: .scrollContent)
+            .sheet(item: $gridDetailItem) { item in
+                MovieDetailSheet(tmdbId: item.tmdbId, title: item.title, source: .grid) {
+                    withAnimation {
+                        recommendations.removeAll { $0.tmdbId == item.tmdbId }
+                    }
+                }
+            }
             .background(AppTheme.background)
             .refreshable { await refreshCurrentTab() }
         }
@@ -98,19 +105,8 @@ extension HomeView {
         cardWidth: CGFloat,
         cardHeight: CGFloat
     ) -> some View {
-        NavigationLink {
-            MovieDetailView(
-                tmdbId: movie.tmdbId,
-                title: movie.title,
-                source: .grid,
-                onHide: {
-                    withAnimation {
-                        recommendations.removeAll {
-                            $0.tmdbId == movie.tmdbId
-                        }
-                    }
-                }
-            )
+        Button {
+            gridDetailItem = MovieDetailItem(tmdbId: movie.tmdbId, title: movie.title)
         } label: {
             MovieCard(
                 tmdbId: movie.tmdbId,
