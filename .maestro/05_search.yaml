@@ -7,7 +7,7 @@ appId: com.jonathan.blnd-ios
         id: auth.welcome.sign-in
     file: subflows/00_sign_in_steps.yaml
 - assertVisible:
-    id: find-movie-now.entry
+    id: home.search
 - tapOn:
     id: reels.tutorial.skip
     optional: true
