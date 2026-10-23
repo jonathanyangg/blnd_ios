@@ -48,6 +48,8 @@ cmd_up() {
   # 1. Supabase (docker) -- only starts existing containers; `supabase start` is needed once per machine.
   if ! docker info >/dev/null 2>&1; then log "starting Docker Desktop"; open -a Docker; for _ in $(seq 60); do docker info >/dev/null 2>&1 && break; sleep 3; done; fi
   for c in $(docker ps -a --filter "name=supabase_.*_blnd_backend" --format '{{.Names}}'); do docker start "$c" >/dev/null 2>&1; done
+  # Docker Desktop sometimes drops host port forwarding while containers look healthy -> restart kong+db to republish :54321/:54322
+  if ! curl -s -m 3 -o /dev/null http://127.0.0.1:54321/auth/v1/health; then log "supabase ports not reachable, restarting kong+db"; docker restart supabase_kong_blnd_backend supabase_db_blnd_backend >/dev/null 2>&1; sleep 15; fi
   if ! docker ps --format '{{.Names}}' | grep -q '^supabase_db_blnd_backend$'; then
     log "Supabase is not running. First time? run: (cd $BACKEND_DIR && supabase start)"; return 1
   fi
