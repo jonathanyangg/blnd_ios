@@ -16,8 +16,8 @@
 | `d031f79` | `blnd_ios/Models/SoloFlow.swift`: `PendingWatch`, `PendingWatchStore` (UserDefaults, 12h expiry, injected `now`), `PostWatchPrompt` (minElapsed / snooze / maxPrompts / already-watched check), the `WhereToWatch.hubOffers` / `topProviders(limit:)` helpers, and the `WatchProviderCache` actor (caches hits, shares in-flight requests, caps concurrent fetches at 3, does not cache failures). Also `blnd_iosTests/SoloFlowTests.swift` (15 tests). |
 | `c191e58` | Detail: the hub now sits right under the title, meta and genres, in a card with STREAM / RENT / BUY headers. Opening a provider records a pending watch. A new action bar (Watchlist toggle with a long-press "Add to a blend watchlist" menu, and Watched) sits above the stars. The old "Watch Now + Watchlist" row and the "Watched with" row were removed. The rate sheet that "Watched" opens still has the watched-with picker. Watchlist status now loads from `/watchlist/status` (before, `isInWatchlist` was never initialised). Profile ▸ Watchlist tiles get `WatchlistHubRow`. `PostWatchPromptHost` is attached to `MainTabView`. `StreamingSheet` (feed and blend pick) records a pending watch too. New `.maestro/10_solo_flow.yaml`. |
 | `98920f2` | Series are not recorded as pending watches, because the log prompt rates through the movie API. Maestro 10 now waits for the welcome screen. |
-| `30ff1d0` | Watchlist "Watch now" stays on one line. |
-| (this commit) | Maestro 10 answers any leftover prompt on first launch. This doc. |
+| `f6c4241` | Watchlist "Watch now" stays on one line. |
+| `c02e513` | Maestro 10 answers any leftover prompt on first launch. This doc. |
 
 How the prompt behaves:
 
