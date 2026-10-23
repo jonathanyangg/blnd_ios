@@ -1,11 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>API_BASE_URL</key>
+	<string>$(API_BASE_URL)</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>blnd needs access to your photo library to set a profile picture.</string>
 	<key>NSContactsUsageDescription</key>
 	<string>blnd sends phone numbers from your contacts to our server to find friends already on the app. We only store numbers that match existing users.</string>
+#if DEBUG
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>blnd connects to the local development server on your network.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+#endif
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>aiv</string>
