@@ -1,17 +1,11 @@
+# Paywall: free user sees blnd+ limits. Free demo user (local seed).
 appId: com.jonathan.blnd-ios
+env: {EMAIL: sam@blnd.local, PASSWORD: Premium123!}
 ---
-- launchApp
-- runFlow:
-    when:
-      visible:
-        id: auth.welcome.sign-in
-    file: subflows/00_sign_in_steps.yaml
-- assertVisible:
-    id: home.search
-- tapOn:
-    id: reels.tutorial.skip
-    optional: true
-- tapOn:
-    id: home.paywall
+- runFlow: subflows/as_user.yaml
+- takeScreenshot: 03-1-home-free
+- tapOn: {id: home.paywall}
+- waitForAnimationToEnd
 - assertVisible: "2 AI searches a day free, 50 on blnd+"
 - assertVisible: "4 members free, 12 on blnd+"
+- takeScreenshot: 03-2-paywall

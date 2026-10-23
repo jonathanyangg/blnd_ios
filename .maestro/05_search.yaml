@@ -1,22 +1,13 @@
+# Search: query -> results list contains the movie.
 appId: com.jonathan.blnd-ios
+env: {EMAIL: maya@blnd.local, PASSWORD: Premium123!}
 ---
-- launchApp
-- runFlow:
-    when:
-      visible:
-        id: auth.welcome.sign-in
-    file: subflows/00_sign_in_steps.yaml
-- assertVisible:
-    id: home.search
-- tapOn:
-    id: reels.tutorial.skip
-    optional: true
-- tapOn:
-    id: home.search
-- assertVisible:
-    id: search.field
-- tapOn:
-    id: search.field
+- runFlow: subflows/ensure_home.yaml
+- tapOn: {id: home.search}
+- assertVisible: {id: search.field}
+- takeScreenshot: 05-1-search-empty
+- tapOn: {id: search.field}
 - inputText: Inception
-- assertVisible:
-    id: search.result
+- waitForAnimationToEnd
+- assertVisible: "Inception, 2010"
+- takeScreenshot: 05-2-results

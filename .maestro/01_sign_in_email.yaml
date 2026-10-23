@@ -1,21 +1,20 @@
+# Sign-in: welcome -> email/password -> Home. Premium demo user (local seed).
 appId: com.jonathan.blnd-ios
+env: {EMAIL: maya@blnd.local, PASSWORD: Premium123!}
 ---
-- launchApp:
-    clearState: true
-- runFlow:
-    when:
-      visible:
-        id: home.search
-    commands:
-      - tapOn:
-          text: Profile
-      - tapOn:
-          id: profile.settings
-      - tapOn:
-          id: profile.log-out
-      - waitForAnimationToEnd
-- assertVisible:
-    id: auth.welcome.sign-in
-- runFlow: subflows/00_sign_in_steps.yaml
-- assertVisible:
-    id: home.search
+- runFlow: subflows/sign_out.yaml
+- takeScreenshot: 01-1-welcome
+- tapOn: {id: auth.welcome.sign-in}
+- takeScreenshot: 01-2-sign-in-form
+- tapOn: {id: auth.email}
+- inputText: ${EMAIL}
+- tapOn: {id: auth.password}
+- inputText: ${PASSWORD}
+- takeScreenshot: 01-3-filled
+- tapOn: {id: auth.submit}
+- tapOn: {text: Not Now, optional: true}
+- extendedWaitUntil:
+    visible:
+      id: home.search
+    timeout: 30000
+- takeScreenshot: 01-4-home

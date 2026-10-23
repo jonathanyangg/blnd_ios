@@ -1,0 +1,23 @@
+# Launch the app (keeping Keychain session), sign in if needed, land on Home
+# with the first-run reel tutorial dismissed. Needs EMAIL and PASSWORD.
+appId: com.jonathan.blnd-ios
+---
+- launchApp
+- waitForAnimationToEnd
+- runFlow:
+    when:
+      visible:
+        id: auth.welcome.sign-in
+    file: 00_sign_in_steps.yaml
+- extendedWaitUntil:
+    visible:
+      id: home.search
+    timeout: 30000
+- extendedWaitUntil:
+    visible: Skip
+    timeout: 6000
+    optional: true
+- tapOn:
+    text: Skip
+    optional: true
+- waitForAnimationToEnd

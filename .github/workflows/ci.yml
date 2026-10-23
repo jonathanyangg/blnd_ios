@@ -1,0 +1,17 @@
+name: ios-light
+# Cheap checks on Ubuntu only. Build, unit tests and UI flows run on Jonathan's Mac via tools/qa/pr-check.sh
+# (macOS runner minutes cost 10x). That script posts the `blnd/local-qa` commit status and can merge.
+on:
+  pull_request:
+    branches: [dev, main]
+jobs:
+  lint-and-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install pyyaml
+      - name: Maestro flows are valid YAML
+        run: python3 -c "import yaml,glob,sys;[list(yaml.safe_load_all(open(f))) for f in glob.glob('.maestro/**/*.yaml',recursive=True) if '_scratch' not in f]"
+      - name: No credentials or env files committed
+        run: |
+          ! git ls-files | grep -E '(^|/)\.env($|\.)|blnd_credentials|\.p8$|\.mobileprovision$'
