@@ -404,17 +404,20 @@ extension ProfileView {
                     : "Your watchlist is empty")
             } else {
                 PosterGrid {
-                    ForEach(watchlistMovies) { movie in
-                        NavigationLink {
-                            MovieDetailView(tmdbId: movie.tmdbId, title: movie.title, source: .watchlist)
-                        } label: {
-                            PosterTile(
-                                posterPath: movie.posterPath,
-                                rating: nil,
-                                mediaType: movie.mediaType
-                            )
+                    ForEach(Array(watchlistMovies.enumerated()), id: \.element.id) { index, movie in
+                        VStack(spacing: 6) {
+                            NavigationLink {
+                                MovieDetailView(tmdbId: movie.tmdbId, title: movie.title, source: .watchlist)
+                            } label: {
+                                PosterTile(
+                                    posterPath: movie.posterPath,
+                                    rating: nil,
+                                    mediaType: movie.mediaType
+                                )
+                            }
+                            .buttonStyle(.plain)
+                            WatchlistHubRow(movie: movie, index: index)
                         }
-                        .buttonStyle(.plain)
                         .id(movie.tmdbId)
                     }
                 }

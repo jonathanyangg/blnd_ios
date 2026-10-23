@@ -1,0 +1,95 @@
+appId: com.jonathan.blnd-ios
+# Solo flow: search -> detail sheet with the where-to-watch hub, watchlist
+# toggle, Watched -> rate sheet -> saved. Then the post-watch prompt via the
+# DEBUG-only -pendingWatchDemo launch argument: "Not yet" snoozes, "Yes" rates.
+# Run: maestro test -e EMAIL=... -e PASSWORD=... .maestro/10_solo_flow.yaml
+---
+- launchApp
+- runFlow:
+    when:
+      visible:
+        id: auth.welcome.sign-in
+    file: subflows/00_sign_in_steps.yaml
+- extendedWaitUntil:
+    visible:
+      id: home.search
+    timeout: 30000
+- tapOn:
+    text: "Skip"
+    optional: true
+- tapOn:
+    id: home.search
+- tapOn:
+    id: search.field
+- inputText: Inception
+- pressKey: Enter
+- tapOn:
+    id: search.result
+    index: 0
+- extendedWaitUntil:
+    visible:
+      id: watch.hub
+    timeout: 20000
+- assertVisible:
+    id: watch.provider.0
+# A rerun starts from "not watched".
+- tapOn:
+    id: detail.rate.clear
+    optional: true
+- tapOn:
+    id: detail.watchlist
+- tapOn:
+    id: detail.watched
+- assertVisible:
+    id: rate.save
+- tapOn:
+    id: rating.star.4
+- tapOn:
+    id: rate.save
+- extendedWaitUntil:
+    notVisible:
+      id: rate.save
+    timeout: 10000
+# The clear button only shows once the rating is saved.
+- assertVisible:
+    id: detail.rate.clear
+# Reset so the prompt below (same title) isn't suppressed as already watched.
+- tapOn:
+    id: detail.rate.clear
+
+# Post-watch prompt: seeded pending watch older than 20 min.
+- launchApp:
+    stopApp: true
+    arguments:
+      "-pendingWatchDemo": "27205"
+      "-pendingWatchDemoTitle": "Inception"
+- extendedWaitUntil:
+    visible:
+      id: postWatch.prompt
+    timeout: 30000
+- assertVisible: "Did you watch Inception?"
+- tapOn:
+    id: postWatch.notYet
+- assertNotVisible:
+    id: postWatch.prompt
+- launchApp:
+    stopApp: true
+    arguments:
+      "-pendingWatchDemo": "27205"
+      "-pendingWatchDemoTitle": "Inception"
+- extendedWaitUntil:
+    visible:
+      id: postWatch.prompt
+    timeout: 30000
+- tapOn:
+    id: postWatch.yes
+- assertVisible:
+    id: rate.save
+- tapOn:
+    id: rating.star.4
+- tapOn:
+    id: rate.save
+- extendedWaitUntil:
+    notVisible:
+      id: postWatch.prompt
+    timeout: 10000

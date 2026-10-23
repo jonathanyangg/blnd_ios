@@ -33,6 +33,7 @@ struct StreamingSheet: View {
                         isPremium: authState.isPremium,
                         showsTitle: false
                     ) { offer, kind in
+                        PendingWatchStore().opened(tmdbId: tmdbId, title: title, posterPath: nil)
                         Task { await WatchLinkOpener.open(offer, kind: kind) }
                     }
                     .padding(.horizontal, 24)

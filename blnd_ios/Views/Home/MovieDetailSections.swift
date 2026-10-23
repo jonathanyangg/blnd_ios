@@ -54,58 +54,37 @@ extension MovieDetailView {
             failed: watchFailed,
             isPremium: authState.isPremium
         ) { offer, kind in
+            PendingWatchStore().opened(tmdbId: tmdbId, title: displayTitle, posterPath: movie?.posterPath)
             Task { await WatchLinkOpener.open(offer, kind: kind) }
         }
+        .padding([.horizontal, .top], 14)
+        .background(AppTheme.card)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .padding(.bottom, 16)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("watch.hub")
     }
 
-    var bestWatchNow: WatchOffer? {
-        whereToWatch?.offers(.watchNow).first
-    }
-
-    var actionButtonsRow: some View {
+    /// Watchlist toggle and Watched (marks it, then opens the rate/log sheet).
+    var actionBar: some View {
         HStack(spacing: 10) {
-            Button {
-                guard let offer = bestWatchNow else { return }
-                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                Task { await WatchLinkOpener.open(offer, kind: .watchNow) }
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "play.circle.fill")
-                        .font(.system(size: 14, weight: .semibold))
-                    Text("Watch Now")
+            actionButton(
+                icon: isInWatchlist ? "bookmark.fill" : "bookmark",
+                label: "Watchlist",
+                isOn: isInWatchlist
+            ) { toggleWatchlist() }
+                .accessibilityIdentifier("detail.watchlist")
+                .contextMenu {
+                    Button("Add to a blend watchlist") { showWatchlistSheet = true }
                 }
-                .font(.system(size: 15, weight: .semibold))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 13)
-                .background(.white)
-                .foregroundStyle(.black)
-                .clipShape(
-                    RoundedRectangle(cornerRadius: AppTheme.cornerRadiusMedium)
-                )
-                .opacity(bestWatchNow == nil && !watchLoading ? 0.45 : 1)
-            }
-            .disabled(bestWatchNow == nil && !watchLoading)
-
-            Button { showWatchlistSheet = true } label: {
-                HStack(spacing: 6) {
-                    Image(
-                        systemName: isInWatchlist
-                            ? "bookmark.fill" : "bookmark"
-                    )
-                    .font(.system(size: 13, weight: .bold))
-                    Text("Watchlist")
-                }
-                .font(.system(size: 15, weight: .semibold))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 13)
-                .background(isInWatchlist ? AppTheme.card : .white)
-                .foregroundStyle(isInWatchlist ? .white : .black)
-                .clipShape(
-                    RoundedRectangle(cornerRadius: AppTheme.cornerRadiusMedium)
-                )
-            }
+            actionButton(
+                icon: isWatched ? "eye.fill" : "eye",
+                label: "Watched",
+                isOn: isWatched
+            ) { markWatched() }
+                .accessibilityIdentifier("detail.watched")
         }
-        .padding(.bottom, 20)
+        .padding(.bottom, 16)
         .sheet(isPresented: $showWatchlistSheet) {
             WatchlistPickerSheet(
                 tmdbId: tmdbId,
@@ -117,6 +96,89 @@ extension MovieDetailView {
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
             .presentationBackground(AppTheme.card)
+        }
+        .sheet(isPresented: $showLogSheet) {
+            RateMovieSheet(
+                title: movie?.title ?? title,
+                year: movie?.yearString ?? "",
+                tmdbId: tmdbId,
+                posterPath: movie?.posterPath,
+                existingRating: userRating
+            ) { newRating in
+                userRating = newRating
+                isWatched = true
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+            .presentationBackground(AppTheme.card)
+        }
+    }
+
+    private func actionButton(
+        icon: String,
+        label: String,
+        isOn: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 13, weight: .bold))
+                Text(label)
+            }
+            .font(.system(size: 15, weight: .semibold))
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 13)
+            .background(isOn ? AppTheme.card : .white)
+            .foregroundStyle(isOn ? .white : .black)
+            .clipShape(RoundedRectangle(cornerRadius: AppTheme.cornerRadiusMedium))
+        }
+        .accessibilityAddTraits(isOn ? .isSelected : [])
+    }
+
+    private func toggleWatchlist() {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        let adding = !isInWatchlist
+        isInWatchlist = adding
+        if adding {
+            UserActionCache.shared.didWatchlist(tmdbId)
+        } else {
+            UserActionCache.shared.didRemoveFromWatchlist(tmdbId)
+        }
+        Task {
+            do {
+                if adding {
+                    _ = try await TrackingAPI.addToWatchlist(tmdbId: tmdbId)
+                } else {
+                    try await TrackingAPI.removeFromWatchlist(tmdbId: tmdbId)
+                }
+            } catch {
+                isInWatchlist = !adding
+                if adding {
+                    UserActionCache.shared.didRemoveFromWatchlist(tmdbId)
+                } else {
+                    UserActionCache.shared.didWatchlist(tmdbId)
+                }
+                reportMutation(error, screen: "Watchlist") { toggleWatchlist() }
+            }
+        }
+    }
+
+    private func markWatched() {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        showLogSheet = true
+        guard !isWatched else { return }
+        isWatched = true
+        UserActionCache.shared.didWatch(tmdbId)
+        Task {
+            do {
+                _ = try await TrackingAPI.trackMovie(tmdbId: tmdbId)
+                onHide?()
+            } catch {
+                isWatched = false
+                UserActionCache.shared.didUnwatch(tmdbId)
+                reportMutation(error, screen: "MarkWatched") { markWatched() }
+            }
         }
     }
 
@@ -137,6 +199,8 @@ extension MovieDetailView {
                     detailRatingStar(index: index)
                 }
             }
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("detail.rate")
 
             Spacer(minLength: 0)
 
@@ -147,47 +211,13 @@ extension MovieDetailView {
                         .foregroundStyle(AppTheme.textMuted)
                         .frame(width: 32, height: 36)
                 }
+                .accessibilityLabel("Clear rating")
+                .accessibilityIdentifier("detail.rate.clear")
             } else {
                 Color.clear.frame(width: 32, height: 36)
             }
         }
         .padding(.bottom, 12)
-    }
-
-    var watchedWithRow: some View {
-        Button { showLogSheet = true } label: {
-            HStack(spacing: 8) {
-                Image(systemName: "person.2")
-                    .font(.system(size: 14))
-                Text("Watched with")
-                    .font(.system(size: 15, weight: .medium))
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(AppTheme.textDim)
-            }
-            .foregroundStyle(.white)
-            .padding(.vertical, 12)
-            .padding(.horizontal, 14)
-            .background(AppTheme.card)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-        }
-        .padding(.bottom, 16)
-        .sheet(isPresented: $showLogSheet) {
-            RateMovieSheet(
-                title: movie?.title ?? title,
-                year: movie?.yearString ?? "",
-                tmdbId: tmdbId,
-                posterPath: movie?.posterPath,
-                existingRating: userRating
-            ) { newRating in
-                userRating = newRating
-                isWatched = true
-            }
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
-            .presentationBackground(AppTheme.card)
-        }
     }
 
     @ViewBuilder
@@ -390,6 +420,13 @@ extension MovieDetailView {
             } else {
                 cache.didWatch(tmdbId)
             }
+        }
+    }
+
+    func checkWatchlistStatus() async {
+        isInWatchlist = UserActionCache.shared.isWatchlisted(tmdbId)
+        if let status = try? await TrackingAPI.getWatchlistStatus(tmdbId: tmdbId) {
+            isInWatchlist = status.personal
         }
     }
 

@@ -65,6 +65,7 @@ struct ContentView: View {
                     OnboardingView()
                 case .authenticated:
                     MainTabView()
+                        .modifier(PostWatchPromptHost())
                 }
             }
         }
