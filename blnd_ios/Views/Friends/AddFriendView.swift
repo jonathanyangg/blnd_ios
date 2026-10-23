@@ -54,6 +54,7 @@ struct AddFriendView: View {
         .alert("Cancel Request", isPresented: showUnrequestAlert) {
             Button("Keep", role: .cancel) { unrequestTarget = nil }
             Button("Withdraw", role: .destructive) {
+                Haptics.play(.warning)
                 if let target = unrequestTarget {
                     Task { await withdrawRequest(id: target.id, friendshipId: target.friendshipId) }
                 }
@@ -440,6 +441,7 @@ extension AddFriendView {
             )
             sentTo.insert(id)
             Analytics.friendRequestSent()
+            Haptics.play(.success)
             contactSuggestions.removeAll { $0.id == id }
             mutualSuggestions.removeAll { $0.id == id }
         } catch {

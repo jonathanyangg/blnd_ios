@@ -104,6 +104,7 @@ struct AccountSettingsView: View {
         ) {
             Button("Cancel", role: .cancel) {}
             Button("Delete My Account", role: .destructive) {
+                Haptics.play(.warning)
                 Task { await performDeletion() }
             }
         } message: {

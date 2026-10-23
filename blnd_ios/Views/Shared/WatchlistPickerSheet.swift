@@ -285,10 +285,12 @@ struct WatchlistPickerSheet: View {
                 if personalChecked {
                     _ = try await TrackingAPI.addToWatchlist(tmdbId: tmdbId)
                     cache.didWatchlist(tmdbId)
+                    Haptics.play(.success)
                     Analytics.watchlistAdded(tmdbId: tmdbId, source: .picker)
                 } else {
                     try await TrackingAPI.removeFromWatchlist(tmdbId: tmdbId)
                     cache.didRemoveFromWatchlist(tmdbId)
+                    Haptics.play(.tap)
                     Analytics.watchlistRemoved(tmdbId: tmdbId, source: .picker)
                 }
             } catch {
