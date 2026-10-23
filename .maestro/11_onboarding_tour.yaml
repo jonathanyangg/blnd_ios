@@ -1,7 +1,7 @@
 # Onboarding v2 tutorial tour, taste picks -> swipe -> rate -> match -> blends -> now -> import -> taste -> friends.
 # Runs on the DEBUG mock host (-UITestScreen onboardTaste), which has 5 picks preselected and skips the account gate,
-# so it needs no backend and is deterministic. The real signed-out path (picks -> account gate) is NOT covered here:
-# see KNOWN_BUGS in .maestro/README.md (Continue on the picks screen returns to Welcome).
+# so it needs no backend and is deterministic. The real signed-out path (picks -> account gate -> sign up -> tour -> home)
+# is covered by 12_signup_onboarding.
 appId: com.jonathan.blnd-ios
 ---
 - stopApp

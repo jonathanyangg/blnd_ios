@@ -14,9 +14,9 @@ Maestro (iPhone 17 Pro clone `blnd-warm-1`, local backend, runs r5-r7 under `~/c
 Certain-ish: flows on seeded local data. DOUBTFUL (live TMDB / trailers / timing): 02, 05, 06, 07 detail, 08 blend find movie, 10 solo.
 Each flow is green at least once on the current build; repetition counts are in CERTAINTY.md. Run each twice before calling it certain.
 
-**Known product bug (KNOWN-FAILING, `.maestro/known_failing/signup_gate.yaml`)**: on the real signed-out path, Continue on the "Movies you love" picks bounces straight back to the Welcome screen instead of showing the inline sign-up gate (`OnboardingAccountGate`, a NavigationStack nested inside the onboarding stack). On 217ecfd it looked like a blank screen with a back chevron. New users cannot finish v2 onboarding from a signed-out start.
+**Fixed (was the release blocker)**: Continue on the "Movies you love" picks used to bounce back to Welcome because `OnboardingAccountGate` was a NavigationStack nested in the onboarding stack. The gate is now inline (`OnboardingAccountGate.swift`, no nested stack) and `.maestro/12_signup_onboarding.yaml` (required) walks picks > sign up > tour > home feed on the local backend.
 
-Not covered yet (UNVERIFIED): the real signed-out sign-up gate after the taste picks (broken, see above; the tour after it is covered on the mock host), real sign up, invitee side of Blends, StoreKit purchase, Sign in with Apple, push.
+Not covered yet (UNVERIFIED): real sign up against production, invitee side of Blends, StoreKit purchase, Sign in with Apple, push.
 
 ## How Jonathan reviews (the short version)
 1. Look at the app: `tools/qa/warm.sh open` (brings the `blnd-warm-1` simulator to the front; already signed in as maya on the latest dev). Sign in as leo/sam with the demo accounts below if you need a friend or a free user.

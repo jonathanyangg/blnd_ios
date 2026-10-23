@@ -66,11 +66,14 @@ struct SignUpView: View {
                     // MARK: - Email Form
 
                     AppTextField(placeholder: "Name", text: $state.name)
+                        .accessibilityIdentifier("signup.name")
                     AppTextField(placeholder: "Username", text: $state.username)
+                        .accessibilityIdentifier("signup.username")
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                     fieldNote("username")
                     AppTextField(placeholder: "Email", text: $state.email)
+                        .accessibilityIdentifier("signup.email")
                         .textContentType(.emailAddress)
                         .keyboardType(.emailAddress)
                         .textInputAutocapitalization(.never)
@@ -79,7 +82,10 @@ struct SignUpView: View {
                             .padding(.bottom, 8)
                     }
                     fieldNote("email")
-                    AppTextField(placeholder: "Password", text: $state.password, isSecure: true)
+                    AppTextField(
+                        placeholder: "Password", text: $state.password, isSecure: true,
+                        identifier: "signup.password"
+                    )
                     fieldNote("password")
                     PhoneNumberInputField(phoneNumber: $state.phoneNumber)
                     fieldNote("phone_number")
@@ -156,6 +162,7 @@ struct SignUpView: View {
                 .padding(.horizontal, 24)
             }
         }
+        .scrollDismissesKeyboard(.interactively)
         .background(AppTheme.background)
         .navigationBarBackButtonHidden()
         .toolbar {
@@ -283,6 +290,8 @@ struct AppTextField: View {
     let placeholder: String
     @Binding var text: String
     var isSecure: Bool = false
+    /// Set on the secure variant so the field and its show/hide button get distinct ids ("<id>" and "<id>.toggle").
+    var identifier: String?
     @State private var showPassword = false
 
     var body: some View {
@@ -296,6 +305,7 @@ struct AppTextField: View {
             }
             .font(.system(size: 15))
             .foregroundStyle(.white)
+            .optionalIdentifier(identifier)
 
             if isSecure {
                 Button {
@@ -305,6 +315,7 @@ struct AppTextField: View {
                         .foregroundStyle(AppTheme.textMuted)
                         .font(.system(size: 14))
                 }
+                .optionalIdentifier(identifier.map { "\($0).toggle" })
             }
         }
         .padding(16)
@@ -324,5 +335,12 @@ struct AppTextField: View {
         SignUpView(path: .constant(NavigationPath()))
             .environment(AuthState())
             .environment(OnboardingState())
+    }
+}
+
+private extension View {
+    /// Applies an accessibility identifier only when one is given, so it never blanks an id set by a parent.
+    @ViewBuilder func optionalIdentifier(_ id: String?) -> some View {
+        if let id { accessibilityIdentifier(id) } else { self }
     }
 }
