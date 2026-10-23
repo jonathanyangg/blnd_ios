@@ -18,9 +18,11 @@ xcrun simctl install <SIM> build/Build/Products/Debug-iphonesimulator/blnd_ios.a
 4. Run all flows with environment variables for the demo account:
 
 ```sh
-maestro test -e EMAIL=... -e PASSWORD=... .maestro/
+maestro test -e EMAIL=... -e PASSWORD=... -e USERNAME_B=... .maestro/
 ```
 
 Never store or commit credentials. Read them from a protected local artifact or export them in your shell session.
 
 Note: the home feed’s right-swipe action labels its real feedback `Added to My Watchlist`. The onboarding tutorial separately explains that right means “Interested”; flow 02 asserts the home reel’s actual feedback.
+
+Flow 08 (`08_blend_find_movie`) also needs `USERNAME_B`: the username of a second account that A adds to a new blend.
