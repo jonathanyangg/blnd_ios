@@ -22,4 +22,4 @@ appId: com.jonathan.blnd-ios
 - waitForAnimationToEnd:
     timeout: 30000
 - assertVisible:
-    id: find-movie-now.entry
+    id: home.search

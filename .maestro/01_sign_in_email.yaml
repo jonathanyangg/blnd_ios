@@ -5,7 +5,7 @@ appId: com.jonathan.blnd-ios
 - runFlow:
     when:
       visible:
-        id: find-movie-now.entry
+        id: home.search
     commands:
       - tapOn:
           text: Profile
@@ -18,4 +18,4 @@ appId: com.jonathan.blnd-ios
     id: auth.welcome.sign-in
 - runFlow: subflows/00_sign_in_steps.yaml
 - assertVisible:
-    id: find-movie-now.entry
+    id: home.search
