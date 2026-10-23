@@ -32,6 +32,7 @@ struct DiscoverSectionView: View {
     @State var hasMorePages = true
     @State var isLoadingMore = false
     @State var catalogFilters = CatalogFilterStore.shared
+    @State var detailItem: MovieDetailItem?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -119,6 +120,9 @@ struct DiscoverSectionView: View {
             genreEmptyState
         } else {
             movieGridView
+                .sheet(item: $detailItem) { item in
+                    MovieDetailSheet(tmdbId: item.tmdbId, title: item.title, source: .grid)
+                }
         }
     }
 
@@ -132,12 +136,8 @@ struct DiscoverSectionView: View {
                 Array(movies.enumerated()),
                 id: \.element.id
             ) { index, movie in
-                NavigationLink {
-                    MovieDetailView(
-                        tmdbId: movie.tmdbId,
-                        title: movie.title,
-                        source: .grid
-                    )
+                Button {
+                    detailItem = MovieDetailItem(tmdbId: movie.tmdbId, title: movie.title)
                 } label: {
                     cardView(movie: movie, index: index)
                 }

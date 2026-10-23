@@ -28,32 +28,14 @@ func reelSwipeDecision(
 // MARK: - Gestures & Actions
 
 extension ReelCardView {
-    /// Scrubber zone: bottom strip of the media where YouTube's progress
-    /// bar lives. Drags starting here skip the card swipe so the scrubber
-    /// remains usable when controls are visible.
-    var scrubberZoneHeight: CGFloat {
-        48
-    }
-
     var horizontalSwipe: some Gesture {
         DragGesture(minimumDistance: 25, coordinateSpace: .named("reelCard"))
             .onChanged { value in
-                if isInScrubberZone(value.startLocation.y) { return }
                 handleSwipeChanged(deltaX: value.translation.width, deltaY: value.translation.height)
             }
             .onEnded { value in
-                if isInScrubberZone(value.startLocation.y) {
-                    resetSwipe()
-                    return
-                }
                 handleSwipeEnded(deltaX: value.translation.width, deltaY: value.translation.height)
             }
-    }
-
-    func isInScrubberZone(_ posY: CGFloat) -> Bool {
-        mediaBottomY > 0
-            && posY >= mediaBottomY - scrubberZoneHeight
-            && posY <= mediaBottomY
     }
 
     /// Shared swipe-progress handler. Called from both SwiftUI's DragGesture
