@@ -35,7 +35,7 @@ enum APIError: LocalizedError {
     case badRequest(APIFieldError)
     case notFound
     case rateLimited(detail: String?)
-    case serverError(Int)
+    case serverError(Int, String?)
     case decodingError
     case networkError(Error)
 
@@ -361,7 +361,7 @@ final class APIClient: @unchecked Sendable {
         }
 
         guard let http = response as? HTTPURLResponse else {
-            throw APIError.serverError(0)
+            throw APIError.serverError(0, nil)
         }
 
         return (http, data)
