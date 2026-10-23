@@ -119,8 +119,8 @@ extension ReelCardView {
 
     /// Full-bleed poster. The 16:9 trailer sits on top of this instead of in a black gap.
     var posterBackground: some View {
-        ZStack {
-            AppTheme.posterGradient
+        // Overlay, not ZStack: a scaledToFill image must not widen the card past the screen.
+        AppTheme.posterGradient.overlay {
             if !APIConfig.screenshotMode, let path = movie.posterPath ?? movie.backdropPath, let url = posterURL(path) {
                 CachedAsyncImage(url: url) { image in
                     image

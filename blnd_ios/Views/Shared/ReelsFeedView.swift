@@ -48,7 +48,7 @@ struct ReelsFeedView: View {
                             movie: movie,
                             isActive: movie.tmdbId == currentId
                                 && isTabVisible,
-                            canPlay: !isScrolling && detailMovie == nil && scenePhase == .active,
+                            canPlay: !isScrolling && detailMovie == nil && scenePhase != .background,
                             bottomInset: tabBarClearance,
                             position: index,
                             feed: feed,
