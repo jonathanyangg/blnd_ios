@@ -16,6 +16,15 @@ appId: com.jonathan.blnd-ios
       visible:
         id: auth.welcome.sign-in
     file: subflows/00_sign_in_steps.yaml
+# A pending watch left by an earlier run would cover the feed; answer it.
+- extendedWaitUntil:
+    visible:
+      id: postWatch.prompt
+    timeout: 5000
+    optional: true
+- tapOn:
+    id: postWatch.no
+    optional: true
 - extendedWaitUntil:
     visible:
       id: home.search
