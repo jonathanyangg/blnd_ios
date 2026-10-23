@@ -1,0 +1,26 @@
+# QA / testing shortcuts. Use:  make -f Makefile.qa <target>   (or `make <target>` if you add `include Makefile.qa`)
+SIM ?= blnd-warm-1
+.PHONY: warm refresh pr wt gc open status flows unit paper launchd
+
+warm:      ## start backend + boot warm sims (idempotent)
+	tools/qa/warm.sh up
+refresh:   ## rebuild origin/dev, install on all warm sims, sign in
+	tools/qa/warm.sh refresh
+pr:        ## make -f Makefile.qa pr PR=123  -> own sim "blnd-pr-123"
+	tools/qa/warm.sh pr $(PR)
+wt:        ## make -f Makefile.qa wt DIR=~/cursor-work/blnd-2.0-f3 -> own sim "blnd-wt-<dir>" with the worktree as-is
+	tools/qa/warm.sh wt $(DIR)
+gc:        ## delete per-PR / per-worktree sims
+	tools/qa/warm.sh gc
+open:      ## make -f Makefile.qa open SIM=blnd-warm-2
+	tools/qa/warm.sh open $(SIM)
+status:
+	tools/qa/warm.sh status
+flows:     ## run all Maestro flows on $(SIM), screenshots into ~/cursor-work/qa/artifacts
+	tools/qa/run-flows.sh $(SIM)
+unit:      ## iOS unit tests on $(SIM)
+	xcodebuild test -project blnd_ios.xcodeproj -scheme blnd_ios -destination 'platform=iOS Simulator,name=$(SIM)' -only-testing:blnd_iosTests API_BASE_URL=http://localhost:8100 -resultBundlePath ~/cursor-work/qa/artifacts/unit.xcresult
+paper:     ## make -f Makefile.qa paper SLUG=recent-searches PR=123 TASK="..."
+	tools/qa/feature-paper.py --slug $(SLUG) --pr $(PR) --task "$(TASK)" $(PAPER_ARGS)
+launchd:
+	tools/qa/warm.sh launchd-install

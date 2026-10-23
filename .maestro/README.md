@@ -1,28 +1,27 @@
 # Maestro UI flows
 
-These flows target `com.jonathan.blnd-ios` and the local development backend.
+Flows target `com.jonathan.blnd-ios` against the LOCAL backend on `http://localhost:8100` (see `TESTING.md` in the repo root).
+Demo accounts are seeded locally: maya@blnd.local (blnd+), leo@blnd.local (blnd+, maya's friend), sam@blnd.local (free); password `Premium123!` (local seed only, not a secret).
+Flows set these as `env` defaults; override with `-e EMAIL=... -e PASSWORD=...`.
 
-1. Start the local backend on `http://localhost:8000`.
-2. Build the Debug app for the simulator, replacing `<SIM>` with your simulator UDID:
+Run: `tools/qa/run-flows.sh <sim name|udid> [out-dir] [glob]` (resets demo data before every flow, writes screenshots to `<out>/<flow>/takeScreenshot/` and `<out>/results.tsv`).
 
-```sh
-xcodebuild -project blnd_ios.xcodeproj -scheme blnd_ios -configuration Debug -destination id=<SIM> -derivedDataPath build API_BASE_URL=http://localhost:8000 build
-```
+| Flow | Covers | Notes |
+|---|---|---|
+| 00_onboarding_partial | welcome, create account, pitch screens, taste picks | stops after the taste picks (next step rendered blank on dev 217ecfd) |
+| 01_sign_in_email | sign out, sign in as maya | |
+| 02_swipe_interested | feed right swipe | toast is best-effort (2s), `.verify.sh` checks the DB row |
+| 03_paywall_limits | free user paywall limits | as sam |
+| 04_create_blend | create Blend with Leo | |
+| 05_search | search "Inception" | |
+| 06_poster_feed | poster overlay, detail sheet, trailer long-press | from feature branch |
+| 07_recent_searches | recent searches, delete, clear all | from feature branch |
+| 08_blend_find_movie | Blend with friend, find a movie, where to watch, rate | from feature branch, needs USERNAME_B (leo) |
+| 09_empty_states | empty/error states | from feature branch, run as sam |
+| 07_detail_where_to_watch | movie detail, where to watch | |
+| 08_watchlist | add to watchlist | sheet rows are not in the accessibility tree, driven by coordinates (re-check if the sheet layout changes); `.verify.sh` checks the DB |
+| 09_log_rate | star rating, Watched with | `.verify.sh` checks the rating row |
 
-3. Install the built app:
-
-```sh
-xcrun simctl install <SIM> build/Build/Products/Debug-iphonesimulator/blnd_ios.app
-```
-
-4. Run all flows with environment variables for the demo account:
-
-```sh
-maestro test -e EMAIL=... -e PASSWORD=... -e USERNAME_B=... .maestro/
-```
-
-Never store or commit credentials. Read them from a protected local artifact or export them in your shell session.
-
-Note: the home feed’s right-swipe action labels its real feedback `Added to My Watchlist`. The onboarding tutorial separately explains that right means “Interested”; flow 02 asserts the home reel’s actual feedback.
-
-Flow 08 (`08_blend_find_movie`) also needs `USERNAME_B`: the username of a second account that A adds to a new blend.
+`<flow>.verify.sh` (optional) runs after a passing flow and must exit 0: it proves the server really saved what the UI showed.
+`required.txt` lists the flows the PR gate requires.
+Never store or commit real credentials.

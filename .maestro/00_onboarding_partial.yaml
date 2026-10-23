@@ -1,0 +1,26 @@
+# Onboarding (PARTIAL): Welcome > Create Account > two pitch screens > "Movies you love" taste picks.
+# Stops after picking 5 movies. The step AFTER the taste picks rendered a blank screen on dev 217ecfd/iPhone 17 Pro
+# (only the back chevron, 20s+), so later steps (swipe/rate/match/blends/now/letterboxd/taste/friends) are NOT covered yet.
+appId: com.jonathan.blnd-ios
+env: {EMAIL: maya@blnd.local, PASSWORD: Premium123!}
+---
+- runFlow: subflows/sign_out.yaml
+- takeScreenshot: 00-1-welcome
+- tapOn: Create Account
+- waitForAnimationToEnd
+- assertVisible: {id: onboarding.continue}
+- takeScreenshot: 00-2-pitch-tonight
+- tapOn: {id: onboarding.continue}
+- waitForAnimationToEnd
+- takeScreenshot: 00-3-pitch-taste
+- tapOn: {id: onboarding.continue}
+- extendedWaitUntil: {visible: {id: onboarding.poster.27205}, timeout: 20000}
+- takeScreenshot: 00-4-pick-movies-empty
+- tapOn: {id: onboarding.poster.27205}
+- tapOn: {id: onboarding.poster.157336}
+- tapOn: {id: onboarding.poster.155}
+- tapOn: {id: onboarding.poster.680}
+- tapOn: {id: onboarding.poster.238}
+- waitForAnimationToEnd
+- assertVisible: 5 selected. These seed your recommendations.
+- takeScreenshot: 00-5-five-picked
