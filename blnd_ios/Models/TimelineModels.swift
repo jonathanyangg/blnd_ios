@@ -280,19 +280,3 @@ enum TimelineGrouping {
         }
     }
 }
-
-enum APIErrorEnvelope {
-    /// Reads `{error:{code,message}}`. Nil when that object is absent.
-    static func message(from data: Data) -> String? {
-        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let error = json["error"] as? [String: Any],
-              let message = error["message"] as? String,
-              !message.isEmpty
-        else { return nil }
-        return message
-    }
-
-    static func message(in data: Data) -> String? {
-        message(from: data)
-    }
-}
