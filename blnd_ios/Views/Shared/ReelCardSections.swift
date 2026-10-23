@@ -25,6 +25,7 @@ extension ReelCardView {
                 .foregroundStyle(.white)
                 .lineLimit(2)
                 .minimumScaleFactor(0.75)
+                .accessibilityIdentifier("reel.title")
 
             Spacer(minLength: 8)
 
@@ -140,23 +141,91 @@ extension ReelCardView {
         .accessibilityIdentifier("reel.poster")
     }
 
-    /// Trailer stays 16:9. Touches pass through so a vertical drag scrolls the feed.
-    @ViewBuilder
-    var trailerOverlay: some View {
-        if showTrailer, let videoId = trailerVideoId {
-            VStack(spacing: 0) {
-                ReelTrailerView(videoId: videoId)
-                    .aspectRatio(16 / 9, contentMode: .fit)
-                    .padding(.top, 8)
-                    .background(GeometryReader { geo in
-                        Color.clear.preference(
-                            key: MediaBottomYKey.self,
-                            value: geo.frame(in: .named("reelCard")).maxY
-                        )
-                    })
+    /// Translucent info panel over the full-bleed poster. A tap on the poster fades it.
+    var infoOverlay: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            titleLine
+            metaLine
+            if !genres.isEmpty {
+                genreLine
+            }
+            providersRow
+            watchedByRow
+            HStack(spacing: 20) {
+                watchlistButton
+                commentsButton
                 Spacer(minLength: 0)
             }
-            .allowsHitTesting(false)
+            inlineRatingBar
+            HStack(spacing: 10) {
+                watchNowButton
+                detailChip
+            }
+            watchedWithButton
+        }
+        .padding(16)
+        .background {
+            RoundedRectangle(cornerRadius: 24)
+                .fill(.ultraThinMaterial)
+                .opacity(0.85)
+        }
+        .environment(\.colorScheme, .dark)
+        .padding(.horizontal, 12)
+        .padding(.bottom, bottomInset + 8)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("reel.info.overlay")
+    }
+
+    /// Opens the shared detail sheet. Swipe up stays "next movie".
+    var detailChip: some View {
+        HStack(spacing: 6) {
+            Text("Details")
+                .font(.system(size: 15, weight: .semibold))
+            Image(systemName: "chevron.up")
+                .font(.system(size: 12, weight: .bold))
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 18)
+        .padding(.vertical, 13)
+        .background(.white.opacity(0.16), in: RoundedRectangle(cornerRadius: 14))
+        .contentShape(Rectangle())
+        .highPriorityGesture(
+            TapGesture().onEnded { onShowDetail?() }
+        )
+        .accessibilityElement()
+        .accessibilityAddTraits(.isButton)
+        .accessibilityLabel("Details")
+        .accessibilityIdentifier("reel.detail.chip")
+    }
+
+    /// Compact where-to-watch logos. Tapping opens the full streaming sheet.
+    @ViewBuilder
+    var providersRow: some View {
+        if !providers.isEmpty {
+            HStack(spacing: 6) {
+                ForEach(providers.prefix(4)) { offer in
+                    CachedAsyncImage(url: offer.logoURL) { image in
+                        image.resizable().scaledToFill()
+                    } placeholder: {
+                        AppTheme.card
+                    }
+                    .frame(width: 26, height: 26)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .accessibilityLabel(offer.providerName)
+                }
+                if providers.count > 4 {
+                    Text("+\(providers.count - 4)")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.75))
+                }
+            }
+            .contentShape(Rectangle())
+            .highPriorityGesture(
+                TapGesture().onEnded { showStreamingSheet = true }
+            )
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("reel.providers")
         }
     }
 
@@ -350,7 +419,6 @@ extension ReelCardView {
                 .font(.system(size: 13))
             Text("Add to watchlist")
                 .font(.system(size: 14, weight: .medium))
-            Spacer()
         }
         .foregroundStyle(.white.opacity(0.85))
         .padding(.vertical, 2)
@@ -377,7 +445,6 @@ extension ReelCardView {
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(AppTheme.textDim)
             }
-            Spacer()
         }
         .foregroundStyle(.white.opacity(0.85))
         .padding(.vertical, 2)

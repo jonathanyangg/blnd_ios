@@ -39,6 +39,7 @@ struct HomeView: View {
     @State var deepLinkTmdbId: Int?
     @State var catalogFilters = CatalogFilterStore.shared
     @State var deepLinkCommentsId: Int?
+    @State var gridDetailItem: MovieDetailItem?
 
     /// Show the reel coach once. The key matches `ReelTutorialStore`.
     @AppStorage(ReelTutorialStore.seenKey) private var hasSeenTutorial = false
@@ -170,6 +171,7 @@ struct HomeView: View {
                         .font(.system(size: 18))
                         .foregroundStyle(.white)
                     }
+                    .accessibilityIdentifier("home.viewMode")
                     Button { showSearch = true } label: {
                         Image(systemName: "magnifyingglass")
                             .font(.system(size: 20))

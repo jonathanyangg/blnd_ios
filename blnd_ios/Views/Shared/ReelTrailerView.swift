@@ -1,19 +1,28 @@
+import AVFoundation
+import Observation
 import SwiftUI
 import WebKit
 
-/// Persistent YouTube player that reuses a single WKWebView across reel cards.
-/// Swaps video IDs via JavaScript instead of recreating the WebView each time.
+/// The one reel trailer player. A licensed native clip plays in `nativePlayer`;
+/// otherwise a single reused WKWebView swaps YouTube embed video IDs via JavaScript.
 @MainActor
+@Observable
 final class TrailerPlayer {
     static let shared = TrailerPlayer()
 
-    private(set) var webView: WKWebView
-    private(set) var isReady = false
-    private(set) var currentVideoId: String?
-    private var coordinator: Coordinator?
+    @ObservationIgnored private(set) var webView: WKWebView
+    @ObservationIgnored private(set) var isReady = false
+    @ObservationIgnored private(set) var currentVideoId: String?
+    @ObservationIgnored private var coordinator: Coordinator?
+    /// True once the active source reports frames, so the poster can stay up until then.
+    private(set) var isPlaying = false
+    private(set) var isMuted = true
+    let nativePlayer = AVQueuePlayer()
+    @ObservationIgnored private var looper: AVPlayerLooper?
+    @ObservationIgnored private var warmAsset: AVURLAsset?
+    @ObservationIgnored private var nativeStatus: NSKeyValueObservation?
 
-    private static let embedHost =
-        "https://www.youtube-nocookie.com"
+    private static let embedHost = YouTubeEmbed.host
 
     private init() {
         let config = WKWebViewConfiguration()
@@ -32,6 +41,36 @@ final class TrailerPlayer {
         view.uiDelegate = coord
 
         view.loadHTMLString(Self.embedHTML, baseURL: URL(string: Self.embedHost))
+        nativePlayer.isMuted = true
+        nativeStatus = nativePlayer.observe(\.timeControlStatus) { player, _ in
+            let playing = player.timeControlStatus == .playing
+            Task { @MainActor in TrailerPlayer.shared.isPlaying = playing }
+        }
+    }
+
+    /// Plays a licensed clip (iTunes preview) muted and looping.
+    func playNative(url: URL) {
+        stop()
+        let asset = warmAsset?.url == url ? warmAsset! : AVURLAsset(url: url)
+        looper = AVPlayerLooper(player: nativePlayer, templateItem: AVPlayerItem(asset: asset))
+        nativePlayer.isMuted = isMuted
+        nativePlayer.play()
+    }
+
+    /// Warms up the next reel's clip: metadata only, never the whole file.
+    func preload(url: URL) {
+        guard warmAsset?.url != url else { return }
+        let asset = AVURLAsset(url: url)
+        warmAsset = asset
+        Task { _ = try? await asset.load(.isPlayable) }
+    }
+
+    func setMuted(_ muted: Bool) {
+        isMuted = muted
+        nativePlayer.isMuted = muted
+        if isReady {
+            webView.evaluateJavaScript("setMuted(\(muted));")
+        }
     }
 
     func play(videoId: String) {
@@ -46,6 +85,11 @@ final class TrailerPlayer {
 
     func stop() {
         currentVideoId = nil
+        isPlaying = false
+        looper?.disableLooping()
+        looper = nil
+        nativePlayer.pause()
+        nativePlayer.removeAllItems()
         if isReady {
             webView.evaluateJavaScript("stopVideo();")
         }
@@ -65,6 +109,7 @@ final class TrailerPlayer {
 
     private func markReady() {
         isReady = true
+        webView.evaluateJavaScript("setMuted(\(isMuted));")
         if let vid = currentVideoId {
             webView.evaluateJavaScript("loadVideo('\(vid)');")
         }
@@ -81,11 +126,13 @@ final class TrailerPlayer {
         content="width=device-width, initial-scale=1">
         <style>
         * { margin: 0; padding: 0; }
-        body { background: #000; overflow: hidden; }
+        html, body { height: 100%; background: #000; overflow: hidden; }
         .wrap {
-            position: relative;
-            width: 100%;
-            padding-bottom: 56.25%;
+            position: absolute;
+            top: 50%; left: 50%;
+            width: max(100vw, 177.78vh);
+            height: max(100vh, 56.25vw);
+            transform: translate(-50%, -50%);
             opacity: 0;
             transition: opacity 0.2s ease-in;
         }
@@ -113,23 +160,15 @@ final class TrailerPlayer {
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('player', {
                 host: '\(host)',
-                playerVars: {
-                    playsinline: 1,
-                    autoplay: 1,
-                    controls: 0,
-                    rel: 0,
-                    showinfo: 0,
-                    modestbranding: 1,
-                    disablekb: 1,
-                    iv_load_policy: 3,
-                    origin: '\(host)'
-                },
+                playerVars: \(YouTubeEmbed.playerVarsJS),
                 events: {
                     onReady: function() {
                         window.webkit.messageHandlers.playerReady
                             .postMessage('ready');
                     },
                     onStateChange: function(e) {
+                        window.webkit.messageHandlers.playerState
+                            .postMessage(e.data);
                         if (e.data === 1) {
                             document.getElementById('wrap')
                                 .classList.add('visible');
@@ -160,6 +199,14 @@ final class TrailerPlayer {
                 startSeconds: 2.5
             });
             player.setLoop(true);
+            setMuted(muted);
+        }
+
+        var muted = true;
+        function setMuted(m) {
+            muted = m;
+            if (!player || !player.mute) { return; }
+            if (m) { player.mute(); } else { player.unMute(); }
         }
 
         function stopVideo() {
@@ -200,6 +247,8 @@ final class TrailerPlayer {
             super.init()
             player.webView.configuration.userContentController
                 .add(self, name: "playerReady")
+            player.webView.configuration.userContentController
+                .add(self, name: "playerState")
         }
 
         func userContentController(
@@ -208,6 +257,8 @@ final class TrailerPlayer {
         ) {
             if message.name == "playerReady" {
                 player?.markReady()
+            } else if message.name == "playerState", player?.currentVideoId != nil {
+                player?.isPlaying = (message.body as? Int) == 1
             }
         }
 
@@ -284,6 +335,49 @@ struct ReelTrailerView: UIViewRepresentable {
         if trailerWebView.superview == container {
             TrailerPlayer.shared.stop()
             trailerWebView.removeFromSuperview()
+        }
+    }
+}
+
+/// Full-bleed AVPlayerLayer for licensed native clips.
+struct NativeTrailerView: UIViewRepresentable {
+    let player: AVPlayer
+
+    final class PlayerView: UIView {
+        override static var layerClass: AnyClass {
+            AVPlayerLayer.self
+        }
+    }
+
+    func makeUIView(context: Context) -> PlayerView {
+        let view = PlayerView()
+        view.isUserInteractionEnabled = false
+        (view.layer as? AVPlayerLayer)?.videoGravity = .resizeAspectFill
+        return view
+    }
+
+    func updateUIView(_ view: PlayerView, context: Context) {
+        (view.layer as? AVPlayerLayer)?.player = player
+    }
+}
+
+/// UIKit long press so "began" and "released" are reliable inside the paging ScrollView.
+struct ReelHoldGesture: UIGestureRecognizerRepresentable {
+    var onBegan: () -> Void
+    var onEnded: () -> Void
+
+    func makeUIGestureRecognizer(context: Context) -> UILongPressGestureRecognizer {
+        let recognizer = UILongPressGestureRecognizer()
+        recognizer.minimumPressDuration = 0.25
+        recognizer.allowableMovement = 12
+        return recognizer
+    }
+
+    func handleUIGestureRecognizerAction(_ recognizer: UILongPressGestureRecognizer, context: Context) {
+        switch recognizer.state {
+        case .began: onBegan()
+        case .ended, .cancelled, .failed: onEnded()
+        default: break
         }
     }
 }

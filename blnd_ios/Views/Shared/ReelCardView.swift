@@ -3,6 +3,10 @@ import SwiftUI
 struct ReelCardView: View {
     let movie: ReelMovie
     let isActive: Bool
+    /// False while scrolling, behind the detail sheet, or in the background. Stops the trailer.
+    var canPlay = true
+    /// Clears the floating tab bar the card now extends behind.
+    var bottomInset: CGFloat = 0
     var position: Int = 0
     var feed: Analytics.FeedSource = .fyp
     var onSwipeResult: ((ReelSwipeResult) -> Void)?
@@ -17,63 +21,49 @@ struct ReelCardView: View {
     @State var swipeOffset: CGFloat = 0
     @State var swipeTriggeredHaptic = false
     @State var isDragging = false
-    @State var trailerReady = false
+    @State var hold = TrailerHoldState()
+    @State var trailerKind: TrailerSourceKind?
+    @State var trailerTask: Task<Void, Never>?
+    @State var lockTask: Task<Void, Never>?
+    @State var holdTouchActive = false
+    @State var suppressTapUntil = Date.distantPast
+    @State var showTrailerUnavailable = false
+    @State var providers: [WatchOffer] = []
     @State var friendsWhoWatched: [FriendWatchedResponse] = []
     @State var showStreamingSheet = false
     @State var showCommentsSheet = false
     @State var showWatchedBySheet = false
     @State var showLogSheet = false
     @State var friendsLoadTask: Task<Void, Never>?
-    @State var mediaBottomY: CGFloat = 0
     @State var selectedCastMember: CastMember?
     @State private var activeStartTime: Date?
+    @Environment(\.accessibilityReduceMotion) var reduceMotion
 
     let swipeThreshold: CGFloat = 120
 
-    var trailerVideoId: String? {
-        movie.trailerUrl.flatMap {
-            YouTubePlayerView.extractVideoId(from: $0)
-        }
-    }
-
     var genres: [Genre] {
         movie.genres.filter { $0.name != nil }
-    }
-
-    var showTrailer: Bool {
-        !showsTutorial
-            && !APIConfig.screenshotMode
-            && isActive && trailerReady && trailerVideoId != nil
     }
 
     var body: some View {
         ZStack {
             posterBackground
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            trailerOverlay
-            scrim
-            VStack(alignment: .leading, spacing: 8) {
-                Spacer(minLength: 0)
-                titleLine
-                metaLine
-                if !genres.isEmpty {
-                    genreLine
-                }
-                watchedByRow
-                commentsButton
-                watchlistButton
-                inlineRatingBar
-                watchNowButton
-                watchedWithButton
+            trailerLayer
+            if hold.showsOverlay {
+                scrim
+                    .transition(.opacity)
+                infoOverlay
+                    .transition(.opacity)
             }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 16)
+            trailerHUD
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
         .background(Color.black)
         .clipped()
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: hold)
         .coordinateSpace(name: "reelCard")
-        .onPreferenceChange(MediaBottomYKey.self) { mediaBottomY = $0 }
+        .gesture(ReelHoldGesture(onBegan: holdBegan, onEnded: holdEnded))
         .offset(x: swipeOffset + tutorialNudge.x, y: tutorialNudge.y)
         .rotationEffect(
             .degrees(Double(swipeOffset) * 0.02 + tutorialNudge.degrees)
@@ -81,10 +71,7 @@ struct ReelCardView: View {
         .reelTutorialFrame(.card, active: isActive)
         .simultaneousGesture(horizontalSwipe)
         .overlay { swipeIndicators }
-        .onTapGesture {
-            guard !isDragging else { return }
-            onShowDetail?()
-        }
+        .onTapGesture(perform: posterTapped)
         .sheet(item: $selectedCastMember) { member in
             NavigationStack {
                 ActorProfileView(
@@ -138,34 +125,21 @@ struct ReelCardView: View {
             .presentationBackground(AppTheme.card)
         }
         .onAppear {
-            if isActive, !showsTutorial {
-                trailerReady = true
+            if isActive {
                 activeStartTime = Date()
-                if let vid = trailerVideoId {
-                    TrailerPlayer.shared.play(videoId: vid)
-                }
             }
         }
-        .onChange(of: showsTutorial) { _, showing in
-            guard isActive else { return }
-            if showing {
-                trailerReady = false
-                TrailerPlayer.shared.stop()
-            } else if let vid = trailerVideoId {
-                trailerReady = true
-                TrailerPlayer.shared.play(videoId: vid)
-            }
+        .task(id: isActive) {
+            if isActive { await loadProviders() }
+        }
+        .onChange(of: canPlay && isActive && !showsTutorial) { _, playable in
+            if !playable { apply(hold.send(.stopped)) }
         }
         .onChange(of: isActive) { _, active in
             if active {
                 activeStartTime = Date()
                 loadFriends()
-                if !showsTutorial, let vid = trailerVideoId {
-                    trailerReady = true
-                    TrailerPlayer.shared.play(videoId: vid)
-                }
             } else {
-                trailerReady = false
                 if let start = activeStartTime {
                     Analytics.reelViewed(
                         tmdbId: movie.tmdbId,
@@ -175,9 +149,6 @@ struct ReelCardView: View {
                     )
                     activeStartTime = nil
                 }
-                // Don't call stop() here — loadVideo() on the next card
-                // implicitly replaces the current video. An explicit stop()
-                // races with the next card's play() and kills it.
             }
         }
     }

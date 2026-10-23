@@ -19,6 +19,9 @@ struct ReelsFeedView: View {
     @State private var lastNotForMeTmdbId: Int?
     @State private var detailMovie: ReelMovie?
     @State private var selectedFriend: FriendResponse?
+    @State private var isScrolling = false
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var currentIdBinding: Binding<Int?> {
         externalCurrentId ?? $internalCurrentId
@@ -30,12 +33,10 @@ struct ReelsFeedView: View {
 
     var body: some View {
         GeometryReader { geo in
-            // The floating tab bar overlaps this container. A page that
-            // includes that overlap leaves the next movie peeking under the bar.
-            // shortcut: iOS 26's floating tab bar overlaps the page when
-            // safeAreaInsets.bottom is 0. 80pt matches that bar on a Pro Max.
-            let overlap = max(geo.safeAreaInsets.bottom, 80)
-            let cardHeight = max(geo.size.height - overlap, 1)
+            // Pages run behind the floating tab bar; the info panel is padded clear of it.
+            // shortcut: iOS 26's floating tab bar reports safeAreaInsets.bottom 0. 80pt
+            // matches that bar on a Pro Max.
+            let tabBarClearance = max(geo.safeAreaInsets.bottom, 80)
 
             ScrollView(.vertical) {
                 LazyVStack(spacing: 0) {
@@ -47,6 +48,8 @@ struct ReelsFeedView: View {
                             movie: movie,
                             isActive: movie.tmdbId == currentId
                                 && isTabVisible,
+                            canPlay: !isScrolling && detailMovie == nil && scenePhase == .active,
+                            bottomInset: tabBarClearance,
                             position: index,
                             feed: feed,
                             onSwipeResult: { result in
@@ -80,12 +83,13 @@ struct ReelsFeedView: View {
                             tutorialNudge: movie.tmdbId == currentId ? tutorialNudge : .rest,
                             showsTutorial: showsTutorial && movie.tmdbId == currentId
                         )
-                        .frame(height: cardHeight)
+                        // Exactly one page tall, so the first card has no strip below it.
+                        .containerRelativeFrame([.horizontal, .vertical])
                         .id(movie.tmdbId)
                         .scrollTransition(.interactive, axis: .vertical) { content, phase in
                             content
                                 .opacity(phase.isIdentity ? 1 : 0.7)
-                                .scaleEffect(phase.isIdentity ? 1 : 0.96)
+                                .scaleEffect(phase.isIdentity || reduceMotion ? 1 : 0.96)
                         }
                     }
                 }
@@ -96,14 +100,18 @@ struct ReelsFeedView: View {
             )
             .scrollPosition(id: currentIdBinding)
             .scrollIndicators(.hidden)
-            .frame(height: cardHeight)
-            .clipped()
+            .contentMargins(0, for: .scrollContent)
+            .onScrollPhaseChange { _, phase in
+                isScrolling = phase.isScrolling
+            }
+            .ignoresSafeArea(edges: .bottom)
             .refreshable {
                 await onRefresh?()
             }
         }
         .onChange(of: currentId) { _, newId in
             guard let newId else { return }
+            preloadTrailer(after: newId)
             if let idx = movies.firstIndex(where: {
                 $0.tmdbId == newId
             }), idx >= movies.count - 4 {
@@ -123,8 +131,8 @@ struct ReelsFeedView: View {
                 currentIdBinding.wrappedValue = first.tmdbId
             }
         }
-        .navigationDestination(item: $detailMovie) { movie in
-            MovieDetailView(tmdbId: movie.tmdbId, title: movie.title, source: .reels)
+        .sheet(item: $detailMovie) { movie in
+            MovieDetailSheet(tmdbId: movie.tmdbId, title: movie.title, source: .reels)
         }
         .navigationDestination(item: $selectedFriend) { friend in
             FriendProfileView(friend: friend)
@@ -174,6 +182,25 @@ struct ReelsFeedView: View {
     }
 
     // MARK: - Navigation
+
+    /// Resolves and warms only the next reel's native clip. YouTube is never preloaded.
+    private func preloadTrailer(after tmdbId: Int) {
+        guard !APIConfig.screenshotMode,
+              let nextId = TrailerPreloadPolicy.target(
+                  after: tmdbId,
+                  in: movies.map(\.tmdbId),
+                  lowPower: ProcessInfo.processInfo.isLowPowerModeEnabled
+              ),
+              let next = movies.first(where: { $0.tmdbId == nextId })
+        else { return }
+        Task {
+            if let url = await TrailerSource.shared.nativeClipURL(
+                tmdbId: next.tmdbId, title: next.title, year: Int(next.yearString)
+            ) {
+                TrailerPlayer.shared.preload(url: url)
+            }
+        }
+    }
 
     private func advanceToNext(from tmdbId: Int) {
         guard let idx = movies.firstIndex(where: { $0.tmdbId == tmdbId }),
