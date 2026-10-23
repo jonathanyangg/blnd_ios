@@ -31,6 +31,8 @@ struct WatchlistHubRow: View {
                 } label: {
                     Text("Watch now")
                         .font(.system(size: 10, weight: .semibold))
+                        .lineLimit(1)
+                        .fixedSize()
                         .foregroundStyle(.black)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 5)
