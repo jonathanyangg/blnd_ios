@@ -22,6 +22,8 @@ func apiErrorMessage(from data: Data, fallback: String = "Request failed") -> St
 }
 
 enum APIErrorEnvelope {
+    static func message(from data: Data) -> String? { message(in: data) }
+
     static func message(in data: Data) -> String? {
         let raw = APIFieldError.parse(data).raw
         return raw == "Request failed" ? nil : raw

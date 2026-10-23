@@ -38,7 +38,7 @@ struct GateErrorTests {
             {"detail":{"code":"free_group_cap","cap":4,"message":"\(message)"}}
             """
         )
-        expectPaywall(legacy, code: "free_group_cap", message: message)
+        expectPaywall(legacy, code: "FREE_GROUP_CAP", message: message)
     }
 
     @Test func groupFullShowsMessageAndSkipsPaywall() {
@@ -57,7 +57,7 @@ struct GateErrorTests {
             {"detail":{"code":"group_full","cap":12,"message":"\(message)"}}
             """
         )
-        expectMessage(legacy, code: "group_full", message: message)
+        expectMessage(legacy, code: "GROUP_FULL", message: message)
     }
 
     @Test func legacyStringDetailAndGarbageBody() {

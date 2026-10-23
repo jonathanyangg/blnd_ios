@@ -1,99 +1,98 @@
 import Foundation
 
-/// A person attached to a watch: either someone you watched with, or the member who logged a blend entry.
-struct WatchCompanion: Decodable, Identifiable, Hashable {
-    let userId: String
-    let username: String
-    let displayName: String?
-    let avatarUrl: String?
+/// A person card from a timeline or watched-with response: `{id, name, avatar}`.
+struct TimelinePerson: Decodable, Identifiable, Hashable {
+    let id: String
+    let name: String
+    let avatar: String?
+}
 
-    var id: String { userId }
+/// Movie or show attached to a timeline row.
+struct TimelineMedia: Decodable, Hashable {
+    let tmdbId: Int
+    let title: String
+    let poster: String?
+    let year: Int?
+    let mediaType: MediaType
 
-    /// Name shown in the diary. Falls back to the username when the display name is blank.
-    var name: String {
-        let trimmed = displayName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        return trimmed.isEmpty ? username : trimmed
-    }
+    var isTV: Bool { mediaType == .tv }
 
     enum CodingKeys: String, CodingKey {
-        case userId = "user_id"
-        case username
-        case displayName = "display_name"
-        case avatarUrl = "avatar_url"
+        case tmdbId = "tmdb_id"
+        case title, poster, year
+        case mediaType = "media_type"
     }
 }
 
-/// One dated watch on a profile diary or a blend timeline.
+/// One dated watch. `id` and `created_at` are optional while the server rolls them out.
 struct TimelineEntry: Decodable, Identifiable, Hashable {
-    let id: Int
-    let tmdbId: Int
-    let title: String
-    let posterPath: String?
-    let year: Int?
-    let rating: Double?
-    let watchedDate: String?
+    /// Watch-log row id. Absent on older payloads.
+    let logId: Int?
+    /// ISO8601, including fractional seconds such as `2026-10-15T08:14:59.352080Z`.
     let createdAt: String?
-    let watchedWith: [WatchCompanion]
-    let watchedBy: WatchCompanion?
+    /// Diary day, `YYYY-MM-DD`.
+    let date: String?
+    let rating: Double?
+    let media: TimelineMedia
+    /// Who logged the row. Replaces the old `watched_by` field.
+    let user: TimelinePerson
+    let watchedWith: [TimelinePerson]
+
+    var id: String {
+        if let logId { return "log-\(logId)" }
+        return "\(media.tmdbId)|\(date ?? "")|\(user.id)|\(createdAt ?? "")"
+    }
 
     init(
-        id: Int,
-        tmdbId: Int,
-        title: String,
-        posterPath: String? = nil,
-        year: Int? = nil,
-        rating: Double? = nil,
-        watchedDate: String? = nil,
+        logId: Int? = nil,
         createdAt: String? = nil,
-        watchedWith: [WatchCompanion] = [],
-        watchedBy: WatchCompanion? = nil
+        date: String? = nil,
+        rating: Double? = nil,
+        media: TimelineMedia,
+        user: TimelinePerson,
+        watchedWith: [TimelinePerson] = []
     ) {
-        self.id = id
-        self.tmdbId = tmdbId
-        self.title = title
-        self.posterPath = posterPath
-        self.year = year
-        self.rating = rating
-        self.watchedDate = watchedDate
+        self.logId = logId
         self.createdAt = createdAt
+        self.date = date
+        self.rating = rating
+        self.media = media
+        self.user = user
         self.watchedWith = watchedWith
-        self.watchedBy = watchedBy
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = try container.decode(Int.self, forKey: .id)
-        tmdbId = try container.decode(Int.self, forKey: .tmdbId)
-        title = try container.decode(String.self, forKey: .title)
-        posterPath = try container.decodeIfPresent(String.self, forKey: .posterPath)
-        year = try container.decodeIfPresent(Int.self, forKey: .year)
-        rating = try container.decodeIfPresent(Double.self, forKey: .rating)
-        watchedDate = try container.decodeIfPresent(String.self, forKey: .watchedDate)
+        logId = try container.decodeIfPresent(Int.self, forKey: .logId)
         createdAt = try container.decodeIfPresent(String.self, forKey: .createdAt)
-        watchedWith = try container.decodeIfPresent([WatchCompanion].self, forKey: .watchedWith) ?? []
-        watchedBy = try container.decodeIfPresent(WatchCompanion.self, forKey: .watchedBy)
+        date = try container.decodeIfPresent(String.self, forKey: .date)
+        rating = try container.decodeIfPresent(Double.self, forKey: .rating)
+        media = try container.decode(TimelineMedia.self, forKey: .media)
+        user = try container.decode(TimelinePerson.self, forKey: .user)
+        watchedWith = try container.decodeIfPresent([TimelinePerson].self, forKey: .watchedWith) ?? []
     }
 
     enum CodingKeys: String, CodingKey {
-        case id
-        case tmdbId = "tmdb_id"
-        case title
-        case posterPath = "poster_path"
-        case year, rating
-        case watchedDate = "watched_date"
+        case logId = "id"
         case createdAt = "created_at"
+        case date, rating, media, user
         case watchedWith = "watched_with"
-        case watchedBy = "watched_by"
     }
 }
 
+/// Cursor page. `nextCursor == nil` means there is no further page.
 struct TimelinePage: Decodable {
     let results: [TimelineEntry]
-    let total: Int
+    let nextCursor: String?
+
+    enum CodingKeys: String, CodingKey {
+        case results
+        case nextCursor = "next_cursor"
+    }
 }
 
 struct WatchedWithResponse: Decodable {
-    let watchedWith: [WatchCompanion]
+    let watchedWith: [TimelinePerson]
 
     enum CodingKeys: String, CodingKey {
         case watchedWith = "watched_with"
@@ -108,15 +107,18 @@ struct SetWatchedWithRequest: Encodable {
     }
 }
 
-/// Diary sentence for the people a movie was watched with.
+/// Diary sentence and the watched-with picker cap.
 enum DiaryCopy {
+    /// Server rejects more than 50 ids on `PUT /tracking/{tmdb_id}/watched-with`.
+    static let maxCompanions = 50
+    static let companionCapMessage = "You can tag up to 50 people."
     static let taggingUnavailable = "Tagging who you watched with isn't available yet."
     static let diaryUnavailableTitle = "Diary isn't available yet"
     static let diaryUnavailableMessage = "The timeline will show up here once the server update ships."
 
     /// "with Alex", "with Alex & Sam", or "with Alex, Sam & Jordan". Nil when nobody is tagged.
-    static func watchedWithLine(_ people: [WatchCompanion]) -> String? {
-        let names = people.map(\.name).filter { !$0.isEmpty }
+    static func watchedWithLine(_ people: [TimelinePerson]) -> String? {
+        let names = people.map { $0.name.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
         switch names.count {
         case 0:
             return nil
@@ -129,6 +131,20 @@ enum DiaryCopy {
             return "with \(head) & \(names[names.count - 1])"
         }
     }
+
+    /// Adds `id` unless the set is already at `maxCompanions`. Removing always works.
+    /// An empty set is a valid save: the server clears companions when `user_ids` is `[]`.
+    static func toggle(_ id: String, in selected: Set<String>) -> (selected: Set<String>, hitCap: Bool) {
+        if selected.contains(id) {
+            var next = selected
+            next.remove(id)
+            return (next, false)
+        }
+        guard selected.count < maxCompanions else { return (selected, true) }
+        var next = selected
+        next.insert(id)
+        return (next, false)
+    }
 }
 
 enum TimelineLoadFailure: Equatable {
@@ -139,8 +155,7 @@ enum TimelineLoadFailure: Equatable {
         if let api = error as? APIError, case .notFound = api {
             return .unavailable
         }
-        let text = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-        return .message(text)
+        return .message(UserFacingError.map(error).message)
     }
 }
 
@@ -151,13 +166,13 @@ struct TimelineDay: Equatable {
 }
 
 enum TimelineDate {
-    /// Prefer the calendar `watched_date`. Otherwise the local day of `created_at`.
+    /// Prefer the diary `date`. Otherwise the UTC day of `created_at`.
     static func dayParts(of entry: TimelineEntry, calendar: Calendar = .current) -> TimelineDay? {
-        if let watchedDate = entry.watchedDate, let day = parseDay(watchedDate) {
-            return day
-        }
-        guard let createdAt = entry.createdAt, let date = parseTimestamp(createdAt) else { return nil }
-        let parts = calendar.dateComponents([.year, .month, .day], from: date)
+        if let date = entry.date, let day = parseDay(date) { return day }
+        guard let createdAt = entry.createdAt, let instant = parseTimestamp(createdAt) else { return nil }
+        var utc = calendar
+        utc.timeZone = TimeZone(secondsFromGMT: 0) ?? utc.timeZone
+        let parts = utc.dateComponents([.year, .month, .day], from: instant)
         guard let year = parts.year, let month = parts.month, let day = parts.day else { return nil }
         return TimelineDay(year: year, month: month, day: day)
     }
@@ -174,13 +189,36 @@ enum TimelineDate {
         return TimelineDay(year: year, month: month, day: day)
     }
 
+    /// Accepts `2026-10-15T08:14:59.352080Z` (six fractional digits) and shorter forms.
     static func parseTimestamp(_ value: String) -> Date? {
         let fractional = ISO8601DateFormatter()
         fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         if let date = fractional.date(from: value) { return date }
+        if let shortened = milliseconds(value), let date = fractional.date(from: shortened) {
+            return date
+        }
         let plain = ISO8601DateFormatter()
         plain.formatOptions = [.withInternetDateTime]
+        if let stripped = stripFraction(value), let date = plain.date(from: stripped) { return date }
         return plain.date(from: value)
+    }
+
+    /// `2026-10-15T08:14:59.352080Z` -> `2026-10-15T08:14:59.352Z`.
+    static func milliseconds(_ value: String) -> String? {
+        guard let dot = value.firstIndex(of: ".") else { return nil }
+        let after = value[value.index(after: dot)...]
+        let digits = after.prefix { $0.isNumber }
+        guard digits.count > 3 else { return nil }
+        let zone = after.dropFirst(digits.count)
+        return "\(value[..<value.index(after: dot)])\(digits.prefix(3))\(zone)"
+    }
+
+    static func stripFraction(_ value: String) -> String? {
+        guard let dot = value.firstIndex(of: ".") else { return nil }
+        let after = value[value.index(after: dot)...]
+        let digits = after.prefix { $0.isNumber }
+        let zone = after.dropFirst(digits.count)
+        return "\(value[..<dot])\(zone)"
     }
 
     static func monthName(_ month: Int) -> String {
@@ -211,42 +249,34 @@ struct TimelineSection: Identifiable {
 }
 
 enum TimelineGrouping {
-    /// Newest month first. Undated entries sit in a final "No date" section.
+    /// Groups a newest-first page into months without reshuffling the server order.
+    /// The API already sorts by diary date, then created time. A later page only
+    /// appends older rows, including more rows for the month already on screen.
     static func sections(from entries: [TimelineEntry], calendar: Calendar = .current) -> [TimelineSection] {
-        let dated = entries.map { ($0, TimelineDate.dayParts(of: $0, calendar: calendar)) }
-        var buckets: [String: (order: Int, title: String, rows: [(TimelineEntry, TimelineDay?)])] = [:]
+        var monthOrder: [String] = []
+        var buckets: [String: (title: String, rows: [TimelineEntry])] = [:]
 
-        for (entry, day) in dated {
+        for entry in entries {
+            let day = TimelineDate.dayParts(of: entry, calendar: calendar)
             let key: String
             let title: String
-            let order: Int
             if let day {
                 key = String(format: "%04d-%02d", day.year, day.month)
                 title = "\(TimelineDate.monthName(day.month)) \(day.year)"
-                order = day.year * 100 + day.month
             } else {
                 key = "undated"
                 title = "No date"
-                order = -1
             }
-            var bucket = buckets[key] ?? (order, title, [])
-            bucket.rows.append((entry, day))
-            buckets[key] = bucket
+            if buckets[key] == nil {
+                monthOrder.append(key)
+                buckets[key] = (title, [])
+            }
+            buckets[key]?.rows.append(entry)
         }
 
-        return buckets.map { key, bucket in
-            let rows = bucket.rows.sorted { lhs, rhs in
-                let left = lhs.1.map { $0.year * 10_000 + $0.month * 100 + $0.day } ?? -1
-                let right = rhs.1.map { $0.year * 10_000 + $0.month * 100 + $0.day } ?? -1
-                if left != right { return left > right }
-                return lhs.0.id > rhs.0.id
-            }
-            return TimelineSection(id: key, title: bucket.title, entries: rows.map(\.0))
-        }
-        .sorted { lhs, rhs in
-            let left = buckets[lhs.id]?.order ?? -1
-            let right = buckets[rhs.id]?.order ?? -1
-            return left > right
+        return monthOrder.map { key in
+            let bucket = buckets[key]!
+            return TimelineSection(id: key, title: bucket.title, entries: bucket.rows)
         }
     }
 }

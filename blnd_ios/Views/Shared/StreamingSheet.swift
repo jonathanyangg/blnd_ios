@@ -6,7 +6,7 @@ struct StreamingSheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(AuthState.self) private var authState
-    @State private var options: [StreamingOption] = []
+    @State private var payload: WhereToWatch?
     @State private var isLoading = true
     @State private var errorMessage: UserFacingError?
 
@@ -27,13 +27,13 @@ struct StreamingSheet: View {
             } else {
                 ScrollView {
                     WhereToWatchSection(
-                        options: options,
+                        payload: payload,
                         isLoading: false,
-                        failed: false,
+                        failed: payload == nil,
                         isPremium: authState.isPremium,
                         showsTitle: false
-                    ) { offer in
-                        Task { await WatchLinkOpener.open(offer) }
+                    ) { offer, kind in
+                        Task { await WatchLinkOpener.open(offer, kind: kind) }
                     }
                     .padding(.horizontal, 24)
                 }
@@ -69,7 +69,13 @@ struct StreamingSheet: View {
         errorMessage = nil
         do {
             let response = try await MoviesAPI.getStreaming(tmdbId: tmdbId)
-            options = response.options
+            payload = response.whereToWatch
+            if response.whereToWatch == nil {
+                errorMessage = UserFacingError.client(
+                    .server,
+                    message: "Couldn't load where to watch"
+                )
+            }
         } catch is CancellationError {
             // View dismissed before load finished
         } catch {
