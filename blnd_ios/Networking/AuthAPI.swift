@@ -43,11 +43,20 @@ enum AuthAPI {
 
     /// GET /auth/users/search?q= — search users by username prefix
     static func searchUsers(query: String) async throws -> UserSearchResponse {
-        let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query
+        let encoded = encodedSearchQuery(query)
         return try await APIClient.shared.request(
             endpoint: "/auth/users/search?q=\(encoded)",
             authenticated: true
         )
+    }
+
+    /// URL query values may not contain query delimiters. `+` also decodes as
+    /// a space on the backend, so it must be percent-encoded too.
+    static func encodedSearchQuery(_ query: String) -> String {
+        let allowed = CharacterSet.urlQueryAllowed.subtracting(
+            CharacterSet(charactersIn: "+&=#")
+        )
+        return query.addingPercentEncoding(withAllowedCharacters: allowed) ?? query
     }
 
     /// POST /auth/oauth — exchange provider ID token for BLND session

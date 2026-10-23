@@ -2,22 +2,26 @@ import SwiftUI
 
 struct ReelsFeedView: View {
     let movies: [ReelMovie]
-    var groupContext: ReelCardView.GroupContext?
     var feed: Analytics.FeedSource = .fyp
     var isTabVisible: Bool = true
     var onLoadMore: (() async -> Void)?
     var onRefresh: (() async -> Void)?
     var externalCurrentId: Binding<Int?>?
+    var tutorialNudge: ReelTutorialNudge = .rest
+    var showsTutorial = false
 
     @State private var internalCurrentId: Int?
     @State private var toastMessage: String?
+    @State private var mutationError: UserFacingError?
+    @State private var mutationRetry: (() -> Void)?
     @State private var toastTask: Task<Void, Never>?
     @State private var watchlistTmdbId: Int?
-    @State private var addedToWatchlist: Set<Int> = []
-    @State private var lastWatchlistedTmdbId: Int?
-    @State private var lastHiddenTmdbId: Int?
+    @State private var lastNotForMeTmdbId: Int?
     @State private var detailMovie: ReelMovie?
     @State private var selectedFriend: FriendResponse?
+    @State private var isScrolling = false
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var currentIdBinding: Binding<Int?> {
         externalCurrentId ?? $internalCurrentId
@@ -29,7 +33,10 @@ struct ReelsFeedView: View {
 
     var body: some View {
         GeometryReader { geo in
-            let cardHeight = geo.size.height
+            // Pages run behind the floating tab bar; the info panel is padded clear of it.
+            // shortcut: iOS 26's floating tab bar reports safeAreaInsets.bottom 0. 80pt
+            // matches that bar on a Pro Max.
+            let tabBarClearance = max(geo.safeAreaInsets.bottom, 80)
 
             ScrollView(.vertical) {
                 LazyVStack(spacing: 0) {
@@ -41,31 +48,49 @@ struct ReelsFeedView: View {
                             movie: movie,
                             isActive: movie.tmdbId == currentId
                                 && isTabVisible,
-                            groupContext: groupContext,
+                            canPlay: !isScrolling && detailMovie == nil && scenePhase != .background,
+                            bottomInset: tabBarClearance,
                             position: index,
                             feed: feed,
-                            onWatchlistAdded: { msg in
-                                if msg.contains("Won't show") {
-                                    lastHiddenTmdbId = movie.tmdbId
-                                } else {
-                                    addedToWatchlist.insert(
-                                        movie.tmdbId
-                                    )
-                                    lastWatchlistedTmdbId = movie.tmdbId
+                            onSwipeResult: { result in
+                                switch result {
+                                case .hidden:
+                                    lastNotForMeTmdbId = movie.tmdbId
+                                    showToast("Won't show again")
+                                    advanceToNext(from: movie.tmdbId)
+                                case .interested:
+                                    showToast("Interested")
+                                    advanceToNext(from: movie.tmdbId)
+                                case .interestFailed:
+                                    showToast("Couldn't save interest")
+                                case .notForMeFailed:
+                                    showToast("Couldn't save that")
                                 }
-                                showToast(msg)
-                                advanceToNext(from: movie.tmdbId)
+                            },
+                            onRequestWatchlist: {
+                                watchlistTmdbId = movie.tmdbId
                             },
                             onRated: { _ in },
+                            onMutationFailed: { copy, retry in
+                                noteMutationFailure(copy, retry: retry, tmdbId: movie.tmdbId)
+                            },
                             onShowDetail: {
                                 detailMovie = movie
                             },
                             onShowFriend: { friend in
                                 selectedFriend = friend
-                            }
+                            },
+                            tutorialNudge: movie.tmdbId == currentId ? tutorialNudge : .rest,
+                            showsTutorial: showsTutorial && movie.tmdbId == currentId
                         )
-                        .frame(height: cardHeight)
+                        // Exactly one page tall, so the first card has no strip below it.
+                        .containerRelativeFrame([.horizontal, .vertical])
                         .id(movie.tmdbId)
+                        .scrollTransition(.interactive, axis: .vertical) { content, phase in
+                            content
+                                .opacity(phase.isIdentity ? 1 : 0.7)
+                                .scaleEffect(phase.isIdentity || reduceMotion ? 1 : 0.96)
+                        }
                     }
                 }
                 .scrollTargetLayout()
@@ -75,12 +100,18 @@ struct ReelsFeedView: View {
             )
             .scrollPosition(id: currentIdBinding)
             .scrollIndicators(.hidden)
+            .contentMargins(0, for: .scrollContent)
+            .onScrollPhaseChange { _, phase in
+                isScrolling = phase.isScrolling
+            }
+            .ignoresSafeArea(edges: .bottom)
             .refreshable {
                 await onRefresh?()
             }
         }
         .onChange(of: currentId) { _, newId in
             guard let newId else { return }
+            preloadTrailer(after: newId)
             if let idx = movies.firstIndex(where: {
                 $0.tmdbId == newId
             }), idx >= movies.count - 4 {
@@ -100,19 +131,27 @@ struct ReelsFeedView: View {
                 currentIdBinding.wrappedValue = first.tmdbId
             }
         }
-        .navigationDestination(item: $detailMovie) { movie in
-            MovieDetailView(tmdbId: movie.tmdbId, title: movie.title, source: .reels)
+        .sheet(item: $detailMovie) { movie in
+            MovieDetailSheet(tmdbId: movie.tmdbId, title: movie.title, source: .reels)
         }
         .navigationDestination(item: $selectedFriend) { friend in
             FriendProfileView(friend: friend)
         }
         .overlay(alignment: .bottom) {
-            if let toast = toastMessage {
+            if let mutationError {
+                ErrorToast(message: mutationError, retry: mutationRetry, onDismiss: {
+                    self.mutationError = nil
+                    mutationRetry = nil
+                })
+                .padding(.horizontal, 24)
+                .padding(.bottom, 24)
+            } else if let toast = toastMessage {
                 ReelToast(
                     message: toast,
                     actionLabel: toastActionLabel(toast),
                     onAction: { handleToastAction(toast) }
                 )
+                .accessibilityIdentifier("reel.toast")
                 .padding(.bottom, 24)
                 .transition(
                     .move(edge: .top)
@@ -133,8 +172,8 @@ struct ReelsFeedView: View {
             WatchlistPickerSheet(
                 tmdbId: item.tmdbId,
                 isWatched: false,
-                isInPersonalWatchlist: addedToWatchlist
-                    .contains(item.tmdbId)
+                isInPersonalWatchlist: UserActionCache.shared
+                    .isWatchlisted(item.tmdbId)
             ) { _ in }
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
@@ -143,6 +182,25 @@ struct ReelsFeedView: View {
     }
 
     // MARK: - Navigation
+
+    /// Resolves and warms only the next reel's native clip. YouTube is never preloaded.
+    private func preloadTrailer(after tmdbId: Int) {
+        guard !APIConfig.screenshotMode,
+              let nextId = TrailerPreloadPolicy.target(
+                  after: tmdbId,
+                  in: movies.map(\.tmdbId),
+                  lowPower: ProcessInfo.processInfo.isLowPowerModeEnabled
+              ),
+              let next = movies.first(where: { $0.tmdbId == nextId })
+        else { return }
+        Task {
+            if let url = await TrailerSource.shared.nativeClipURL(
+                tmdbId: next.tmdbId, title: next.title, year: Int(next.yearString)
+            ) {
+                TrailerPlayer.shared.preload(url: url)
+            }
+        }
+    }
 
     private func advanceToNext(from tmdbId: Int) {
         guard let idx = movies.firstIndex(where: { $0.tmdbId == tmdbId }),
@@ -158,6 +216,20 @@ struct ReelsFeedView: View {
 
     // MARK: - Toast
 
+    private func noteMutationFailure(
+        _ copy: UserFacingError,
+        retry: @escaping () -> Void,
+        tmdbId: Int
+    ) {
+        toastMessage = nil
+        if lastNotForMeTmdbId == tmdbId {
+            currentIdBinding.wrappedValue = tmdbId
+            lastNotForMeTmdbId = nil
+        }
+        mutationError = copy
+        mutationRetry = retry
+    }
+
     private func showToast(_ message: String) {
         toastTask?.cancel()
         toastMessage = message
@@ -170,22 +242,17 @@ struct ReelsFeedView: View {
     }
 
     private func toastActionLabel(_ toast: String) -> String? {
-        if toast.contains("Watchlist") { return "Change" }
         if toast.contains("Won't show") { return "Undo" }
         return nil
     }
 
     private func handleToastAction(_ toast: String) {
         toastMessage = nil
-        if toast.contains("Watchlist") {
-            if let id = lastWatchlistedTmdbId {
-                watchlistTmdbId = id
-            }
-        } else if toast.contains("Won't show"), let id = lastHiddenTmdbId {
+        if toast.contains("Won't show"), let id = lastNotForMeTmdbId {
             Task {
-                try? await RecommendationsAPI.unhideMovie(tmdbId: id)
+                try? await RecommendationsAPI.unmarkNotForMe(tmdbId: id)
             }
-            lastHiddenTmdbId = nil
+            lastNotForMeTmdbId = nil
         }
     }
 }

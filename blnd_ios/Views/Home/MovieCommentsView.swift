@@ -12,14 +12,14 @@ struct MovieCommentsView: View {
     @State var total: Int = 0
     @State var isLoading = true
     @State var isLoadingMore = false
-    @State var error: String?
+    @State var error: UserFacingError?
     @State var draftText = ""
     @State var isSending = false
     @State var replyingTo: CommentResponse?
     @State var editingComment: CommentResponse?
     @State var showDeleteConfirm = false
     @State var commentToDelete: CommentResponse?
-    @State var sendError: String?
+    @State var sendError: UserFacingError?
     @State var expandedThreads: Set<Int> = []
     @FocusState var isComposeFocused: Bool
 
@@ -123,19 +123,10 @@ struct MovieCommentsView: View {
 
     // MARK: - Subviews
 
-    private func errorState(_ message: String) -> some View {
-        VStack(spacing: 12) {
-            Text(message)
-                .font(.system(size: 14))
-                .foregroundStyle(AppTheme.textMuted)
-                .multilineTextAlignment(.center)
-            Button("Try Again") {
-                Task { await loadComments() }
-            }
-            .font(.system(size: 14))
-            .foregroundStyle(.white)
+    private func errorState(_ message: UserFacingError) -> some View {
+        ErrorStateView(message: message) {
+            Task { await loadComments() }
         }
-        .frame(maxWidth: .infinity)
         .padding(.top, 40)
     }
 
@@ -226,14 +217,13 @@ struct MovieCommentsView: View {
 
             // Send-failure message
             if let sendError {
-                Text(sendError)
-                    .font(.system(size: 12))
-                    .foregroundStyle(AppTheme.destructive)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 6)
-                    .background(AppTheme.cardSecondary)
-                    .transition(.opacity)
+                InlineError(message: sendError) {
+                    Task { await sendComment() }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 6)
+                .background(AppTheme.cardSecondary)
+                .transition(.opacity)
             }
 
             // Input row

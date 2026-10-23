@@ -39,6 +39,8 @@ struct WatchedMovieResponse: Decodable, Identifiable {
     let rating: Double?
     let review: String?
     let liked: Bool
+    let year: Int?
+    let mediaType: MediaType?
     let createdAt: String
 
     enum CodingKeys: String, CodingKey {
@@ -46,7 +48,8 @@ struct WatchedMovieResponse: Decodable, Identifiable {
         case tmdbId = "tmdb_id"
         case title
         case posterPath = "poster_path"
-        case rating, review, liked
+        case rating, review, liked, year
+        case mediaType = "media_type"
         case createdAt = "created_at"
     }
 }
@@ -76,6 +79,7 @@ struct WatchlistMovieResponse: Decodable, Identifiable {
     let createdAt: String
     let matchScore: Double?
     let commentCount: Int?
+    let mediaType: MediaType?
 
     var matchPercent: Int? {
         guard let matchScore else { return nil }
@@ -101,6 +105,7 @@ struct WatchlistMovieResponse: Decodable, Identifiable {
         case createdAt = "created_at"
         case matchScore = "match_score"
         case commentCount = "comment_count"
+        case mediaType = "media_type"
     }
 }
 

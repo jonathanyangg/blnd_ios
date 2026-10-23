@@ -14,21 +14,24 @@ struct PaywallView: View {
     @Environment(AuthState.self) private var authState
     @State private var offering: Offering?
     @State private var isPurchasing = false
-    @State private var errorMessage: String?
+    @State private var errorMessage: UserFacingError?
     @State private var isRestoring = false
     @State private var didConvert = false
     @State private var isLoadingOffering = true
+
+    private let termsURL = URL(string: "https://blnd.movie/terms")!
+    private let privacyURL = URL(string: "https://blnd.movie/privacy")!
 
     private let features: [PremiumFeature] = [
         PremiumFeature(
             icon: "sparkles",
             title: "AI-Powered Search",
-            subtitle: "Find movies by describing what you're in the mood for"
+            subtitle: "2 AI searches a day free, 50 on blnd+"
         ),
         PremiumFeature(
             icon: "person.3.fill",
-            title: "Larger Groups",
-            subtitle: "Create blends with up to 12 friends"
+            title: "Larger Blends",
+            subtitle: "4 members free, 12 on blnd+"
         ),
         PremiumFeature(
             icon: "star.fill",
@@ -45,9 +48,12 @@ struct PaywallView: View {
                 VStack(spacing: 32) {
                     header
                     featureList
-                    offeringContent
+                    subscriptionSummary
                     legalSection
-                    restoreButton
+                    purchaseActions
+                    if isLoadingOffering || !subscriptionPackages.isEmpty {
+                        restoreButton
+                    }
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, 20)
@@ -63,10 +69,14 @@ struct PaywallView: View {
                 Analytics.paywallDismissed(source: source)
             }
         }
-        .alert("Error", isPresented: .constant(errorMessage != nil)) {
-            Button("OK") { errorMessage = nil }
-        } message: {
-            Text(errorMessage ?? "")
+        .overlay(alignment: .bottom) {
+            if let errorMessage {
+                ErrorToast(message: errorMessage, onDismiss: {
+                    self.errorMessage = nil
+                })
+                .padding(.horizontal, 24)
+                .padding(.bottom, 24)
+            }
         }
     }
 
@@ -117,6 +127,7 @@ struct PaywallView: View {
                             .font(.system(size: 13))
                             .foregroundStyle(AppTheme.textMuted)
                     }
+                    .accessibilityIdentifier("paywall.feature")
                     Spacer()
                 }
                 .padding(.vertical, 14)
@@ -129,31 +140,72 @@ struct PaywallView: View {
 
     // MARK: - Purchase
 
+    /// Every auto-renewing package in the current offering, not only `.monthly`.
+    /// A package RevenueCat doesn't tag as monthly still has to show its price.
+    private var subscriptionPackages: [Package] {
+        guard let offering else { return [] }
+        let packages = offering.availablePackages
+        let recurring = packages.filter { $0.storeProduct.subscriptionPeriod != nil }
+        return recurring.isEmpty ? packages : recurring
+    }
+
     @ViewBuilder
-    private var offeringContent: some View {
+    private var subscriptionSummary: some View {
         if isLoadingOffering {
             ProgressView()
                 .tint(.white)
                 .padding(.vertical, 28)
-        } else if let pkg = offering?.monthly {
-            purchaseSection(package: pkg)
-        } else {
+        } else if subscriptionPackages.isEmpty {
             unavailableSection
+        } else {
+            VStack(spacing: 16) {
+                ForEach(subscriptionPackages, id: \.storeProduct.productIdentifier) { package in
+                    priceBlock(package)
+                }
+            }
         }
+    }
+
+    @ViewBuilder
+    private var purchaseActions: some View {
+        if !isLoadingOffering, !subscriptionPackages.isEmpty {
+            VStack(spacing: 10) {
+                ForEach(subscriptionPackages, id: \.storeProduct.productIdentifier) { package in
+                    subscribeButton(package)
+                }
+            }
+        }
+    }
+
+    private func priceBlock(_ package: Package) -> some View {
+        VStack(spacing: 4) {
+            Text(subscriptionTitle(package))
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(.white)
+                .multilineTextAlignment(.center)
+            Text(pricePhrase(package))
+                .font(.system(size: 22, weight: .bold))
+                .foregroundStyle(.white)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
     }
 
     private var unavailableSection: some View {
         VStack(spacing: 12) {
-            Text("Subscription options are temporarily unavailable. Please try again later.")
-                .font(.system(size: 13))
-                .foregroundStyle(AppTheme.textMuted)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
+            Text(
+                "We couldn't load blnd+ just now. Try again in a moment. " +
+                    "If you already subscribed, you can restore it here."
+            )
+            .font(.system(size: 13))
+            .foregroundStyle(AppTheme.textMuted)
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
 
             Button {
                 Task { await loadOffering() }
             } label: {
-                Text("Try Again")
+                Text("Retry")
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
@@ -161,6 +213,7 @@ struct PaywallView: View {
                     .background(AppTheme.card)
                     .clipShape(RoundedRectangle(cornerRadius: AppTheme.cornerRadiusMedium))
             }
+            restoreButton
         }
         .padding(20)
         .frame(maxWidth: .infinity)
@@ -168,33 +221,91 @@ struct PaywallView: View {
         .clipShape(RoundedRectangle(cornerRadius: AppTheme.cornerRadiusLarge))
     }
 
-    private func purchaseSection(package: Package) -> some View {
-        VStack(spacing: 10) {
-            Text("blnd+ Monthly Subscription · \(package.localizedPriceString) per month")
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(AppTheme.textMuted)
-                .multilineTextAlignment(.center)
-
-            Button {
-                Task { await purchase(package: package) }
-            } label: {
-                Group {
-                    if isPurchasing {
-                        ProgressView()
-                            .tint(.black)
-                    } else {
-                        Text("Subscribe for \(package.localizedPriceString)/month")
-                            .font(.system(size: 17, weight: .bold))
-                    }
+    private func subscribeButton(_ package: Package) -> some View {
+        Button {
+            Task { await purchase(package: package) }
+        } label: {
+            Group {
+                if isPurchasing {
+                    ProgressView()
+                        .tint(.black)
+                } else {
+                    Text("Subscribe for \(pricePhrase(package))")
+                        .font(.system(size: 17, weight: .bold))
                 }
-                .frame(maxWidth: .infinity)
-                .frame(height: 52)
-                .background(AppTheme.premiumGradient)
-                .clipShape(RoundedRectangle(cornerRadius: AppTheme.cornerRadiusMedium))
-                .foregroundStyle(.black)
             }
-            .disabled(isPurchasing)
+            .frame(maxWidth: .infinity)
+            .frame(height: 52)
+            .background(AppTheme.premiumGradient)
+            .clipShape(RoundedRectangle(cornerRadius: AppTheme.cornerRadiusMedium))
+            .foregroundStyle(.black)
         }
+        .disabled(isPurchasing)
+    }
+
+    private func pricePhrase(_ package: Package) -> String {
+        let price = package.localizedPriceString
+        guard package.packageType != .lifetime else { return price }
+        return "\(price) per \(billingPeriod(package))"
+    }
+
+    private func subscriptionTitle(_ package: Package) -> String {
+        switch package.packageType {
+        case .annual:
+            "blnd+ Annual Subscription"
+        case .sixMonth:
+            "blnd+ 6-Month Subscription"
+        case .threeMonth:
+            "blnd+ 3-Month Subscription"
+        case .twoMonth:
+            "blnd+ 2-Month Subscription"
+        case .monthly:
+            "blnd+ Monthly Subscription"
+        case .weekly:
+            "blnd+ Weekly Subscription"
+        case .lifetime:
+            "blnd+ Lifetime"
+        case .unknown, .custom:
+            "blnd+ Subscription"
+        }
+    }
+
+    private func billingPeriod(_ package: Package) -> String {
+        switch package.packageType {
+        case .annual:
+            "year"
+        case .sixMonth:
+            "6 months"
+        case .threeMonth:
+            "3 months"
+        case .twoMonth:
+            "2 months"
+        case .monthly:
+            "month"
+        case .weekly:
+            "week"
+        case .lifetime:
+            "lifetime"
+        case .unknown, .custom:
+            storeBillingPeriod(package) ?? "period"
+        }
+    }
+
+    private func storeBillingPeriod(_ package: Package) -> String? {
+        guard let period = package.storeProduct.subscriptionPeriod else { return nil }
+        let unit: String
+        switch period.unit {
+        case .day:
+            unit = period.value == 1 ? "day" : "days"
+        case .week:
+            unit = period.value == 1 ? "week" : "weeks"
+        case .month:
+            unit = period.value == 1 ? "month" : "months"
+        case .year:
+            unit = period.value == 1 ? "year" : "years"
+        }
+        guard period.value > 1 else { return unit }
+        return "\(period.value) \(unit)"
     }
 
     // MARK: - Legal disclosures (App Store Review Guideline 3.1.2(c))
@@ -203,31 +314,35 @@ struct PaywallView: View {
         VStack(spacing: 14) {
             Text(
                 "Payment will be charged to your Apple ID account at confirmation of purchase. " +
-                    "The subscription automatically renews each month unless it is canceled at " +
-                    "least 24 hours before the end of the current period. Your account will be " +
-                    "charged for renewal within 24 hours prior to the end of the current period. " +
-                    "You can manage and cancel your subscription in your App Store account settings."
+                    "The subscription renews automatically unless canceled at least 24 hours " +
+                    "before the end of the current period. Your account will be charged for " +
+                    "renewal within 24 hours prior to the end of the current period. " +
+                    "You can manage and cancel your subscription in Settings."
             )
-            .font(.system(size: 11))
+            .font(.system(size: 12))
             .foregroundStyle(AppTheme.textDim)
             .multilineTextAlignment(.center)
             .fixedSize(horizontal: false, vertical: true)
 
             HStack(spacing: 16) {
-                Link(destination: URL(string: "https://blnd.movie/terms")!) {
+                Link(destination: termsURL) {
                     Text("Terms of Use")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(AppTheme.textMuted)
                         .underline()
+                        .padding(.vertical, 8)
+                        .padding(.horizontal, 4)
                 }
                 Text("·")
                     .font(.system(size: 12))
                     .foregroundStyle(AppTheme.textDim)
-                Link(destination: URL(string: "https://blnd.movie/privacy")!) {
+                Link(destination: privacyURL) {
                     Text("Privacy Policy")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(AppTheme.textMuted)
                         .underline()
+                        .padding(.vertical, 8)
+                        .padding(.horizontal, 4)
                 }
             }
         }
@@ -256,8 +371,8 @@ struct PaywallView: View {
         do {
             let offerings = try await Purchases.shared.offerings()
             offering = offerings.current
-            if offering?.monthly == nil {
-                print("PaywallView: offerings loaded but no monthly package available")
+            if offerings.current?.availablePackages.isEmpty ?? true {
+                print("PaywallView: offerings loaded but no packages available")
             }
         } catch {
             offering = nil
@@ -271,6 +386,7 @@ struct PaywallView: View {
         do {
             let result = try await Purchases.shared.purchase(package: package)
             if !result.userCancelled {
+                await authState.refreshRevenueCatCustomerInfo(fallingBackTo: result.customerInfo)
                 Analytics.subscriptionStarted(
                     productId: package.storeProduct.productIdentifier
                 )
@@ -279,7 +395,7 @@ struct PaywallView: View {
                 dismiss()
             }
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = UserFacingError.capture(error, screen: "Paywall")
         }
         isPurchasing = false
     }
@@ -287,7 +403,8 @@ struct PaywallView: View {
     private func restore() async {
         isRestoring = true
         do {
-            _ = try await Purchases.shared.restorePurchases()
+            let info = try await Purchases.shared.restorePurchases()
+            await authState.refreshRevenueCatCustomerInfo(fallingBackTo: info)
             await authState.fetchCurrentUser()
             if authState.isPremium {
                 Analytics.subscriptionRestored()
@@ -295,7 +412,7 @@ struct PaywallView: View {
                 dismiss()
             }
         } catch {
-            errorMessage = "Could not restore purchases."
+            errorMessage = UserFacingError.capture(error, screen: "Paywall")
         }
         isRestoring = false
     }

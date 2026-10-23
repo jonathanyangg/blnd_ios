@@ -22,7 +22,7 @@ extension MovieCommentsView {
             }
             total = response.total
         } catch {
-            self.error = "Could not load comments."
+            self.error = UserFacingError.capture(error, screen: "Comments")
         }
         isLoading = false
     }
@@ -55,7 +55,7 @@ extension MovieCommentsView {
                 editingComment = nil
                 draftText = ""
             } catch {
-                sendError = "Couldn't save your edit. Try again."
+                sendError = UserFacingError.capture(error, screen: "Comments")
             }
         } else if let replying = replyingTo {
             do {
@@ -73,7 +73,7 @@ extension MovieCommentsView {
                 replyingTo = nil
                 draftText = ""
             } catch {
-                sendError = "Couldn't post your reply. Try again."
+                sendError = UserFacingError.capture(error, screen: "Comments")
             }
         } else {
             do {
@@ -84,7 +84,7 @@ extension MovieCommentsView {
                 }
                 draftText = ""
             } catch {
-                sendError = "Couldn't post your comment. Try again."
+                sendError = UserFacingError.capture(error, screen: "Comments")
             }
         }
 
@@ -121,7 +121,7 @@ extension MovieCommentsView {
             let prevCount = comments[idx].likeCount
             comments[idx].likedByMe = !wasLiked
             comments[idx].likeCount = wasLiked ? max(0, prevCount - 1) : prevCount + 1
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            Haptics.play(.tap)
             Task {
                 do {
                     let result = wasLiked
@@ -149,7 +149,7 @@ extension MovieCommentsView {
                 let prevCount = comments[parentIdx].replies[replyIdx].likeCount
                 comments[parentIdx].replies[replyIdx].likedByMe = !wasLiked
                 comments[parentIdx].replies[replyIdx].likeCount = wasLiked ? max(0, prevCount - 1) : prevCount + 1
-                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                Haptics.play(.tap)
                 Task {
                     do {
                         let result = wasLiked

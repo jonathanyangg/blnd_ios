@@ -1,0 +1,6 @@
+# Used by tools/qa/warm.sh: leave the app signed in as ${EMAIL} on Home, tutorial dismissed.
+appId: com.jonathan.blnd-ios
+---
+- runFlow: as_user.yaml
+- assertVisible:
+    id: home.search

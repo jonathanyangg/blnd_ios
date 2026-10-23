@@ -10,6 +10,31 @@ enum GroupsAPI {
         )
     }
 
+    /// Names for blends whose list row has no title and no `member_names`.
+    /// shortcut: one detail request per unnamed blend, until GET /groups/ returns member_names
+    static func memberNamesForUnnamedGroups(
+        _ groups: [GroupResponse]
+    ) async -> [Int: [String]] {
+        let pending = groups.filter(\.needsMemberNameLookup)
+        guard !pending.isEmpty else { return [:] }
+        return await withTaskGroup(of: (Int, [String])?.self) { taskGroup in
+            for group in pending {
+                taskGroup.addTask {
+                    guard let detail = try? await getGroup(groupId: group.id) else {
+                        return nil
+                    }
+                    return (group.id, detail.members.map(\.blendNameSource))
+                }
+            }
+            var namesById: [Int: [String]] = [:]
+            for await pair in taskGroup {
+                guard let (id, names) = pair else { continue }
+                namesById[id] = names
+            }
+            return namesById
+        }
+    }
+
     /// GET /groups/{id} — get group detail with members
     static func getGroup(groupId: Int) async throws -> GroupDetailResponse {
         try await APIClient.shared.request(
@@ -35,11 +60,12 @@ enum GroupsAPI {
     static func getFeed(
         groupId: Int,
         exclude: [Int] = [],
-        limit: Int = 20
+        limit: Int = 20,
+        filter: CatalogFilter = CatalogFilter()
     ) async throws -> GroupRecommendationsResponse {
         let body = GroupFeedRequest(exclude: exclude, limit: limit)
         return try await APIClient.shared.request(
-            endpoint: "/groups/\(groupId)/recommendations/feed",
+            endpoint: filter.appending(to: "/groups/\(groupId)/recommendations/feed"),
             method: "POST",
             body: body,
             authenticated: true
@@ -50,11 +76,13 @@ enum GroupsAPI {
     static func getWatchlist(
         groupId: Int,
         limit: Int = 20,
-        offset: Int = 0
+        offset: Int = 0,
+        filter: CatalogFilter = CatalogFilter()
     ) async throws -> WatchlistResponse {
         try await APIClient.shared.request(
-            endpoint: "/groups/\(groupId)/watchlist"
-                + "?limit=\(limit)&offset=\(offset)",
+            endpoint: filter.appending(
+                to: "/groups/\(groupId)/watchlist?limit=\(limit)&offset=\(offset)"
+            ),
             authenticated: true
         )
     }

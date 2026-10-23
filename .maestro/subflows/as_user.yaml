@@ -1,0 +1,13 @@
+# Sign out (if needed) then sign in as ${EMAIL}/${PASSWORD}; land on Home with tutorial skipped.
+appId: com.jonathan.blnd-ios
+---
+- runFlow: sign_out.yaml
+- runFlow: 00_sign_in_steps.yaml
+- extendedWaitUntil:
+    visible: Skip
+    timeout: 6000
+    optional: true
+- tapOn:
+    text: Skip
+    optional: true
+- waitForAnimationToEnd

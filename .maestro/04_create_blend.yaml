@@ -1,0 +1,29 @@
+# Blends: create a blend with a friend (maya's friend is leo) and land in the blend.
+appId: com.jonathan.blnd-ios
+env: {EMAIL: maya@blnd.local, PASSWORD: Premium123!, USERNAME_B: leo}
+---
+- runFlow: subflows/as_user.yaml
+- tapOn: {text: Blends}
+- extendedWaitUntil:
+    visible:
+      id: blends.create
+    timeout: 15000
+- takeScreenshot: 04-1-blends-list
+- tapOn: {id: blends.create}
+- assertVisible: New Blend
+- tapOn: {id: blends.name, optional: true}
+- tapOn: {text: "Blend name...", optional: true}
+- eraseText
+- inputText: Maestro Blend
+- takeScreenshot: 04-2-new-blend-named
+- tapOn: {id: blends.members.search}
+- inputText: ${USERNAME_B}
+- tapOn: {id: "blends.member.${USERNAME_B}"}
+- assertVisible: "Adding 1"
+- takeScreenshot: 04-3-friend-selected
+- tapOn: {id: blends.create.submit}
+- extendedWaitUntil:
+    visible:
+      id: blend.findMovie
+    timeout: 15000
+- takeScreenshot: 04-4-blend-detail

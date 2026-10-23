@@ -1,9 +1,8 @@
 # blnd+ Subscription — App Store Resubmission TODO
 
 > ⛔ **BEFORE ARCHIVING A RELEASE BUILD — revert these dev-only changes:**
-> - [ ] `APIConfig.swift` → set `baseURL` back to `https://blnd-backend.onrender.com`
->   (currently points at local dev `http://192.168.1.44:8000` — would ship broken)
-> - [ ] `blndApp.swift:18` → set `Purchases.logLevel` back to `.warn` (currently `.debug`)
+> - [x] `APIConfig.swift` → baseURL is now the per-configuration `API_BASE_URL` build setting; Release = `https://blnd-backend.onrender.com` (verified by `scripts/release.sh`)
+> - [x] `blndApp.swift` → `Purchases.logLevel` is `.debug` only under `#if DEBUG`, `.warn` in Release
 
 Tracking the fix for the App Review rejection of **iOS 2.0** (Submission `5748f1dc`),
 which cited **Guideline 2.1(a)** (paywall "couldn't load" bug) and **Guideline 3.1.2(c)**

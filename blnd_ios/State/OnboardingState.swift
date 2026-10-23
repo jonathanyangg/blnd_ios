@@ -29,6 +29,10 @@ class OnboardingState {
     var appleAuthCode: String?
     var appleRefreshToken: String?
 
+    /// Set after a brand-new Apple user picks a username. WelcomeView
+    /// then opens Onboarding v2, even if the navigation stack was rebuilt.
+    var continueWithV2 = false
+
     var isAppleSignUp: Bool {
         appleIdToken != nil
     }
@@ -51,5 +55,6 @@ class OnboardingState {
         appleDisplayName = nil
         appleAuthCode = nil
         appleRefreshToken = nil
+        continueWithV2 = false
     }
 }

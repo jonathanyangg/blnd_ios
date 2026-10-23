@@ -1,0 +1,73 @@
+appId: com.jonathan.blnd-ios
+---
+- launchApp
+- runFlow:
+    when:
+      visible:
+        id: auth.welcome.sign-in
+    file: subflows/00_sign_in_steps.yaml
+- extendedWaitUntil:
+    visible:
+      id: home.search
+    timeout: 30000
+- tapOn:
+    id: reels.tutorial.skip
+    optional: true
+- tapOn:
+    id: home.search
+- assertVisible:
+    id: search.field
+# Start from an empty history.
+- tapOn:
+    id: search.recent.clearAll
+    optional: true
+- assertNotVisible:
+    id: search.recent.section
+# Submit two searches with the return key.
+- tapOn:
+    id: search.field
+- inputText: Inception
+- pressKey: Enter
+- assertVisible:
+    id: search.result
+- tapOn:
+    id: search.clear
+- inputText: Dune
+- pressKey: Enter
+- assertVisible:
+    id: search.result
+# Go back and reopen search: history survives.
+- tapOn: Cancel
+- tapOn:
+    id: home.search
+- assertVisible:
+    id: search.recent.section
+- assertVisible:
+    id: search.recent.item.0
+    text: Dune
+- assertVisible:
+    id: search.recent.item.1
+    text: Inception
+# Tapping an item runs it and moves it to the top.
+- tapOn:
+    id: search.recent.item.1
+- assertVisible:
+    id: search.result
+- tapOn:
+    id: search.clear
+- assertVisible:
+    id: search.recent.item.0
+    text: Inception
+# Delete just that item.
+- tapOn:
+    id: search.recent.delete.0
+- assertNotVisible:
+    text: Inception
+- assertVisible:
+    id: search.recent.item.0
+    text: Dune
+# Clear all.
+- tapOn:
+    id: search.recent.clearAll
+- assertNotVisible:
+    id: search.recent.section

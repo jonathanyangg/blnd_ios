@@ -1,0 +1,314 @@
+@testable import blnd_ios
+import Foundation
+import Testing
+
+@MainActor
+struct WhereToWatchTests {
+    private let apiBase = URL(string: "https://api.blnd.movie")!
+
+    @Test func decodesWhereToWatchAndShowsTheAttributionField() throws {
+        let response = try JSONDecoder().decode(
+            StreamingAvailabilityResponse.self,
+            from: Data(
+                """
+                {
+                  "tmdb_id": 550,
+                  "country": "us",
+                  "options": [],
+                  "where_to_watch": {
+                    "country": "US",
+                    "attribution": "JustWatch",
+                    "link": "https://www.themoviedb.org/movie/550/watch?locale=US",
+                    "flatrate": [
+                      {
+                        "provider_id": 8,
+                        "provider_name": "Netflix",
+                        "logo_path": "/netflix.jpg",
+                        "web_url": "https://www.netflix.com/title/80057281",
+                        "app_url": null,
+                        "click_url": null,
+                        "ios_link": null
+                      }
+                    ],
+                    "rent": [],
+                    "buy": []
+                  }
+                }
+                """.utf8
+            )
+        )
+
+        let watch = try #require(response.whereToWatch)
+        #expect(watch.attribution == "JustWatch")
+        #expect(watch.attributionURL.host == "www.themoviedb.org")
+        let netflix = try #require(watch.offers(.watchNow).first)
+        #expect(netflix.appUrl == nil)
+        #expect(netflix.logoURL?.absoluteString == "https://image.tmdb.org/t/p/w92/netflix.jpg")
+        let plan = try #require(netflix.openPlan(kind: .watchNow, apiBase: apiBase))
+        #expect(plan.appLink == nil)
+        #expect(plan.schemeLink == nil)
+        #expect(plan.webLink.absoluteString == "https://www.netflix.com/title/80057281")
+        #expect(!plan.webLink.absoluteString.contains("tag="))
+    }
+
+    @Test func watchNowTriesIosLinkThenClickUrl() throws {
+        let offer = try offer(
+            """
+            {
+              "provider_id": 119,
+              "provider_name": "Amazon Prime Video",
+              "logo_path": "/prime.jpg",
+              "web_url": "https://www.amazon.com/gp/video/search?phrase=Fight%20Club",
+              "app_url": "aiv://aiv/search?phrase=Fight%20Club",
+              "click_url": "https://api.blnd.movie/out/119/movie/550",
+              "ios_link": "aiv://aiv/search?phrase=Fight%20Club"
+            }
+            """
+        )
+        let plan = try #require(offer.openPlan(kind: .watchNow, apiBase: apiBase))
+        #expect(plan.schemeLink?.scheme == "aiv")
+        #expect(plan.appLink == nil)
+        #expect(plan.webLink.absoluteString == "https://api.blnd.movie/out/119/movie/550")
+        #expect(!plan.webLink.absoluteString.contains("tag="))
+        #expect(!offer.webUrl.contains("tag="))
+    }
+
+    @Test func appleTvUsesTheHttpsLink() throws {
+        let offer = try offer(
+            """
+            {
+              "provider_id": 2,
+              "provider_name": "Apple TV",
+              "logo_path": "/apple.jpg",
+              "web_url": "https://tv.apple.com/us/movie/fight-club",
+              "app_url": null,
+              "click_url": "https://api.blnd.movie/out/2/movie/550",
+              "ios_link": "https://tv.apple.com/us/movie/fight-club"
+            }
+            """
+        )
+        let plan = try #require(offer.openPlan(kind: .watchNow, apiBase: apiBase))
+        #expect(plan.appLink?.host == "tv.apple.com")
+        #expect(plan.schemeLink == nil)
+        #expect(plan.webLink.absoluteString == "https://api.blnd.movie/out/2/movie/550")
+    }
+
+    @Test func rentAndBuyStayOnTheClickURL() throws {
+        let offer = try offer(
+            """
+            {
+              "provider_id": 10,
+              "provider_name": "Amazon Video",
+              "logo_path": null,
+              "web_url": "https://www.amazon.com/s?k=Fight+Club",
+              "app_url": "aiv://aiv/search?phrase=Fight%20Club",
+              "click_url": "/out/10/movie/550",
+              "ios_link": "aiv://aiv/search?phrase=Fight%20Club"
+            }
+            """
+        )
+        let plan = try #require(offer.openPlan(kind: .rent, apiBase: apiBase))
+        #expect(plan.appLink == nil)
+        #expect(plan.schemeLink == nil)
+        #expect(plan.webLink.absoluteString == "https://api.blnd.movie/out/10/movie/550")
+    }
+
+    @Test func unknownSchemeFallsThroughToTheWebURL() throws {
+        let offer = try offer(
+            """
+            {
+              "provider_id": 99,
+              "provider_name": "X",
+              "logo_path": null,
+              "web_url": "https://example.com/title",
+              "app_url": "javascript:alert(1)",
+              "click_url": null,
+              "ios_link": "javascript:alert(1)"
+            }
+            """
+        )
+        let plan = try #require(offer.openPlan(kind: .watchNow, apiBase: apiBase))
+        #expect(plan.schemeLink == nil)
+        #expect(plan.appLink == nil)
+        #expect(plan.webLink.host == "example.com")
+    }
+
+    @Test func premiumHidesAffiliatePrompt() throws {
+        let rent = try offer(
+            """
+            {
+              "provider_id": 2,
+              "provider_name": "Apple TV",
+              "logo_path": null,
+              "web_url": "https://tv.apple.com/us/movie/x",
+              "app_url": null,
+              "click_url": null,
+              "ios_link": null
+            }
+            """
+        )
+        let watch = WhereToWatch(
+            country: "US",
+            attribution: "JustWatch",
+            link: nil,
+            flatrate: [],
+            rent: [rent],
+            buy: []
+        )
+        #expect(watch.showsAffiliatePrompt(isPremium: true) == false)
+        #expect(watch.showsAffiliatePrompt(isPremium: false))
+        let streamOnly = WhereToWatch(
+            country: "US",
+            attribution: "JustWatch",
+            link: nil,
+            flatrate: [rent],
+            rent: [],
+            buy: []
+        )
+        #expect(streamOnly.showsAffiliatePrompt(isPremium: false) == false)
+    }
+
+    @Test func duplicateProvidersCollapse() throws {
+        let first = try offer(
+            """
+            {
+              "provider_id": 8,
+              "provider_name": "Netflix",
+              "logo_path": "/a.jpg",
+              "web_url": "https://www.netflix.com/title/1",
+              "app_url": null,
+              "click_url": null,
+              "ios_link": null
+            }
+            """
+        )
+        let second = try offer(
+            """
+            {
+              "provider_id": 8,
+              "provider_name": "Netflix",
+              "logo_path": "/b.jpg",
+              "web_url": "https://www.netflix.com/title/1?q=sd",
+              "app_url": null,
+              "click_url": null,
+              "ios_link": null
+            }
+            """
+        )
+        let watch = WhereToWatch(
+            country: "US",
+            attribution: "JustWatch",
+            link: nil,
+            flatrate: [first, second],
+            rent: [],
+            buy: []
+        )
+        #expect(watch.offers(.watchNow).count == 1)
+        #expect(watch.offers(.watchNow).first?.logoPath == "/a.jpg")
+    }
+
+    @Test func liveMovieRentUsesTheClickRedirect() throws {
+        let response = try JSONDecoder().decode(
+            StreamingAvailabilityResponse.self,
+            from: Data(
+                """
+                {
+                  "tmdb_id": 550,
+                  "country": "us",
+                  "options": [],
+                  "where_to_watch": {
+                    "country": "US",
+                    "attribution": "JustWatch",
+                    "link": "https://www.themoviedb.org/movie/550-fight-club/watch?locale=US",
+                    "flatrate": [],
+                    "rent": [{
+                      "provider_id": 10,
+                      "provider_name": "Amazon Video",
+                      "logo_path": "/jn6TLbtaTZntTRX9UYucHJvpQx1.png",
+                      "web_url": "https://www.amazon.com/s?k=Fight%20Club%201999&i=instant-video",
+                      "app_url": "aiv://aiv/search?phrase=Fight%20Club%201999",
+                      "click_url": "http://127.0.0.1:8020/out/10/movie/550",
+                      "ios_link": "aiv://aiv/search?phrase=Fight%20Club%201999"
+                    }],
+                    "buy": []
+                  }
+                }
+                """.utf8
+            )
+        )
+        let watch = try #require(response.whereToWatch)
+        #expect(watch.attribution == "JustWatch")
+        let plan = try #require(watch.offers(.rent).first?.openPlan(kind: .rent, apiBase: apiBase))
+        #expect(plan.schemeLink == nil)
+        #expect(plan.appLink == nil)
+        #expect(plan.webLink.absoluteString == "http://127.0.0.1:8020/out/10/movie/550")
+        #expect(!plan.webLink.absoluteString.contains("tag="))
+    }
+
+    @Test func liveTvNetflixWatchNowUsesWebUrl() throws {
+        let response = try JSONDecoder().decode(
+            StreamingAvailabilityResponse.self,
+            from: Data(
+                """
+                {
+                  "tmdb_id": 1396,
+                  "country": "us",
+                  "options": [],
+                  "where_to_watch": {
+                    "country": "US",
+                    "attribution": "JustWatch",
+                    "link": "https://www.themoviedb.org/tv/1396-breaking-bad/watch?locale=US",
+                    "flatrate": [{
+                      "provider_id": 8,
+                      "provider_name": "Netflix",
+                      "logo_path": "/netflix.png",
+                      "web_url": "https://www.themoviedb.org/tv/1396-breaking-bad/watch?locale=US",
+                      "app_url": null,
+                      "click_url": null,
+                      "ios_link": null
+                    }],
+                    "rent": [],
+                    "buy": [{
+                      "provider_id": 10,
+                      "provider_name": "Amazon Video",
+                      "logo_path": "/prime.png",
+                      "web_url": "https://www.amazon.com/s?k=Breaking%20Bad%202008&i=instant-video",
+                      "app_url": "aiv://aiv/search?phrase=Breaking%20Bad%202008",
+                      "click_url": "http://127.0.0.1:8020/out/10/tv/1396",
+                      "ios_link": "aiv://aiv/search?phrase=Breaking%20Bad%202008"
+                    }]
+                  }
+                }
+                """.utf8
+            )
+        )
+        let watch = try #require(response.whereToWatch)
+        let netflix = try #require(watch.offers(.watchNow).first?.openPlan(kind: .watchNow, apiBase: apiBase))
+        #expect(netflix.appLink == nil)
+        #expect(netflix.schemeLink == nil)
+        #expect(netflix.webLink.host == "www.themoviedb.org")
+        let amazon = try #require(watch.offers(.buy).first?.openPlan(kind: .buy, apiBase: apiBase))
+        #expect(amazon.schemeLink == nil)
+        #expect(amazon.webLink.path == "/out/10/tv/1396")
+    }
+
+    @Test func declaredSchemesMatchThePlist() throws {
+        let plistURL = URL(filePath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appending(path: "blnd-ios-Info.plist")
+        // The source plist is preprocessed (#if DEBUG), so drop directive lines before parsing.
+        let raw = try String(contentsOf: plistURL, encoding: .utf8)
+        let data = Data(raw.split(separator: "\n", omittingEmptySubsequences: false)
+            .filter { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("#") }
+            .joined(separator: "\n").utf8)
+        let plist = try PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any]
+        let declared = try #require(plist?["LSApplicationQueriesSchemes"] as? [String])
+        #expect(Set(declared) == WatchOffer.querySchemes)
+        #expect(declared.contains("aiv"))
+    }
+
+    private func offer(_ json: String) throws -> WatchOffer {
+        try JSONDecoder().decode(WatchOffer.self, from: Data(json.utf8))
+    }
+}

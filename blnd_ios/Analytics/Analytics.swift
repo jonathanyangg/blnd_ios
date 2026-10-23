@@ -13,6 +13,7 @@ enum Analytics {
         static let watchlistAdded = "watchlist_added"
         static let watchlistRemoved = "watchlist_removed"
         static let movieHidden = "movie_hidden"
+        static let movieInterested = "movie_interested"
         static let movieDetailViewed = "movie_detail_viewed"
         static let trailerPlayed = "trailer_played"
         static let trailerCompleted = "trailer_completed"
@@ -39,6 +40,7 @@ enum Analytics {
         static let onboardingDropped = "onboarding_dropped"
         static let tutorialCompleted = "tutorial_completed"
         static let tutorialSkipped = "tutorial_skipped"
+        static let errorShown = "error_shown"
     }
 
     // MARK: - Source enums
@@ -48,7 +50,7 @@ enum Analytics {
     }
 
     enum WatchlistSource: String {
-        case detail, reels, picker
+        case detail, reels, picker, now
     }
 
     enum FeedSource: String {
@@ -147,6 +149,13 @@ enum Analytics {
     static func movieHidden(tmdbId: Int) {
         PostHogSDK.shared.capture(
             EventName.movieHidden,
+            properties: ["tmdb_id": tmdbId]
+        )
+    }
+
+    static func movieInterested(tmdbId: Int) {
+        PostHogSDK.shared.capture(
+            EventName.movieInterested,
             properties: ["tmdb_id": tmdbId]
         )
     }
@@ -345,6 +354,18 @@ enum Analytics {
         PostHogSDK.shared.capture(
             EventName.tutorialSkipped,
             properties: ["tutorial": tutorial.rawValue, "step": step]
+        )
+    }
+
+    /// Raw error detail for debugging. Callers must not put this string on screen.
+    static func errorShown(screen: String, category: String, detail: String) {
+        PostHogSDK.shared.capture(
+            EventName.errorShown,
+            properties: [
+                "screen": screen,
+                "category": category,
+                "detail": detail,
+            ]
         )
     }
 }

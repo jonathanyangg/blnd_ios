@@ -2,11 +2,10 @@ import SwiftUI
 
 struct FriendsListView: View {
     @Environment(TabState.self) private var tabState
-    @Environment(DeepLinkState.self) private var deepLinkState
     @State private var friends: [FriendResponse] = []
     @State private var pendingRequests: PendingRequestsResponse?
     @State private var isLoading = true
-    @State private var errorMessage: String?
+    @State private var errorMessage: UserFacingError?
     @State private var showAddFriend = false
     @State private var selectedTab = 0
 
@@ -21,12 +20,17 @@ struct FriendsListView: View {
                             .foregroundStyle(.white)
                         Spacer()
                         Button {
+                            Haptics.play(.tap)
                             showAddFriend = true
                         } label: {
-                            Image(systemName: "magnifyingglass")
-                                .font(.system(size: 22, weight: .medium))
-                                .foregroundStyle(.white)
+                            Text("Add")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundStyle(.black)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 8)
+                                .background(.white, in: Capsule())
                         }
+                        .accessibilityLabel("Add friends")
                     }
                     .padding(.top, 20)
                     .padding(.horizontal, 24)
@@ -41,9 +45,7 @@ struct FriendsListView: View {
                     .padding(.bottom, 16)
 
                     if isLoading {
-                        ProgressView()
-                            .tint(.white)
-                            .padding(.top, 40)
+                        LoadingStateView()
                     } else if let error = errorMessage {
                         ErrorStateView(message: error) {
                             Task { await loadData() }
@@ -67,23 +69,12 @@ struct FriendsListView: View {
             .refreshable {
                 UserActionCache.shared.invalidateFriends()
                 await loadData()
+                Haptics.play(.refreshed(ok: errorMessage == nil))
             }
             .onChange(of: showAddFriend) {
                 if !showAddFriend {
                     UserActionCache.shared.invalidateFriends()
                     Task { await loadData() }
-                }
-            }
-            .onChange(of: deepLinkState.pending) { _, newValue in
-                if case .friendRequests = newValue {
-                    selectedTab = 1
-                    deepLinkState.pending = nil
-                }
-            }
-            .onAppear {
-                if case .friendRequests = deepLinkState.pending {
-                    selectedTab = 1
-                    deepLinkState.pending = nil
                 }
             }
         }
@@ -99,10 +90,15 @@ struct FriendsListView: View {
     @ViewBuilder
     private var friendsTab: some View {
         if friends.isEmpty {
-            emptyState(
+            EmptyStateView(
                 icon: "person.2",
                 title: "No friends yet",
-                subtitle: "Add friends to see them here"
+                message: "Search by username and send a request.",
+                actionTitle: "Add a friend",
+                action: {
+                    Haptics.play(.tap)
+                    showAddFriend = true
+                }
             )
         } else {
             ForEach(friends) { friend in
@@ -128,10 +124,10 @@ struct FriendsListView: View {
         let outgoing = pendingRequests?.outgoing ?? []
 
         if incoming.isEmpty, outgoing.isEmpty {
-            emptyState(
+            EmptyStateView(
                 icon: "envelope",
                 title: "No pending requests",
-                subtitle: "Friend requests will appear here"
+                message: "When someone adds you, the request shows up here."
             )
         } else {
             if !incoming.isEmpty {
@@ -204,25 +200,6 @@ struct FriendsListView: View {
             .padding(.bottom, 8)
     }
 
-    private func emptyState(
-        icon: String,
-        title: String,
-        subtitle: String
-    ) -> some View {
-        VStack(spacing: 8) {
-            Image(systemName: icon)
-                .font(.system(size: 36))
-                .foregroundStyle(AppTheme.textDim)
-            Text(title)
-                .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(.white)
-            Text(subtitle)
-                .font(.system(size: 14))
-                .foregroundStyle(AppTheme.textMuted)
-        }
-        .padding(.top, 60)
-    }
-
     // MARK: - Actions
 
     private func loadData() async {
@@ -232,7 +209,7 @@ struct FriendsListView: View {
         friends = cache.friends
         pendingRequests = cache.pendingRequests
         if friends.isEmpty, pendingRequests == nil, !cache.didLoadFriends {
-            errorMessage = "Could not load friends"
+            errorMessage = cache.friendsLoadError
         }
         isLoading = false
     }
@@ -243,6 +220,7 @@ struct FriendsListView: View {
                 friendshipId: request.id
             )
             Analytics.friendRequestAccepted()
+            Haptics.play(.success)
             await loadData()
             await tabState.refreshPendingCount()
         } catch { /* Non-critical — list will refresh on next pull */ }
@@ -294,6 +272,7 @@ private struct FriendsTabPicker: View {
         badge: Int?
     ) -> some View {
         Button {
+            if selectedTab != index { Haptics.play(.select) }
             withAnimation(.easeInOut(duration: 0.2)) {
                 selectedTab = index
             }
@@ -478,6 +457,7 @@ private struct OutgoingRequestRow<Destination: View>: View {
         .alert("Withdraw request?", isPresented: $showWithdrawAlert) {
             Button("Cancel", role: .cancel) {}
             Button("Withdraw", role: .destructive) {
+                Haptics.play(.warning)
                 isWithdrawing = true
                 Task {
                     await onWithdraw()

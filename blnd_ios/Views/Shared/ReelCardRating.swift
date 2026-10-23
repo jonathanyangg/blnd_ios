@@ -7,17 +7,36 @@ extension ReelCardView {
         UserActionCache.shared.rating(for: movie.tmdbId)
     }
 
+    var watchedWithButton: some View {
+        Button {
+            showLogSheet = true
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "person.2")
+                Text("Watched with")
+            }
+            .font(.system(size: 13, weight: .medium))
+            .foregroundStyle(AppTheme.textMuted)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 4)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
     var inlineRatingBar: some View {
         HStack(spacing: 0) {
             Color.clear.frame(width: 32, height: 36)
 
             Spacer(minLength: 0)
 
-            HStack(spacing: 14) {
+            HStack(spacing: 8) {
                 ForEach(1 ... 5, id: \.self) { index in
                     ratingStar(index: index)
                 }
             }
+            .accessibilityIdentifier("reel.stars")
+            .reelTutorialFrame(.stars, active: isActive)
 
             Spacer(minLength: 0)
 
@@ -47,7 +66,7 @@ extension ReelCardView {
         } else {
             "star"
         }
-        let tint: Color = rating >= half ? .white : AppTheme.border
+        let tint: Color = rating >= half ? .white : .white.opacity(0.35)
 
         HStack(spacing: 0) {
             Color.clear
@@ -61,7 +80,7 @@ extension ReelCardView {
         }
         .overlay {
             Image(systemName: icon)
-                .font(.system(size: 32))
+                .font(.system(size: 20))
                 .foregroundStyle(tint)
                 .allowsHitTesting(false)
         }
@@ -71,6 +90,7 @@ extension ReelCardView {
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
         let cache = UserActionCache.shared
         let wasWatched = cache.isWatched(movie.tmdbId)
+        let previousRating = cache.rating(for: movie.tmdbId)
         let fromWatchlist = cache.isWatchlisted(movie.tmdbId)
         cache.didRate(movie.tmdbId, rating: value)
 
@@ -89,7 +109,13 @@ extension ReelCardView {
                     isUpdate: wasWatched
                 )
             } catch {
-                // Non-critical — cache stays updated; user can retry
+                if let previousRating {
+                    cache.didRate(movie.tmdbId, rating: previousRating)
+                } else {
+                    cache.didUnwatch(movie.tmdbId)
+                }
+                let copy = UserFacingError.capture(error, screen: "RateMovie")
+                onMutationFailed?(copy) { saveRating(value) }
             }
         }
 

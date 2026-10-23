@@ -21,8 +21,18 @@ struct CommentRowView: View {
         isReply ? 13 : 14
     }
 
+    @State private var showReportDialog = false
+    @State private var showBlockConfirm = false
+    @State private var moderationNotice: String?
+
     private var canModify: Bool {
         comment.userId == currentUserId && !comment.isDeleted
+    }
+
+    private var canModerate: Bool {
+        CommentModeration.canModerate(
+            authorId: comment.userId, currentUserId: currentUserId, isDeleted: comment.isDeleted
+        )
     }
 
     var body: some View {
@@ -55,6 +65,63 @@ struct CommentRowView: View {
                 } label: {
                     Label("Delete", systemImage: "trash")
                 }
+            }
+            if canModerate {
+                moderationButtons
+            }
+        }
+        .confirmationDialog("Report this comment", isPresented: $showReportDialog, titleVisibility: .visible) {
+            ForEach(CommentModeration.Category.allCases) { category in
+                Button(category.rawValue) { submitReport(category) }
+            }
+            Button("Cancel", role: .cancel) {}
+        }
+        .alert("Block \(comment.displayUsername)?", isPresented: $showBlockConfirm) {
+            Button("Block", role: .destructive) { blockAuthor() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("You won't see each other's activity. You can unblock from Settings.")
+        }
+        .alert(
+            moderationNotice ?? "",
+            isPresented: Binding(get: { moderationNotice != nil }, set: { if !$0 { moderationNotice = nil } })
+        ) {
+            Button("OK", role: .cancel) {}
+        }
+    }
+
+    @ViewBuilder
+    private var moderationButtons: some View {
+        Button {
+            showReportDialog = true
+        } label: {
+            Label("Report", systemImage: "flag")
+        }
+        .accessibilityIdentifier("comment.report")
+        Button(role: .destructive) {
+            showBlockConfirm = true
+        } label: {
+            Label("Block user", systemImage: "hand.raised")
+        }
+        .accessibilityIdentifier("comment.block")
+    }
+
+    private func submitReport(_ category: CommentModeration.Category) {
+        Task {
+            // Non-fatal on failure: always acknowledge so the user knows we heard them.
+            try? await CommentModeration.report(comment, category: category)
+            moderationNotice = "Thanks. We'll review this comment within 24 hours."
+        }
+    }
+
+    private func blockAuthor() {
+        guard let authorId = comment.userId else { return }
+        Task {
+            do {
+                try await FriendsService.blockUser(userId: authorId)
+                moderationNotice = "\(comment.displayUsername) is blocked."
+            } catch {
+                moderationNotice = "Couldn't block right now. Please try again."
             }
         }
     }
@@ -118,6 +185,19 @@ struct CommentRowView: View {
                 likeCount: comment.likeCount
             ) {
                 onLike(comment)
+            }
+
+            if canModerate {
+                Menu {
+                    moderationButtons
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 12))
+                        .foregroundStyle(AppTheme.textDim)
+                        .frame(width: 28, height: 20)
+                        .contentShape(Rectangle())
+                }
+                .accessibilityIdentifier("comment.more")
             }
         }
     }
