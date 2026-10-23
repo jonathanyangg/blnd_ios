@@ -19,6 +19,8 @@ struct SearchView: View {
     @State private var selectedActor: PersonResult?
     @State private var segment: SearchSegment = .all
     @State private var showPaywall = false
+    @State private var searchFailed = false
+    @State private var recents = RecentSearchesStore()
 
     private let columns = [
         GridItem(.flexible(), spacing: 12),
@@ -141,9 +143,12 @@ struct SearchView: View {
                     .focused($isFieldFocused)
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
+                    .submitLabel(.search)
                     .onSubmit {
                         if segment == .assist {
                             Task { await aiSearch() }
+                        } else {
+                            runSearch(searchText)
                         }
                     }
                 }
@@ -157,11 +162,14 @@ struct SearchView: View {
                         actorResults = []
                         userResults = []
                         hasSearched = false
+                        isFieldFocused = true
                     } label: {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundStyle(AppTheme.textDim)
                             .font(.system(size: 16))
                     }
+                    .accessibilityIdentifier("search.clear")
+                    .accessibilityLabel("Clear search")
                 }
             }
             .padding(12)
@@ -186,6 +194,10 @@ struct SearchView: View {
             ScrollView {
                 if segment == .assist {
                     aiResultsBody(cardWidth: (geo.size.width - 24 * 2 - 12) / 2)
+                } else if showsRecents {
+                    recentSection
+                } else if searchFailed, hasSearched, !isLoading {
+                    errorState
                 } else {
                     UnifiedSearchResults(
                         segment: segment,
@@ -197,10 +209,12 @@ struct SearchView: View {
                         query: debouncedQuery,
                         isLoading: isLoading,
                         hasSearched: hasSearched,
-                        onSelectActor: { selectedActor = $0 }
+                        onSelectActor: { selectedActor = $0 },
+                        onSelectResult: { recents.record(debouncedQuery) }
                     )
                 }
             }
+            .scrollDismissesKeyboard(.immediately)
         }
     }
 }
@@ -208,6 +222,81 @@ struct SearchView: View {
 // MARK: - SearchView sections
 
 private extension SearchView {
+    var showsRecents: Bool {
+        searchText.trimmingCharacters(in: .whitespaces).isEmpty && !recents.items.isEmpty
+    }
+
+    var recentSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text("Recent searches")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(.white)
+                Spacer()
+                Button("Clear all") { recents.clearAll() }
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(AppTheme.textMuted)
+                    .accessibilityIdentifier("search.recent.clearAll")
+            }
+            .padding(.bottom, 6)
+            ForEach(Array(recents.items.enumerated()), id: \.element) { index, query in
+                HStack(spacing: 12) {
+                    Button { runSearch(query) } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "clock")
+                                .font(.system(size: 14))
+                                .foregroundStyle(AppTheme.textDim)
+                            Text(query)
+                                .font(.system(size: 15))
+                                .foregroundStyle(.white)
+                                .lineLimit(1)
+                            Spacer()
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("search.recent.item.\(index)")
+                    Button { recents.remove(query) } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(AppTheme.textDim)
+                            .frame(width: 32, height: 32)
+                    }
+                    .accessibilityIdentifier("search.recent.delete.\(index)")
+                    .accessibilityLabel("Remove \(query)")
+                }
+                .padding(.vertical, 4)
+            }
+        }
+        .padding(.horizontal, 24)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("search.recent.section")
+    }
+
+    var errorState: some View {
+        VStack(spacing: 8) {
+            Text("Couldn't load results")
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(.white)
+            Text("Check your connection and try again")
+                .font(.system(size: 13))
+                .foregroundStyle(AppTheme.textDim)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 60)
+    }
+
+    /// Submit or tap on a recent item: search now (skip the debounce) and remember it.
+    func runSearch(_ query: String) {
+        let trimmed = query.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+        searchText = trimmed
+        debounceTask?.cancel()
+        debouncedQuery = trimmed
+        recents.record(trimmed)
+        isFieldFocused = false
+    }
+
     @ViewBuilder
     func aiResultsBody(cardWidth: CGFloat) -> some View {
         if isLoading {
@@ -318,6 +407,8 @@ private extension SearchView {
         }
         actorResults = actors?.results ?? []
         userResults = users?.results ?? []
+        // Every request that ran failed (the skipped media call is nil by design).
+        searchFailed = movies == nil && shows == nil && actors == nil && users == nil
         hasSearched = true
         Analytics.searchPerformed(
             queryLength: query.count,
