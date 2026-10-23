@@ -10,6 +10,7 @@ struct GroupsListView: View {
     @State private var deepLinkGroupId: Int?
     @State private var searchQuery = ""
     @State private var resolvedNames: [Int: [String]] = [:]
+    @State private var createdGroupId: Int?
 
     var body: some View {
         NavigationStack {
@@ -25,7 +26,7 @@ struct GroupsListView: View {
                             UIImpactFeedbackGenerator(style: .light).impactOccurred()
                             showCreateGroup = true
                         } label: {
-                            Text("New")
+                            Label("Create a Blend", systemImage: "plus")
                                 .font(.system(size: 15, weight: .semibold))
                                 .foregroundStyle(.black)
                                 .padding(.horizontal, 14)
@@ -62,7 +63,7 @@ struct GroupsListView: View {
                             Text("No blends yet")
                                 .font(.system(size: 17, weight: .semibold))
                                 .foregroundStyle(.white)
-                            Text("Start a blend, then invite friends to pick movies together.")
+                            Text("A blend mixes your taste with friends' to find a movie you'll all like.")
                                 .font(.system(size: 14))
                                 .foregroundStyle(AppTheme.textMuted)
                                 .multilineTextAlignment(.center)
@@ -70,7 +71,7 @@ struct GroupsListView: View {
                                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
                                 showCreateGroup = true
                             } label: {
-                                Text("Create a blend")
+                                Text("Create a Blend")
                                     .font(.system(size: 15, weight: .semibold))
                                     .foregroundStyle(.black)
                                     .padding(.horizontal, 18)
@@ -102,7 +103,7 @@ struct GroupsListView: View {
             }
             .background(AppTheme.background)
             .sheet(isPresented: $showCreateGroup) {
-                CreateGroupView(onCreated: { await loadGroups() })
+                CreateGroupView(onCreated: { group in createdGroupId = group.id })
                     .presentationBackground(AppTheme.background)
             }
             .task { await loadGroups() }
@@ -110,6 +111,9 @@ struct GroupsListView: View {
             .onChange(of: showCreateGroup) {
                 if !showCreateGroup {
                     Task { await loadGroups() }
+                    // Open the new blend right away so "Find a movie for us" is one tap off.
+                    deepLinkGroupId = createdGroupId
+                    createdGroupId = nil
                 }
             }
             .navigationDestination(item: $deepLinkGroupId) { groupId in
@@ -164,7 +168,7 @@ private struct GroupCardRow: View {
                 Text(title)
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(.white)
-                Text("\(group.memberCount) members")
+                Text(group.memberCount == 1 ? "1 member" : "\(group.memberCount) members")
                     .font(.system(size: 13))
                     .foregroundStyle(AppTheme.textMuted)
             }
@@ -176,7 +180,16 @@ private struct GroupCardRow: View {
                     Array(group.memberAvatars.prefix(3).enumerated()),
                     id: \.offset
                 ) { index, avatarUrl in
-                    AvatarView(url: avatarUrl, size: 28, overlap: index > 0)
+                    let names = group.memberNames ?? []
+                    AvatarView(url: avatarUrl, size: 28)
+                        .overlay {
+                            if avatarUrl == nil, index < names.count {
+                                Text(BlendDisplayName.firstName(names[index]).prefix(1).uppercased())
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundStyle(.white)
+                            }
+                        }
+                        .padding(.leading, index > 0 ? -10 : 0)
                 }
                 if group.memberCount > 3 {
                     ZStack {

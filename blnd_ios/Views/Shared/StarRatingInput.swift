@@ -28,6 +28,7 @@ struct StarRatingInput: View {
                                 )
                         }
                     )
+                    .accessibilityIdentifier("rating.star.\(index)")
             }
         }
     }

@@ -1,25 +1,17 @@
 import SwiftUI
 
 struct CreateGroupView: View {
-    var onCreated: (() async -> Void)?
+    var onCreated: ((GroupDetailResponse) async -> Void)?
 
     @Environment(\.dismiss) private var dismiss
-    @State private var groupName = ""
+    @State private var groupName = "Movie night"
     @State private var isCreating = false
     @State private var errorMessage: UserFacingError?
     @State private var createdGroup: GroupDetailResponse?
+    @State private var staged: [String: BlendInvite.Candidate] = [:]
 
     var body: some View {
-        if let group = createdGroup {
-            AddGroupMemberSheet(
-                groupId: group.id,
-                existingMemberIds: Set(group.members.map(\.id)),
-                onMemberAdded: { _ in }
-            )
-            .background(AppTheme.background)
-        } else {
-            createForm
-        }
+        createForm
     }
 
     private var createForm: some View {
@@ -43,7 +35,6 @@ struct CreateGroupView: View {
                 .foregroundStyle(
                     canCreate ? .white : AppTheme.textDim
                 )
-                .accessibilityIdentifier("blends.name")
                 .font(.system(size: 16, weight: .semibold))
                 .disabled(!canCreate)
                 .accessibilityIdentifier("blends.create.submit")
@@ -57,6 +48,7 @@ struct CreateGroupView: View {
                     placeholder: "Blend name...",
                     text: $groupName
                 )
+                .accessibilityIdentifier("blends.name")
                 .onChange(of: groupName) { _, newValue in
                     if newValue.count > 30 {
                         groupName = String(newValue.prefix(30))
@@ -92,7 +84,24 @@ struct CreateGroupView: View {
             }
             .padding(.horizontal, 24)
 
-            Spacer()
+            Text(staged.isEmpty ? "Add people" : "Adding \(staged.count)")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(AppTheme.textMuted)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 24)
+                .padding(.top, 12)
+                .padding(.bottom, 8)
+
+            BlendMemberPicker(
+                excludedIds: [KeychainManager.readString(key: "userId") ?? ""],
+                selectedIds: Set(staged.keys),
+                busyId: nil
+            ) { candidate in
+                if staged.removeValue(forKey: candidate.id) == nil {
+                    staged[candidate.id] = candidate
+                }
+            }
+            .disabled(isCreating)
         }
         .background(AppTheme.background)
     }
@@ -105,23 +114,38 @@ struct CreateGroupView: View {
         groupName.trimmingCharacters(in: .whitespaces)
     }
 
+    /// Creates the blend once, then adds every staged member. A retry only re-adds the ones that failed.
     private func createGroup() async {
         guard canCreate else { return }
         isCreating = true
         errorMessage = nil
+        defer { isCreating = false }
 
-        do {
-            let group = try await GroupsService.createGroup(
-                name: trimmedName
-            )
-            Analytics.groupCreated()
-            await onCreated?()
-            withAnimation { createdGroup = group }
-        } catch {
-            errorMessage = UserFacingError.capture(error, screen: "CreateBlend")
+        var group: GroupDetailResponse
+        if let createdGroup {
+            group = createdGroup
+        } else {
+            do {
+                group = try await GroupsService.createGroup(name: trimmedName)
+                Analytics.groupCreated()
+                createdGroup = group
+            } catch {
+                errorMessage = UserFacingError.capture(error, screen: "CreateBlend")
+                return
+            }
         }
 
-        isCreating = false
+        for candidate in staged.values {
+            do {
+                group = try await GroupsService.addMember(groupId: group.id, username: candidate.username)
+                staged[candidate.id] = nil
+            } catch {
+                errorMessage = UserFacingError.capture(error, screen: "CreateBlend")
+            }
+        }
+        guard staged.isEmpty else { return }
+        await onCreated?(group)
+        dismiss()
     }
 }
 

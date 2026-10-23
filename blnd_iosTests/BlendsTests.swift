@@ -18,6 +18,7 @@ private func recJSON(_ id: Int, reason: String? = nil, includeReasonKey: Bool = 
     """
 }
 
+@MainActor
 private func decodeRecs(_ items: [String]) throws -> [GroupRecMovieResponse] {
     let json = Data(#"{"results":[\#(items.joined(separator: ","))]}"#.utf8)
     return try JSONDecoder().decode(GroupRecommendationsResponse.self, from: json).results
@@ -34,6 +35,7 @@ private func searchUser(_ id: String, _ username: String) -> UserSearchResult {
     )
 }
 
+@MainActor
 struct BlendReasonDecodingTests {
     @Test func reasonPresent() throws {
         let recs = try decodeRecs([recJSON(1, reason: "You both rated Heat highly")])
@@ -52,6 +54,7 @@ struct BlendReasonDecodingTests {
     }
 }
 
+@MainActor
 struct BlendPickDeckTests {
     @Test func firstItemIsThePick() throws {
         let deck = try BlendPickDeck(movies: decodeRecs([recJSON(10), recJSON(20)]))
