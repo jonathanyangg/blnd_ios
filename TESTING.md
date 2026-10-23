@@ -5,7 +5,7 @@ Goal: Jonathan reviews a one-page **mini paper with screenshots**, not code. Eve
 ## Honest inventory (iOS dev 8e7986d, backend dev 8defb27; measured 2026-10-23; live copy: ~/cursor-work/test-audit/CERTAINTY.md)
 | Layer | Count | Result | Certainty |
 |---|---|---|---|
-| iOS unit (`blnd_iosTests`) | 167 | 167 pass, 0 fail, 0 skip (was 108 pass x3 on 217ecfd) | CERTAIN: fixtures + URLProtocol stub; RefreshSessionTests use tiny sleeps |
+| iOS unit (`blnd_iosTests`) | 182 (dev + #49) | 182 pass, 0 fail, 0 skip, 3 runs in a row (167 pass on 8e7986d; 108 pass x3 on 217ecfd) | CERTAIN: fixtures + URLProtocol stub; RefreshSessionTests use tiny sleeps |
 | XCUITest (`blnd_iosUITests`) | 10 (9 pass + `NotesImportUITests.testReviewThenFound`, last full run on 217ecfd) | `testReviewThenFound`: 3/3 pass on a quiet machine (dev 8ded991), 3/3 fail at load >=160 with "import.notes.hit.129 not hittable" (still not hittable after a 10s wait) | FLAKY under load: a timing race, not a deterministic app bug; treat as DOUBTFUL until the search-results list is waited on properly |
 | Maestro | 15 flows (14 required + 10_solo_flow) | 13 of 13 previously-required green (08_watchlist fixed after the sheet layout changed; 11_onboarding_tour new, green on r7); 10_solo_flow FAIL on r7 (search "Inception" result 0 is not Inception 2010 so `watch.hub` never shows) | see below |
 
@@ -17,6 +17,13 @@ Each flow is green at least once on the current build; repetition counts are in 
 **Fixed (was the release blocker)**: Continue on the "Movies you love" picks used to bounce back to Welcome because `OnboardingAccountGate` was a NavigationStack nested in the onboarding stack. The gate is now inline (`OnboardingAccountGate.swift`, no nested stack) and `.maestro/12_signup_onboarding.yaml` (required) walks picks > sign up > tour > home feed on the local backend.
 
 Not covered yet (UNVERIFIED): real sign up against production, invitee side of Blends, StoreKit purchase, Sign in with Apple, push.
+
+## How Jonathan reviews (the short version)
+1. Look at the app: `tools/qa/warm.sh open` (brings the `blnd-warm-1` simulator to the front; already signed in as maya on the latest dev). Sign in as leo/sam with the demo accounts below if you need a friend or a free user.
+2. Read what changed: `open ~/cursor-work/papers/<date>-<slug>/index.html` (or `summary.md`). One page per feature or PR: GREEN / RED / UNVERIFIED verdict, the original task, what changed, test results and step screenshots. `ls -t ~/cursor-work/papers | head` shows the newest.
+3. After merging anything: `tools/qa/warm.sh refresh` (one command, ~5 min, rebuilds dev onto the warm sims and signs in).
+4. A specific PR on its own sim: `tools/qa/warm.sh pr <n>`. Clean up with `tools/qa/warm.sh gc`.
+You only need to act when a paper says RED or UNVERIFIED, or for the things only you can do (App Store Connect, repo settings, Render env vars).
 
 ## One-time setup (done on this Mac)
     brew install maestro      # already installed (2.11)

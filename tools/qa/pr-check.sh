@@ -19,7 +19,7 @@ BASE=$(echo "$INFO" | python3 -c 'import sys,json;print(json.load(sys.stdin)["ba
 echo "$INFO" | python3 -c 'import sys,json;print("automerge" if any(l["name"]=="automerge" for l in json.load(sys.stdin)["labels"]) else "")' | grep -q automerge && MERGE=1
 [ $POST = 1 ] && gh api -X POST "repos/$NWO/statuses/$SHA" -f state=pending -f context=blnd/local-qa -f description="running on Jonathan's Mac" >/dev/null 2>&1
 
-tools/qa/warm.sh up || exit 2
+BLND_SIMS="${BLND_SIMS:-blnd-warm-1}" tools/qa/warm.sh up || exit 2   # only the first warm sim: the gate must not boot extra sims
 git fetch -q origin "+refs/pull/$PR/head:refs/remotes/origin/pr/$PR"
 app=$(BLND_PORT="${BLND_PORT:-8100}" tools/qa/warm.sh pr "$PR" 2>&1 | tail -1); echo "$app"
 SIM_NAME="blnd-pr-$PR"
