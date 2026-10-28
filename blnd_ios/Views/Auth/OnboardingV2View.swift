@@ -4,20 +4,25 @@ enum OnboardingV2Step: Int, CaseIterable, Identifiable {
     case valueTonight
     case valueTaste
     case loved
+    case letterboxd
     case swipe
     case rate
     case match
     case blends
     case now
-    case letterboxd
     case taste
     case friends
 
-    var id: Int { rawValue }
+    var id: Int {
+        rawValue
+    }
+
+    /// First step once the account exists: the optional Letterboxd import, before the tutorial.
+    static let afterAccount: OnboardingV2Step = .letterboxd
 
     var isTutorial: Bool {
         switch self {
-        case .swipe, .rate, .match, .blends, .now, .letterboxd, .taste:
+        case .swipe, .rate, .match, .blends, .now, .taste:
             return true
         default:
             return false
@@ -80,8 +85,9 @@ struct OnboardingDots: View {
     }
 }
 
+// swiftlint:disable file_length
 /// Fast onboarding: value, five loved movies, then a short interactive tutorial.
-struct OnboardingV2View: View {
+struct OnboardingV2View: View { // swiftlint:disable:this type_body_length
     @Environment(AuthState.self) private var authState
     @Environment(OnboardingState.self) private var onboardingState
     @Binding var path: NavigationPath
@@ -228,7 +234,9 @@ struct OnboardingV2View: View {
                 }
             }
             continueButton(
-                label: OnboardingTaste.canContinue(count: loved.count) ? "Continue" : "Pick \(OnboardingTaste.minimumLoved - loved.count) more",
+                label: OnboardingTaste
+                    .canContinue(count: loved.count) ? "Continue" :
+                    "Pick \(OnboardingTaste.minimumLoved - loved.count) more",
                 enabled: OnboardingTaste.canContinue(count: loved.count)
             )
             .padding(.top, 12)
@@ -379,8 +387,8 @@ struct OnboardingV2View: View {
     private var letterboxdPage: some View {
         VStack(alignment: .leading, spacing: 12) {
             tutorialTitle(
-                "Bring your movies",
-                subtitle: "Optional. Open the import hub for Letterboxd, or skip it."
+                "Import from Letterboxd",
+                subtitle: "Optional. Bring your ratings over in seconds, or skip and do it later."
             )
             Button {
                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
@@ -397,7 +405,10 @@ struct OnboardingV2View: View {
 
     private var tastePage: some View {
         VStack(alignment: .leading, spacing: 12) {
-            tutorialTitle("Your taste profile", subtitle: "Built from the movies you loved. It sharpens with every rating.")
+            tutorialTitle(
+                "Your taste profile",
+                subtitle: "Built from the movies you loved. It sharpens with every rating."
+            )
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(lovedMovies) { movie in
@@ -420,7 +431,10 @@ struct OnboardingV2View: View {
         VStack(alignment: .leading, spacing: 12) {
             tutorialTitle(
                 "Find friends",
-                subtitle: "Next we'll ask to read your contacts. Phone numbers are sent to blnd only to find people already here. We keep a number only when it matches an account, and we never store names. Skip if you'd rather just send an invite."
+                subtitle: "Next we'll ask to read your contacts. "
+                    + "Phone numbers are sent to blnd only to find people already here. "
+                    + "We keep a number only when it matches an account, and we never store names. "
+                    + "Skip if you'd rather just send an invite."
             )
             Button {
                 Task { await matchContacts() }
@@ -657,7 +671,7 @@ struct OnboardingV2View: View {
     private func accountReady() {
         showingAccount = false
         startSeed()
-        withAnimation { step = .swipe }
+        withAnimation { step = OnboardingV2Step.afterAccount }
     }
 
     private func signIn() {
@@ -678,3 +692,5 @@ struct OnboardingV2View: View {
         }
     }
 }
+
+// swiftlint:enable file_length
