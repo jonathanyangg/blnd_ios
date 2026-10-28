@@ -56,8 +56,8 @@ appId: com.jonathan.blnd-ios
 - assertVisible:
     text: ${maestro.copiedText}
 
-# Long press: a >=1s hold locks the trailer on, or the no-trailer toast shows.
-- longPressOn:
+# Tap the poster: the trailer plays with every overlay hidden, or the no-trailer toast shows.
+- tapOn:
     point: 50%,30%
 - assertVisible:
     id: "reel\\.trailer\\.(playing|unavailable)"
@@ -66,10 +66,11 @@ appId: com.jonathan.blnd-ios
       visible:
         id: reel.trailer.playing
     commands:
-      - tapOn:
-          id: reel.sound.toggle
-          optional: true  # not always exposed in the a11y tree while the embed is still loading
+      - assertNotVisible:
+          id: reel.detail.chip
       - tapOn:
           point: 50%,50%
       - assertNotVisible:
           id: reel.trailer.playing
+      - assertVisible:
+          id: reel.detail.chip

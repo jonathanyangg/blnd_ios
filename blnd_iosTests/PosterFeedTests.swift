@@ -57,13 +57,23 @@ struct TrailerSourceTests {
         #expect(TrailerSource.normalize("Amélie: The Movie") == TrailerSource.normalize("amelie the movie"))
     }
 
-    @Test func prefersNativeThenYouTubeThenNone() async {
+    @Test func prefersNativeThenYouTubeThenNone() async throws {
         let found = makeSource(data: Self.itunes([Self.inception]))
-        let native = await found.resolve(tmdbId: 1, title: "Inception", year: 2010, trailerUrl: "https://youtu.be/abcdefghijk")
-        #expect(native == .native(URL(string: "https://video.itunes.apple.com/inception.m4v")!))
+        let native = await found.resolve(
+            tmdbId: 1,
+            title: "Inception",
+            year: 2010,
+            trailerUrl: "https://youtu.be/abcdefghijk"
+        )
+        #expect(try native == .native(#require(URL(string: "https://video.itunes.apple.com/inception.m4v"))))
 
         let missing = makeSource()
-        let youtube = await missing.resolve(tmdbId: 2, title: "Obscure", year: 2010, trailerUrl: "https://www.youtube.com/watch?v=abcdefghijk")
+        let youtube = await missing.resolve(
+            tmdbId: 2,
+            title: "Obscure",
+            year: 2010,
+            trailerUrl: "https://www.youtube.com/watch?v=abcdefghijk"
+        )
         #expect(youtube == .youtube("abcdefghijk"))
 
         let none = await missing.resolve(tmdbId: 3, title: "Obscure", year: 2010, trailerUrl: nil)
@@ -88,8 +98,8 @@ struct TrailerSourceTests {
         #expect(calls.value == 2)
     }
 
-    @Test func persistsAcrossInstancesViaDefaults() async {
-        let defaults = UserDefaults(suiteName: "TrailerSourceTests.\(UUID().uuidString)")!
+    @Test func persistsAcrossInstancesViaDefaults() async throws {
+        let defaults = try #require(UserDefaults(suiteName: "TrailerSourceTests.\(UUID().uuidString)"))
         let calls = Counter()
         let make = {
             TrailerSource(
@@ -112,69 +122,52 @@ struct TrailerSourceTests {
         #expect(calls.value == 2)
     }
 
-    @Test func searchURLUsesMovieMedia() {
+    @Test func searchURLUsesMovieMedia() throws {
         let url = TrailerSource.searchURL(title: "Mad Max: Fury Road")
-        let items = URLComponents(url: url!, resolvingAgainstBaseURL: false)?.queryItems ?? []
+        let items = try URLComponents(url: #require(url), resolvingAgainstBaseURL: false)?.queryItems ?? []
         #expect(url?.host == "itunes.apple.com")
         #expect(items.contains(URLQueryItem(name: "media", value: "movie")))
         #expect(items.contains(URLQueryItem(name: "term", value: "Mad Max: Fury Road")))
     }
 }
 
-// MARK: - Hold / lock state machine
+// MARK: - Tap-to-play state machine
 
-struct TrailerHoldStateTests {
-    @Test func holdPlaysAndReleaseStops() {
-        var state = TrailerHoldState()
-        #expect(state.send(.pressBegan) == .play)
+struct TrailerPlaybackStateTests {
+    @Test func tapPlaysAndHidesOverlay() {
+        var state = TrailerPlaybackState()
+        #expect(state.showsOverlay)
+        #expect(state.send(.tapped) == .play)
         #expect(state.isPlaying)
-        #expect(state.send(.released) == .stop)
-        #expect(!state.isPlaying)
-    }
-
-    @Test func longHoldLocksAndTapStops() {
-        var state = TrailerHoldState()
-        _ = state.send(.pressBegan)
-        #expect(state.send(.pressHeldLong) == .lock)
-        #expect(state.send(.released) == .ignore)
-        #expect(state.phase == .locked)
-        #expect(state.send(.tapped) == .stop)
-        #expect(state.phase == .idle)
-        #expect(state.showsOverlay)
-    }
-
-    @Test func tapWhileIdleTogglesOverlay() {
-        var state = TrailerHoldState()
-        #expect(state.send(.tapped) == .ignore)
         #expect(!state.showsOverlay)
+    }
+
+    @Test func secondTapStopsAndRestoresOverlay() {
+        var state = TrailerPlaybackState()
         _ = state.send(.tapped)
+        #expect(state.send(.tapped) == .stop)
+        #expect(!state.isPlaying)
         #expect(state.showsOverlay)
     }
 
-    @Test func overlayHiddenWhilePlayingAndRestoredAfter() {
-        var state = TrailerHoldState()
-        _ = state.send(.pressBegan)
-        #expect(!state.showsOverlay)
-        _ = state.send(.released)
+    @Test func trailerEndingReturnsToPoster() {
+        var state = TrailerPlaybackState()
+        _ = state.send(.tapped)
+        #expect(state.send(.ended) == .stop)
         #expect(state.showsOverlay)
     }
 
     @Test func strayEventsAreIgnored() {
-        var state = TrailerHoldState()
-        #expect(state.send(.released) == .ignore)
-        #expect(state.send(.pressHeldLong) == .ignore)
-        _ = state.send(.pressBegan)
-        _ = state.send(.pressHeldLong)
-        #expect(state.send(.pressBegan) == .ignore)
-        #expect(state.phase == .locked)
+        var state = TrailerPlaybackState()
+        #expect(state.send(.ended) == .ignore)
+        #expect(state.send(.stopped) == .ignore)
+        #expect(state.showsOverlay)
     }
 
     @Test func externalStopResetsPlayback() {
-        var state = TrailerHoldState()
-        _ = state.send(.pressBegan)
-        _ = state.send(.pressHeldLong)
+        var state = TrailerPlaybackState()
+        _ = state.send(.tapped)
         #expect(state.send(.stopped) == .stop)
-        #expect(state.phase == .idle)
         #expect(state.send(.stopped) == .ignore)
     }
 }

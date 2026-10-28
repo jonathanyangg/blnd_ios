@@ -7,7 +7,10 @@ struct WhereToWatchSection: View {
     var failed: Bool
     var isPremium: Bool
     var showsTitle: Bool = true
+    /// Collapsed rows before "More". 0 shows every row grouped (the full streaming sheet).
+    var collapsedLimit: Int = 0
     var onOpen: (WatchOffer, WatchOfferKind) -> Void
+    @State private var expanded = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -32,7 +35,11 @@ struct WhereToWatchSection: View {
                     .foregroundStyle(AppTheme.textMuted)
                 attribution(payload)
             } else if let payload {
-                rows(payload)
+                if collapsedLimit > 0 {
+                    compactRows(payload)
+                } else {
+                    rows(payload)
+                }
                 if payload.showsAffiliatePrompt(isPremium: isPremium) {
                     Text("Includes affiliate links")
                         .font(.system(size: 11))
@@ -61,6 +68,34 @@ struct WhereToWatchSection: View {
                             .accessibilityIdentifier("watch.provider.\(index)")
                     }
                 }
+            }
+        }
+    }
+
+    /// Top providers only, one row each, stream first; "More" reveals the rest inline.
+    private func compactRows(_ payload: WhereToWatch) -> some View {
+        let list = payload.watchList(limit: collapsedLimit, expanded: expanded)
+        return VStack(alignment: .leading, spacing: 2) {
+            ForEach(Array(list.visible.enumerated()), id: \.element.offer.providerId) { index, entry in
+                offerButton(entry.offer, kind: entry.kind)
+                    .accessibilityIdentifier("watch.provider.\(index)")
+            }
+            if list.hiddenCount > 0 || expanded {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) { expanded.toggle() }
+                } label: {
+                    HStack(spacing: 4) {
+                        Text(expanded ? "Less" : "More (\(list.hiddenCount))")
+                        Image(systemName: expanded ? "chevron.up" : "chevron.down")
+                            .font(.system(size: 11, weight: .bold))
+                    }
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(AppTheme.textMuted)
+                    .padding(.vertical, 8)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("watch.more")
             }
         }
     }

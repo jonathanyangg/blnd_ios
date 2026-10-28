@@ -4,7 +4,7 @@ struct MovieDetailView: View {
     let tmdbId: Int
     var title: String = ""
     var source: Analytics.DetailSource = .grid
-    var mediaType: MediaType? = nil
+    var mediaType: MediaType?
     var onHide: (() -> Void)?
 
     @Environment(AuthState.self) var authState
@@ -210,10 +210,7 @@ struct MovieDetailView: View {
             taglineSection(movie)
             overviewSection(movie)
             CastSectionView(cast: movie.cast)
-
-            Divider()
-                .overlay(AppTheme.border)
-                .padding(.bottom, 20)
+                .padding(.bottom, 8)
 
             FriendsWhoWatchedSection(friends: friendsWhoWatched)
             commentsRow(movie)

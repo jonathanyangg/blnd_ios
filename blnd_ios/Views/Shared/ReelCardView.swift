@@ -21,12 +21,9 @@ struct ReelCardView: View {
     @State var swipeOffset: CGFloat = 0
     @State var swipeTriggeredHaptic = false
     @State var isDragging = false
-    @State var hold = TrailerHoldState()
+    @State var hold = TrailerPlaybackState()
     @State var trailerKind: TrailerSourceKind?
     @State var trailerTask: Task<Void, Never>?
-    @State var lockTask: Task<Void, Never>?
-    @State var holdTouchActive = false
-    @State var suppressTapUntil = Date.distantPast
     @State var showTrailerUnavailable = false
     @State var providers: [WatchOffer] = []
     @State var friendsWhoWatched: [FriendWatchedResponse] = []
@@ -58,12 +55,13 @@ struct ReelCardView: View {
             }
             trailerHUD
         }
+        .contentShape(Rectangle())
+        .onTapGesture(perform: posterTapped)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
         .background(Color.black)
         .clipped()
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: hold)
         .coordinateSpace(name: "reelCard")
-        .gesture(ReelHoldGesture(onBegan: holdBegan, onEnded: holdEnded))
         .offset(x: swipeOffset + tutorialNudge.x, y: tutorialNudge.y)
         .rotationEffect(
             .degrees(Double(swipeOffset) * 0.02 + tutorialNudge.degrees)
@@ -71,7 +69,6 @@ struct ReelCardView: View {
         .reelTutorialFrame(.card, active: isActive)
         .simultaneousGesture(horizontalSwipe)
         .overlay { swipeIndicators }
-        .onTapGesture(perform: posterTapped)
         .sheet(item: $selectedCastMember) { member in
             NavigationStack {
                 ActorProfileView(
@@ -134,6 +131,9 @@ struct ReelCardView: View {
         }
         .onChange(of: canPlay && isActive && !showsTutorial) { _, playable in
             if !playable { apply(hold.send(.stopped)) }
+        }
+        .onChange(of: TrailerPlayer.shared.endedCount) { _, _ in
+            if hold.isPlaying { apply(hold.send(.ended)) }
         }
         .onChange(of: isActive) { _, active in
             if active {

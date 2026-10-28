@@ -52,7 +52,8 @@ extension MovieDetailView {
             payload: whereToWatch,
             isLoading: watchLoading,
             failed: watchFailed,
-            isPremium: authState.isPremium
+            isPremium: authState.isPremium,
+            collapsedLimit: 4
         ) { offer, kind in
             // The log prompt rates through the movie API, so series aren't recorded.
             if mediaType != .tv {
@@ -60,10 +61,7 @@ extension MovieDetailView {
             }
             Task { await WatchLinkOpener.open(offer, kind: kind) }
         }
-        .padding([.horizontal, .top], 14)
-        .background(AppTheme.card)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-        .padding(.bottom, 16)
+        .padding(.top, 20)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("watch.hub")
     }

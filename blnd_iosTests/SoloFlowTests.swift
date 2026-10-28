@@ -171,6 +171,56 @@ struct WatchHubTests {
     }
 }
 
+struct WhereToWatchTruncationTests {
+    private func offer(_ id: Int, _ name: String) -> WatchOffer {
+        WatchOffer(
+            providerId: id, providerName: name, logoPath: nil,
+            webUrl: "https://example.com/\(id)", appUrl: nil, clickUrl: nil, iosLink: nil
+        )
+    }
+
+    private func payload(stream: Int, rent: Int = 0, buy: Int = 0) -> WhereToWatch {
+        WhereToWatch(
+            country: "US", attribution: "JustWatch", link: nil,
+            flatrate: (0 ..< stream).map { offer(100 + $0, "S\($0)") },
+            rent: (0 ..< rent).map { offer(200 + $0, "R\($0)") },
+            buy: (0 ..< buy).map { offer(300 + $0, "B\($0)") }
+        )
+    }
+
+    @Test func shortListShowsEverythingWithNoMore() {
+        let list = payload(stream: 2, rent: 2, buy: 1).watchList()
+        #expect(list.visible.count == 5)
+        #expect(list.hiddenCount == 0)
+    }
+
+    @Test func longListTruncatesToFourAndPrefersStreaming() {
+        let list = payload(stream: 3, rent: 6, buy: 6).watchList()
+        #expect(list.visible.count == 4)
+        #expect(list.visible.prefix(3).allSatisfy { $0.kind == .watchNow })
+        #expect(list.visible[3].kind == .rent)
+        #expect(list.hiddenCount == 11)
+    }
+
+    @Test func providerOnlyListedOnceAcrossKinds() {
+        let p = WhereToWatch(
+            country: "US", attribution: "JustWatch", link: nil,
+            flatrate: [offer(8, "Netflix")],
+            rent: [offer(2, "Apple TV"), offer(3, "Google")],
+            buy: [offer(2, "Apple TV"), offer(3, "Google"), offer(10, "Amazon")]
+        )
+        let list = p.watchList()
+        #expect(list.visible.map(\.offer.providerId) == [8, 2, 3, 10])
+        #expect(list.hiddenCount == 0)
+    }
+
+    @Test func expandedShowsAll() {
+        let list = payload(stream: 1, rent: 9).watchList(expanded: true)
+        #expect(list.visible.count == 10)
+        #expect(list.hiddenCount == 0)
+    }
+}
+
 struct WatchProviderCacheTests {
     private actor Probe {
         var calls: [Int] = []

@@ -1,49 +1,29 @@
 import SwiftUI
 
-// MARK: - Hold-to-play trailer
+// MARK: - Tap-to-play trailer
 
 extension ReelCardView {
-    func holdBegan() {
-        guard !showsTutorial, !isDragging else { return }
-        holdTouchActive = true
-        apply(hold.send(.pressBegan))
-        lockTask?.cancel()
-        lockTask = Task {
-            try? await Task.sleep(for: .seconds(0.75))
-            guard !Task.isCancelled else { return }
-            apply(hold.send(.pressHeldLong))
-        }
-    }
-
-    func holdEnded() {
-        lockTask?.cancel()
-        holdTouchActive = false
-        // The tap recognizer may also fire for the lifting finger. Swallow it.
-        suppressTapUntil = Date().addingTimeInterval(0.35)
-        apply(hold.send(.released))
-        if showTrailerUnavailable { hideUnavailableSoon() }
-    }
-
-    /// The toast stays up while the finger is down, then 1.5s after.
-    private func hideUnavailableSoon() {
-        Task {
-            try? await Task.sleep(for: .seconds(1.5))
-            if !holdTouchActive { showTrailerUnavailable = false }
-        }
-    }
-
+    /// Tap the poster: play the trailer full-bleed with every overlay hidden.
+    /// Tap again to stop. Details stay on the "Details" chip (high-priority tap).
     func posterTapped() {
-        guard !isDragging, !holdTouchActive, Date() > suppressTapUntil else { return }
+        guard !showsTutorial, !isDragging else { return }
         apply(hold.send(.tapped))
     }
 
-    func apply(_ effect: TrailerHoldState.Effect) {
+    private func hideUnavailableSoon() {
+        Task {
+            try? await Task.sleep(for: .seconds(1.5))
+            showTrailerUnavailable = false
+        }
+    }
+
+    func apply(_ effect: TrailerPlaybackState.Effect) {
         switch effect {
         case .play:
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            // A tap is an explicit "watch this", so play with sound.
+            TrailerPlayer.shared.setMuted(false)
             startTrailer()
-        case .lock:
-            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         case .stop:
             trailerTask?.cancel()
             trailerKind = nil
@@ -75,7 +55,7 @@ extension ReelCardView {
             case .unavailable:
                 apply(hold.send(.stopped))
                 showTrailerUnavailable = true
-                if !holdTouchActive { hideUnavailableSoon() }
+                hideUnavailableSoon()
             }
         }
     }
@@ -100,29 +80,15 @@ extension ReelCardView {
         }
     }
 
+    /// Nothing but the video while playing. The invisible marker keeps the UI-test hook.
     @ViewBuilder
     var trailerHUD: some View {
         if hold.isPlaying {
-            VStack {
-                HStack(spacing: 10) {
-                    if !TrailerPlayer.shared.isPlaying {
-                        ProgressView().tint(.white)
-                    }
-                    Spacer()
-                    if hold.phase == .locked {
-                        Image(systemName: "lock.fill")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(.white.opacity(0.85))
-                            .accessibilityLabel("Trailer locked on. Tap to stop.")
-                    }
-                    soundToggle
-                }
-                .padding(16)
-                Spacer()
-            }
-            .accessibilityElement(children: .contain)
-            .accessibilityIdentifier("reel.trailer.playing")
-            .transition(.opacity)
+            Color.clear
+                .allowsHitTesting(false)
+                .accessibilityElement()
+                .accessibilityLabel("Trailer playing. Tap to stop.")
+                .accessibilityIdentifier("reel.trailer.playing")
         } else if showTrailerUnavailable {
             Text("No trailer available")
                 .font(.system(size: 14, weight: .medium))
@@ -134,24 +100,6 @@ extension ReelCardView {
                 .accessibilityIdentifier("reel.trailer.unavailable")
                 .transition(.opacity)
         }
-    }
-
-    private var soundToggle: some View {
-        let muted = TrailerPlayer.shared.isMuted
-        return Image(systemName: muted ? "speaker.slash.fill" : "speaker.wave.2.fill")
-            .font(.system(size: 15, weight: .semibold))
-            .foregroundStyle(.white)
-            .frame(width: 40, height: 40)
-            .background(.ultraThinMaterial, in: Circle())
-            .environment(\.colorScheme, .dark)
-            .contentShape(Circle())
-            .highPriorityGesture(
-                TapGesture().onEnded { TrailerPlayer.shared.setMuted(!muted) }
-            )
-            .accessibilityElement()
-            .accessibilityAddTraits(.isButton)
-            .accessibilityLabel(muted ? "Unmute trailer" : "Mute trailer")
-            .accessibilityIdentifier("reel.sound.toggle")
     }
 
     func loadProviders() async {
