@@ -3,8 +3,16 @@ import Foundation
 import Testing
 
 struct NotificationFeedTests {
+    /// Injected clock: the sample fixtures are relative ("70 minutes ago", "5 hours ago"),
+    /// so using the real clock put them in "earlier" shortly after midnight. Pin to 2:40 PM today.
+    static let fixedNow: Date = clock(hour: 14)
+
+    static func clock(hour: Int) -> Date {
+        Calendar.current.date(bySettingHour: hour, minute: 40, second: 0, of: Date()) ?? Date()
+    }
+
     @Test func aggregatesLikesAsSamAndThreeOthers() {
-        let now = Date()
+        let now = Self.fixedNow
         let feed = ActivityPreview.sample(now: now)
         let today = feed.sections.first { $0.bucket == .today }
         let likes = today?.rows.first { $0.lineLead == "Sam and 3 others" }
@@ -14,11 +22,11 @@ struct NotificationFeedTests {
         #expect(likes?.lineRest == " liked your comment on Past Lives")
         #expect(likes?.isUnread == true)
         #expect(likes?.posterURL?.absoluteString.contains("k3waqVXSnvCZWfJYNtdamTgTtTA") == true)
-        #expect(likes?.route == .comments(tmdbId: 666277, title: "Past Lives"))
+        #expect(likes?.route == .comments(tmdbId: 666_277, title: "Past Lives"))
     }
 
     @Test func groupsTodayThisWeekAndEarlier() {
-        let now = Date()
+        let now = Self.fixedNow
         let feed = ActivityPreview.sample(now: now)
         let buckets = feed.sections.map(\.bucket)
 
@@ -32,7 +40,7 @@ struct NotificationFeedTests {
     }
 
     @Test func groupKeyDoesNotMergeDifferentRows() {
-        let now = Date()
+        let now = Self.fixedNow
         let stamp = ISO8601DateFormatter()
         stamp.formatOptions = [.withInternetDateTime]
         let created = stamp.string(from: now)
@@ -61,7 +69,7 @@ struct NotificationFeedTests {
     }
 
     @Test func weekBoundaryUsesRollingSevenDays() {
-        let now = Date()
+        let now = Self.fixedNow
         let calendar = Calendar.current
         let today = now.addingTimeInterval(-60)
         let sixDays = calendar.date(byAdding: .day, value: -6, to: calendar.startOfDay(for: now)) ?? now
