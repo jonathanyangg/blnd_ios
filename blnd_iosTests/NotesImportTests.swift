@@ -1,7 +1,7 @@
 @testable import blnd_ios
 import Foundation
-import UIKit
 import Testing
+import UIKit
 
 @MainActor
 struct NotesImportTests {
@@ -91,7 +91,7 @@ struct NotesImportTests {
             try NotesImportReview.normalizedText("  \n")
         }
         #expect(throws: NotesImportError.tooLong) {
-            try NotesImportReview.normalizedText(String(repeating: "a", count: 50_001))
+            try NotesImportReview.normalizedText(String(repeating: "a", count: 50001))
         }
     }
 
@@ -111,21 +111,7 @@ struct NotesImportTests {
         #expect(json?["bucket"] as? String == "watchlist")
         #expect(json?["tmdb_ids"] as? [Int] == [238])
     }
-
-    @Test func shareTextDropsBlankParts() {
-        #expect(NotesShareText.joined(["  Heat  ", " ", "Alien"]) == "Heat\nAlien")
-        #expect(NotesShareText.joined(["  ", ""]) == nil)
-        #expect(NotesShareText.isOpenURL(URL(string: "blnd://import-notes")!))
-        #expect(!NotesShareText.isOpenURL(URL(string: "blnd://movie/1")!))
-    }
-
-    @Test func inboxIsConsumedOnce() {
-        NotesShareText.save("Heat\nAlien")
-        #expect(NotesShareText.consume() == "Heat\nAlien")
-        #expect(NotesShareText.consume() == nil)
-    }
 }
-
 
 struct NotesRecognizerTests {
     @Test func recognizerReadsDrawnText() throws {

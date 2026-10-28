@@ -42,12 +42,6 @@ struct BlndApp: App {
                 }
             }
             .preferredColorScheme(.dark)
-            .onOpenURL { url in
-                guard NotesShareText.isOpenURL(url) else { return }
-                if let text = NotesShareText.consume() {
-                    deepLinkState.pendingNotesText = text
-                }
-            }
         }
     }
 
@@ -64,13 +58,13 @@ struct BlndApp: App {
     @ViewBuilder
     private var root: some View {
         #if DEBUG
-            if TimelinePreview.isEnabled {
-                TimelinePreviewHost()
-            } else {
-                mainContent
-            }
-        #else
+        if TimelinePreview.isEnabled {
+            TimelinePreviewHost()
+        } else {
             mainContent
+        }
+        #else
+        mainContent
         #endif
     }
 }
