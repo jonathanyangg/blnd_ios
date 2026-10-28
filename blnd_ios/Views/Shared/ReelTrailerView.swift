@@ -17,8 +17,10 @@ final class TrailerPlayer {
     /// True once the active source reports frames, so the poster can stay up until then.
     private(set) var isPlaying = false
     private(set) var isMuted = true
+    /// Bumps each time the current trailer plays to the end.
+    private(set) var endedCount = 0
     let nativePlayer = AVQueuePlayer()
-    @ObservationIgnored private var looper: AVPlayerLooper?
+    @ObservationIgnored private var endObserver: NSObjectProtocol?
     @ObservationIgnored private var warmAsset: AVURLAsset?
     @ObservationIgnored private var nativeStatus: NSKeyValueObservation?
 
@@ -48,11 +50,17 @@ final class TrailerPlayer {
         }
     }
 
-    /// Plays a licensed clip (iTunes preview) muted and looping.
+    /// Plays a licensed clip (iTunes preview) once; the end returns the card to its poster.
     func playNative(url: URL) {
         stop()
         let asset = warmAsset?.url == url ? warmAsset! : AVURLAsset(url: url)
-        looper = AVPlayerLooper(player: nativePlayer, templateItem: AVPlayerItem(asset: asset))
+        let item = AVPlayerItem(asset: asset)
+        endObserver = NotificationCenter.default.addObserver(
+            forName: AVPlayerItem.didPlayToEndTimeNotification, object: item, queue: .main
+        ) { _ in
+            Task { @MainActor in TrailerPlayer.shared.markEnded() }
+        }
+        nativePlayer.insert(item, after: nil)
         nativePlayer.isMuted = isMuted
         nativePlayer.play()
     }
@@ -86,8 +94,8 @@ final class TrailerPlayer {
     func stop() {
         currentVideoId = nil
         isPlaying = false
-        looper?.disableLooping()
-        looper = nil
+        if let endObserver { NotificationCenter.default.removeObserver(endObserver) }
+        endObserver = nil
         nativePlayer.pause()
         nativePlayer.removeAllItems()
         if isReady {
@@ -105,6 +113,10 @@ final class TrailerPlayer {
         if isReady {
             webView.evaluateJavaScript("resumeVideo();")
         }
+    }
+
+    func markEnded() {
+        endedCount += 1
     }
 
     private func markReady() {
@@ -258,7 +270,9 @@ final class TrailerPlayer {
             if message.name == "playerReady" {
                 player?.markReady()
             } else if message.name == "playerState", player?.currentVideoId != nil {
-                player?.isPlaying = (message.body as? Int) == 1
+                let state = message.body as? Int
+                player?.isPlaying = state == 1
+                if state == 0 { player?.markEnded() }
             }
         }
 
@@ -358,26 +372,5 @@ struct NativeTrailerView: UIViewRepresentable {
 
     func updateUIView(_ view: PlayerView, context: Context) {
         (view.layer as? AVPlayerLayer)?.player = player
-    }
-}
-
-/// UIKit long press so "began" and "released" are reliable inside the paging ScrollView.
-struct ReelHoldGesture: UIGestureRecognizerRepresentable {
-    var onBegan: () -> Void
-    var onEnded: () -> Void
-
-    func makeUIGestureRecognizer(context: Context) -> UILongPressGestureRecognizer {
-        let recognizer = UILongPressGestureRecognizer()
-        recognizer.minimumPressDuration = 0.25
-        recognizer.allowableMovement = 12
-        return recognizer
-    }
-
-    func handleUIGestureRecognizerAction(_ recognizer: UILongPressGestureRecognizer, context: Context) {
-        switch recognizer.state {
-        case .began: onBegan()
-        case .ended, .cancelled, .failed: onEnded()
-        default: break
-        }
     }
 }

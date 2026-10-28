@@ -112,6 +112,19 @@ extension WhereToWatch {
         WatchOfferKind.allCases.flatMap { kind in offers(kind).map { (kind: kind, offer: $0) } }
     }
 
+    /// Collapsed Where to Watch: one row per provider (stream first, then rent, then buy,
+    /// each in JustWatch's relevance order). Up to `limit` rows; a list of at most
+    /// `limit + 1` shows in full so "More" never hides a single row.
+    func watchList(
+        limit: Int = 4,
+        expanded: Bool = false
+    ) -> (visible: [(kind: WatchOfferKind, offer: WatchOffer)], hiddenCount: Int) {
+        var seen: Set<Int> = []
+        let unique = hubOffers.filter { seen.insert($0.offer.providerId).inserted }
+        if expanded || unique.count <= limit + 1 { return (unique, 0) }
+        return (Array(unique.prefix(limit)), unique.count - limit)
+    }
+
     /// The first offers by hub order, one per provider.
     func topProviders(limit: Int) -> [WatchOffer] {
         var seen: Set<Int> = []
@@ -148,7 +161,7 @@ actor WatchProviderCache {
             await acquire()
             defer { release() }
             do {
-                return .some(try await fetch(tmdbId, mediaType))
+                return try await .some(fetch(tmdbId, mediaType))
             } catch {
                 return .none
             }

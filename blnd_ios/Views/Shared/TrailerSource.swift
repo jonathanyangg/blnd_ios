@@ -47,11 +47,10 @@ final class TrailerSource {
         let clock = now().timeIntervalSince1970
         if let cached = memory[tmdbId], clock - cached.at < Self.ttl { return cached.url }
         let key = "trailerSource.\(tmdbId)"
-        if let stored = defaults.dictionary(forKey: key),
-           let at = stored["at"] as? Double,
-           clock - at < Self.ttl {
+        let stored = defaults.dictionary(forKey: key)
+        if let savedAt = stored?["at"] as? Double, clock - savedAt < Self.ttl, let stored {
             let url = (stored["url"] as? String).flatMap(URL.init(string:))
-            memory[tmdbId] = (url, at)
+            memory[tmdbId] = (url, savedAt)
             return url
         }
         guard let search = Self.searchURL(title: title),
@@ -143,36 +142,25 @@ enum TrailerPreloadPolicy {
 
 /// Press-and-hold plays, a 1s hold locks playback on, a tap stops a locked trailer
 /// or toggles the info overlay.
-struct TrailerHoldState: Equatable {
-    enum Phase: Equatable { case idle, holding, locked }
-    enum Event { case pressBegan, pressHeldLong, released, tapped, stopped }
-    enum Effect: Equatable { case ignore, play, lock, stop }
+/// Tap a poster to play its trailer with every overlay hidden; tap again, or let it end, to go back.
+struct TrailerPlaybackState: Equatable {
+    enum Event { case tapped, ended, stopped }
+    enum Effect: Equatable { case ignore, play, stop }
 
-    private(set) var phase: Phase = .idle
-    private(set) var overlayHidden = false
-
-    var isPlaying: Bool {
-        phase != .idle
-    }
+    private(set) var isPlaying = false
 
     var showsOverlay: Bool {
-        !overlayHidden && !isPlaying
+        !isPlaying
     }
 
     mutating func send(_ event: Event) -> Effect {
-        switch (event, phase) {
-        case (.pressBegan, .idle):
-            phase = .holding
+        switch (event, isPlaying) {
+        case (.tapped, false):
+            isPlaying = true
             return .play
-        case (.pressHeldLong, .holding):
-            phase = .locked
-            return .lock
-        case (.released, .holding), (.tapped, .locked), (.stopped, .holding), (.stopped, .locked):
-            phase = .idle
+        case (.tapped, true), (.ended, true), (.stopped, true):
+            isPlaying = false
             return .stop
-        case (.tapped, .idle):
-            overlayHidden.toggle()
-            return .ignore
         default:
             return .ignore
         }
