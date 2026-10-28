@@ -6,7 +6,6 @@ import UserNotifications
 /// to onboarding or main tab view based on AuthPhase.
 struct ContentView: View {
     @Environment(AuthState.self) var authState
-    @Environment(DeepLinkState.self) private var deepLinkState
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
@@ -22,7 +21,6 @@ struct ContentView: View {
                 }
                 .onChange(of: scenePhase) { _, newPhase in
                     guard newPhase == .active else { return }
-                    pullSharedNotes()
                     guard authState.phase == .authenticated else { return }
                     UIApplication.shared.applicationIconBadgeNumber = 0
                     Task {
@@ -53,8 +51,7 @@ struct ContentView: View {
     }
 
     private var sessionRoot: some View {
-        let notesText = deepLinkState.pendingNotesText
-        return Group {
+        Group {
             if showsPaywallScreenshot {
                 PaywallView(source: .manual)
             } else if authState.isCheckingSession {
@@ -73,34 +70,6 @@ struct ContentView: View {
             if authState.isCheckingSession {
                 await authState.checkSession()
             }
-        }
-        .onAppear { pullSharedNotes() }
-        .fullScreenCover(
-            item: Binding(
-                get: {
-                    // Read the live value. A captured snapshot stays non-nil after dismiss and reopens the cover.
-                    _ = notesText
-                    return deepLinkState.pendingNotesText.map(NotesImportLaunch.init)
-                },
-                set: { deepLinkState.pendingNotesText = $0?.text }
-            )
-        ) { launch in
-            NavigationStack {
-                notesImportReview(text: launch.text) {
-                    deepLinkState.pendingNotesText = nil
-                }
-            }
-        }
-    }
-
-    /// Opens a note the Share Extension left in the app group.
-    private func pullSharedNotes() {
-        #if DEBUG
-        if NotesImportPreviewLaunch.isEnabled { return }
-        #endif
-        guard deepLinkState.pendingNotesText == nil else { return }
-        if let text = NotesShareText.consume() {
-            deepLinkState.pendingNotesText = text
         }
     }
 

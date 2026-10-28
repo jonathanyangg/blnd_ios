@@ -18,7 +18,7 @@ final class LetterboxdOnboardingUITests: XCTestCase {
     func testHubShowsThreeWaysIn() {
         let app = launchAtMovieHub()
         XCTAssertTrue(app.buttons["import.hub.letterboxd"].exists)
-        XCTAssertTrue(app.buttons["import.hub.photos"].exists)
+        XCTAssertFalse(app.buttons["import.hub.photos"].exists)
         XCTAssertTrue(app.buttons["import.hub.notes"].exists)
         XCTAssertTrue(app.buttons["Skip for now"].exists)
     }

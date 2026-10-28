@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Three ways to bring movies in. Letterboxd, photos, and notes.
+/// Two ways to bring movies in: Letterboxd or a pasted list.
 struct BringMoviesHub: View {
     var router: any MovieImportRouting
     var onSkip: (() -> Void)?
@@ -14,7 +14,7 @@ struct BringMoviesHub: View {
                         Text("Bring your movies")
                             .font(.system(size: 26, weight: .bold))
                             .foregroundStyle(.white)
-                        Text("Start from Letterboxd, a photo, or notes.")
+                        Text("Start from Letterboxd or paste a list.")
                             .font(.system(size: 15))
                             .foregroundStyle(AppTheme.textMuted)
                     }
@@ -34,20 +34,8 @@ struct BringMoviesHub: View {
                     }
 
                     hubCard(
-                        title: "Photo or screenshot",
-                        note: "We'll read the titles on your phone.",
-                        identifier: "import.hub.photos"
-                    ) {
-                        Image(systemName: "photo.on.rectangle.angled")
-                            .font(.system(size: 22, weight: .medium))
-                            .foregroundStyle(.white)
-                    } action: {
-                        router.open(.photos)
-                    }
-
-                    hubCard(
-                        title: "Notes or text",
-                        note: "Paste a list.",
+                        title: "Paste a list",
+                        note: "One movie on each line.",
                         identifier: "import.hub.notes"
                     ) {
                         Image(systemName: "note.text")
@@ -87,11 +75,11 @@ struct BringMoviesHub: View {
         }
     }
 
-    private func hubCard<Icon: View>(
+    private func hubCard(
         title: String,
         note: String,
         identifier: String,
-        @ViewBuilder icon: () -> Icon,
+        @ViewBuilder icon: () -> some View,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {

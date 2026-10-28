@@ -96,6 +96,7 @@ struct PhotoImportView: View {
         }
     }
 }
+
 struct PasteNotesView: View {
     var router: any MovieImportRouting
     @State private var text = ""
@@ -108,7 +109,7 @@ struct PasteNotesView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 8) {
-                Text("Notes or text")
+                Text("Paste a list")
                     .font(.system(size: 26, weight: .bold))
                     .foregroundStyle(.white)
                 Text("Paste a list of movies.")
