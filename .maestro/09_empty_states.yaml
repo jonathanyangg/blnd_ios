@@ -1,0 +1,72 @@
+appId: com.jonathan.blnd-ios
+# Shared state views render on real screens (EMAIL should be an account with an
+# empty watchlist and no friends, e.g. EMAIL_A) and on the forced-error host.
+---
+- launchApp
+- runFlow:
+    when:
+      visible:
+        id: auth.welcome.sign-in
+    file: subflows/00_sign_in_steps.yaml
+- extendedWaitUntil:
+    visible:
+      id: home.search
+    timeout: 30000
+- tapOn:
+    id: reels.tutorial.skip
+    optional: true
+- tapOn: Profile
+# Watchlist: empty state, never stuck on the spinner.
+- tapOn:
+    id: profile.tab.watchlist
+- extendedWaitUntil:
+    notVisible:
+      id: state.loading
+    timeout: 15000
+- assertNotVisible:
+    id: state.error
+- takeScreenshot: after-watchlist
+# Diary loads (content or empty), no error.
+- tapOn:
+    id: profile.tab.diary
+- extendedWaitUntil:
+    notVisible:
+      id: state.loading
+    timeout: 15000
+- assertNotVisible:
+    id: state.error
+- takeScreenshot: after-diary
+- tapOn:
+    id: profile.tab.watched
+- takeScreenshot: after-profile
+# Friends list loads (empty or populated; data-independent) and requests tab is empty.
+- tapOn:
+    text: Friends
+    index: 0
+- extendedWaitUntil:
+    notVisible:
+      id: state.loading
+    timeout: 15000
+- assertNotVisible:
+    id: state.error
+- takeScreenshot: after-friends
+- tapOn: Requests
+- assertVisible:
+    id: state.empty
+- takeScreenshot: after-friends-requests
+# Error state + retry on the forced-error notifications host (DEBUG only).
+- stopApp
+- launchApp:
+    arguments:
+      "-UITestScreen": notificationsError
+- extendedWaitUntil:
+    visible:
+      id: state.error
+    timeout: 15000
+- assertVisible:
+    id: state.retry
+- takeScreenshot: after-notifications-error
+- tapOn:
+    id: state.retry
+- assertVisible:
+    id: state.error

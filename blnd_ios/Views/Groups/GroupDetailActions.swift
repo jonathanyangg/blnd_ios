@@ -13,30 +13,38 @@ extension GroupDetailView {
             async let groupResult = GroupsAPI.getGroup(
                 groupId: groupId
             )
+            let filter = catalogFilters.current()
             async let recsResult = GroupsAPI.getFeed(
-                groupId: groupId
+                groupId: groupId,
+                filter: filter
             )
             async let watchlistResult = GroupsAPI.getWatchlist(
-                groupId: groupId
+                groupId: groupId,
+                filter: filter
             )
 
             let (groupData, recsData, watchlistData) = try await (
                 groupResult, recsResult, watchlistResult
             )
+            guard !Task.isCancelled else { return }
             group = groupData
-            recommendations = recsData.results
             seenRecIds = Set(recsData.results.map(\.tmdbId))
-            groupReelMovies = recsData.results.map { ReelMovie(from: $0) }
-            watchlist = watchlistData.results
+            recommendations = recsData.results.filter {
+                filter.matches(mediaType: $0.mediaType, year: $0.year)
+            }
+            groupReelMovies = recommendations.map { ReelMovie(from: $0) }
+            watchlist = watchlistData.results.filter {
+                filter.matches(mediaType: $0.mediaType, year: $0.year)
+            }
+            timelineReload += 1
         } catch {
+            let copy = UserFacingError.capture(error, screen: "Blend")
             if case APIError.rateLimited = error {
-                showToast(
-                    "Woah, slow down! Try again in a minute"
-                )
+                showToast(copy)
             } else if group == nil {
-                loadError = error.localizedDescription
+                loadError = copy
             } else {
-                showToast(error.localizedDescription)
+                showToast(copy) { Task { await loadAll(forceRefresh: true) } }
             }
         }
         isLoading = false
@@ -48,12 +56,17 @@ extension GroupDetailView {
         let batchNum = (seenRecIds.count / 20) + 1
         Analytics.feedLoadMore(source: .blend, batchNum: batchNum)
         do {
+            let filter = catalogFilters.current()
             let response = try await GroupsAPI.getFeed(
                 groupId: groupId,
-                exclude: Array(seenRecIds)
+                exclude: Array(seenRecIds),
+                filter: filter
             )
+            for movie in response.results {
+                seenRecIds.insert(movie.tmdbId)
+            }
             let newMovies = response.results.filter {
-                !seenRecIds.contains($0.tmdbId)
+                filter.matches(mediaType: $0.mediaType, year: $0.year)
             }
             if !newMovies.isEmpty {
                 recommendations.append(contentsOf: newMovies)
@@ -66,7 +79,9 @@ extension GroupDetailView {
             }
         } catch {
             if !Task.isCancelled {
-                showToast(error.localizedDescription)
+                showToast(UserFacingError.capture(error, screen: "BlendFeed")) {
+                    Task { await loadMoreRecs() }
+                }
             }
         }
         isLoadingMoreRecs = false
@@ -76,11 +91,11 @@ extension GroupDetailView {
         let trimmed = editedName
             .trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
-            showToast("Name can't be empty")
+            showToast(.client(.validation, message: "Name can't be empty"))
             return
         }
         guard trimmed.count <= 30 else {
-            showToast("Name must be 30 characters or less")
+            showToast(.client(.validation, message: "Name must be 30 characters or less"))
             return
         }
         guard trimmed != group?.name else { return }
@@ -93,18 +108,20 @@ extension GroupDetailView {
                 )
             } catch {
                 group?.name = oldName
-                showToast("Failed to rename blend")
+                showToast(UserFacingError.capture(error, screen: "RenameBlend"))
             }
         }
     }
 
-    func showToast(_ message: String) {
+    func showToast(_ message: UserFacingError, retry: (() -> Void)? = nil) {
         toastTask?.cancel()
         toastMessage = message
+        toastRetry = retry
         toastTask = Task {
             try? await Task.sleep(for: .seconds(3))
             if !Task.isCancelled {
                 toastMessage = nil
+                toastRetry = nil
             }
         }
     }

@@ -1,0 +1,23 @@
+# Feed: swipe right on a Discover reel -> "Interested" toast, card advances (toast lasts 2s, so swipe fast). Saves ONLY a movie_interactions row via POST /recommendations/{id}/interested; watchlist adds go through the card button (older builds said "Added to My Watchlist" while saving only that interaction; fixed in the app).
+appId: com.jonathan.blnd-ios
+env: {EMAIL: maya@blnd.local, PASSWORD: Premium123!}
+---
+- runFlow: subflows/ensure_home.yaml
+- takeScreenshot: 02-1-for-you
+- tapOn: {text: Discover}
+- extendedWaitUntil:
+    visible:
+      id: reel.poster
+    timeout: 20000
+- takeScreenshot: 02-2-discover-reel
+- swipe:
+    from:
+      id: reel.poster
+    direction: RIGHT
+    duration: 250
+# toast lives 2s and a loaded machine can miss it (1 of 5 runs did), so it is best-effort here;
+# the real assertion is 02_swipe_interested.verify.sh (the interaction row exists in the DB).
+- assertVisible:
+    id: reel.toast
+    optional: true
+- takeScreenshot: 02-3-swiped-toast

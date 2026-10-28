@@ -21,6 +21,7 @@ final class UserActionCache {
     private(set) var friends: [FriendResponse] = []
     private(set) var pendingRequests: PendingRequestsResponse?
     private(set) var didLoadFriends = false
+    private(set) var friendsLoadError: UserFacingError?
 
     /// Cache of friends-who-watched per movie. NSCache caps size and purges
     /// automatically on memory warnings — no manual observer required.
@@ -97,8 +98,10 @@ final class UserActionCache {
             friends = fData.friends
             pendingRequests = rData
             didLoadFriends = true
+            friendsLoadError = nil
+        } catch is CancellationError {
         } catch {
-            // Non-fatal
+            friendsLoadError = UserFacingError.capture(error, screen: "Friends")
         }
     }
 
@@ -165,6 +168,7 @@ final class UserActionCache {
         friends.removeAll()
         pendingRequests = nil
         didLoadFriends = false
+        friendsLoadError = nil
         friendsWhoWatchedCache.removeAllObjects()
         didLoadInitial = false
     }

@@ -2,189 +2,232 @@ import SwiftUI
 import UserNotifications
 
 struct ActivityFeedView: View {
-    @Environment(\.dismiss) private var dismiss
-    @Environment(DeepLinkState.self) private var deepLinkState
+    @Environment(TabState.self) private var tabState
+    private let isPreview: Bool
+
+    @State private var frozen: ActivityFeedContent?
     @State private var items: [InboxItem] = []
-    @State private var isLoading = true
+    @State private var isLoading: Bool
     @State private var isLoadingMore = false
     @State private var hasMore = true
     @State private var errorMessage: String?
+    @State private var actionError: String?
+    @State private var busyRequestId: String?
+    @State private var route: ActivityRoute?
 
     private let pageSize = 30
+
+    init(preview: ActivityFeedContent? = nil, forcedError: String? = nil) {
+        let previewMode = preview != nil || forcedError != nil
+        isPreview = previewMode
+        _frozen = State(initialValue: preview)
+        _errorMessage = State(initialValue: forcedError)
+        _isLoading = State(initialValue: !previewMode)
+    }
 
     var body: some View {
         ScrollView {
             if isLoading {
-                ProgressView()
-                    .tint(.white)
-                    .padding(.top, 60)
-            } else if let error = errorMessage {
-                VStack(spacing: 12) {
-                    Text(error)
-                        .font(.system(size: 14))
-                        .foregroundStyle(AppTheme.textMuted)
-                    Button("Retry") {
-                        Task { await loadInbox(reset: true) }
-                    }
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(.white)
+                LoadingStateView()
+            } else if let errorMessage, items.isEmpty, frozen == nil {
+                ErrorStateView(
+                    message: UserFacingError.client(.server, message: errorMessage)
+                ) {
+                    Task { await load(reset: true) }
                 }
-                .padding(.top, 60)
-            } else if items.isEmpty {
-                VStack(spacing: 8) {
-                    Image(systemName: "bell.slash")
-                        .font(.system(size: 36))
-                        .foregroundStyle(AppTheme.textDim)
-                    Text("No notifications yet")
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundStyle(.white)
-                    Text("Activity from friends and blends will show up here")
-                        .font(.system(size: 14))
-                        .foregroundStyle(AppTheme.textMuted)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 40)
-                }
-                .padding(.top, 60)
+                .padding(.top, 40)
+            } else if feed.requests.isEmpty, feed.sections.isEmpty {
+                EmptyStateView(
+                    icon: "bell.slash",
+                    title: "No notifications yet",
+                    message: "Activity from friends and blends will show up here"
+                )
             } else {
-                LazyVStack(spacing: 0) {
-                    ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
-                        Button { handleTap(item) } label: {
-                            inboxRow(item)
-                        }
-                        .buttonStyle(.plain)
-                        .onAppear {
-                            if index >= items.count - 5 {
-                                Task { await loadMore() }
-                            }
-                        }
-
-                        Divider()
-                            .background(AppTheme.cardSecondary)
-                            .padding(.horizontal, 24)
-                    }
-
-                    if isLoadingMore {
-                        ProgressView()
-                            .tint(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 20)
-                    }
-                }
+                feedList
             }
         }
         .background(AppTheme.background)
         .navigationBarBackButtonHidden()
         .swipeBackGesture()
+        .toolbarBackground(AppTheme.background, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
         .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                BackButton()
-            }
+            ToolbarItem(placement: .navigationBarLeading) { BackButton() }
             ToolbarItem(placement: .principal) {
                 Text("Notifications")
                     .font(.system(size: 22, weight: .bold))
                     .foregroundStyle(.white)
             }
         }
-        .task {
-            try? await UNUserNotificationCenter.current().setBadgeCount(0)
-            await loadInbox(reset: true)
-            // Mark all as read when viewing
-            try? await NotificationAPI.markInboxRead()
-            try? await NotificationAPI.resetBadge()
-        }
-        .refreshable { await loadInbox(reset: true) }
+        .navigationDestination(item: $route) { destination($0) }
+        .task { await open() }
+        .refreshable { Haptics.play(.refreshed(ok: await load(reset: true))) }
+        .accessibilityIdentifier("notifications-feed")
     }
 
-    // MARK: - Inbox Row
-
-    private func inboxRow(_ item: InboxItem) -> some View {
-        HStack(spacing: 12) {
-            // Avatar or icon
-            if let avatarUrl = item.fromAvatarUrl {
-                AvatarView(url: avatarUrl, size: 40)
-            } else {
-                Image(systemName: item.icon)
-                    .font(.system(size: 16))
-                    .foregroundStyle(.white)
-                    .frame(width: 40, height: 40)
-                    .background(AppTheme.cardSecondary)
-                    .clipShape(Circle())
-            }
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(item.body)
-                    .font(.system(size: 14))
-                    .foregroundStyle(item.read ? AppTheme.textMuted : .white)
-                    .lineLimit(2)
-
-                Text(item.timeAgo)
-                    .font(.system(size: 12))
-                    .foregroundStyle(AppTheme.textDim)
-            }
-
-            Spacer()
-
-            if !item.read {
-                Circle()
-                    .fill(.blue)
-                    .frame(width: 8, height: 8)
-            }
-        }
-        .padding(.horizontal, 24)
-        .padding(.vertical, 12)
+    private var feed: ActivityFeedContent {
+        if let frozen { return frozen }
+        return ActivityFeed.make(inbox: items, now: Date())
     }
 
-    // MARK: - Data
+    private var feedList: some View {
+        LazyVStack(alignment: .leading, spacing: 0) {
+            if let actionError { banner(actionError) }
+            if !feed.requests.isEmpty {
+                sectionHeader("Requests")
+                ForEach(feed.requests) { request in
+                    ActivityRequestRow(
+                        request: request,
+                        isBusy: busyRequestId == request.id,
+                        onAccept: { await decide(request, accept: true) },
+                        onDecline: { await decide(request, accept: false) },
+                        onOpen: { route = request.profile }
+                    )
+                }
+            }
+            ForEach(feed.sections, id: \.bucket) { section in
+                sectionHeader(section.bucket.rawValue)
+                ForEach(section.rows) { row in
+                    activityButton(row)
+                        .onAppear {
+                            guard row.id == feed.sections.last?.rows.last?.id else { return }
+                            Task { await loadMore() }
+                        }
+                }
+            }
+            if isLoadingMore {
+                ProgressView()
+                    .tint(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 20)
+            }
+        }
+    }
 
-    private func loadInbox(reset: Bool) async {
+    private func sectionHeader(_ title: String) -> some View {
+        Text(title)
+            .font(.system(size: 15, weight: .semibold))
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 16)
+            .padding(.top, 18)
+            .padding(.bottom, 4)
+    }
+
+    private func banner(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 13))
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(12)
+            .background(AppTheme.cardSecondary)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .padding(.horizontal, 16)
+            .padding(.top, 12)
+    }
+
+    @ViewBuilder
+    private func activityButton(_ row: ActivityRow) -> some View {
+        if let destination = row.route {
+            Button { route = destination } label: { ActivityRowView(row: row) }
+                .buttonStyle(.plain)
+        } else {
+            ActivityRowView(row: row)
+        }
+    }
+
+    @ViewBuilder
+    private func destination(_ route: ActivityRoute) -> some View {
+        switch route {
+        case let .movie(tmdbId, title):
+            MovieDetailView(tmdbId: tmdbId, title: title, source: .notification)
+        case let .comments(tmdbId, title):
+            MovieCommentsView(tmdbId: tmdbId, movieTitle: title.isEmpty ? "Comments" : title)
+        case let .group(id):
+            GroupDetailView(groupId: id)
+        case let .profile(userId, username, avatarURL):
+            FriendProfileView(
+                friend: FriendResponse(
+                    friendshipId: nil,
+                    id: userId,
+                    username: username,
+                    displayName: nil,
+                    avatarUrl: avatarURL
+                )
+            )
+        }
+    }
+
+    private func open() async {
+        guard !isPreview else { return }
+        try? await UNUserNotificationCenter.current().setBadgeCount(0)
+        let loaded = await load(reset: true)
+        guard loaded else { return }
+        try? await NotificationAPI.markInboxRead()
+        try? await NotificationAPI.resetBadge()
+    }
+
+    @discardableResult
+    private func load(reset: Bool) async -> Bool {
+        if isPreview { return false }
         if reset {
             errorMessage = nil
             hasMore = true
         }
         do {
-            let response = try await NotificationAPI.getInbox(limit: pageSize, offset: 0)
-            items = response.results
-            hasMore = response.results.count >= pageSize
+            let inbox = try await NotificationAPI.getInbox(limit: pageSize, offset: 0)
+            guard !Task.isCancelled else { return false }
+            items = inbox.results
+            hasMore = inbox.results.count >= pageSize
+            isLoading = false
+            return true
         } catch {
-            if items.isEmpty {
-                errorMessage = "Could not load notifications"
-            }
+            guard !Task.isCancelled else { return false }
+            if items.isEmpty { errorMessage = FriendlyCopy.notificationsMessage(for: error) }
+            isLoading = false
+            return false
         }
-        isLoading = false
-    }
-
-    private func handleTap(_ item: InboxItem) {
-        let route: DeepLink? = switch item.type {
-        case "friend_request":
-            .friendRequests
-        case "group_invite", "group_watchlist":
-            (item.data?["group_id"]).flatMap(Int.init).map(DeepLink.groupDetail(groupId:))
-        case "friend_activity", "friend_accepted":
-            (item.data?["tmdb_id"]).flatMap(Int.init).map(DeepLink.movieDetail(tmdbId:))
-        default:
-            nil
-        }
-        guard let route else { return }
-        deepLinkState.pending = route
-        dismiss()
     }
 
     private func loadMore() async {
-        guard hasMore, !isLoadingMore, !isLoading else { return }
+        guard hasMore, !isLoadingMore, !isLoading, !isPreview else { return }
         isLoadingMore = true
         defer { isLoadingMore = false }
         do {
-            let response = try await NotificationAPI.getInbox(
-                limit: pageSize,
-                offset: items.count
-            )
-            let existingIds = Set(items.map(\.id))
-            let new = response.results.filter { !existingIds.contains($0.id) }
-            items.append(contentsOf: new)
+            let response = try await NotificationAPI.getInbox(limit: pageSize, offset: items.count)
+            let existing = Set(items.map(\.id))
+            items.append(contentsOf: response.results.filter { !existing.contains($0.id) })
             hasMore = response.results.count >= pageSize
         } catch {
-            // Non-critical — stop paging on error
             hasMore = false
+        }
+    }
+
+    private func decide(_ request: PinnedRequest, accept: Bool) async {
+        actionError = nil
+        if isPreview {
+            guard var preview = frozen else { return }
+            preview.requests.removeAll { $0.id == request.id }
+            frozen = preview
+            return
+        }
+        busyRequestId = request.id
+        defer { busyRequestId = nil }
+        do {
+            if accept {
+                try await NotificationAPI.acceptInboxItem(id: request.inboxID)
+                Analytics.friendRequestAccepted()
+                Haptics.play(.success)
+            } else {
+                try await NotificationAPI.declineInboxItem(id: request.inboxID)
+                Analytics.friendRequestRejected()
+            }
+            withAnimation(.easeOut(duration: 0.2)) {
+                items.removeAll { $0.id == request.inboxID }
+            }
+            await tabState.refreshPendingCount()
+        } catch {
+            actionError = FriendlyCopy.requestAction
         }
     }
 }

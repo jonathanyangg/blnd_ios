@@ -57,8 +57,7 @@ struct GroupMembersSheet: View {
         .sheet(isPresented: $showAddMember) {
             AddGroupMemberSheet(
                 groupId: groupId,
-                existingMemberIds: Set(group?.members.map(\.id) ?? []),
-                memberCount: group?.members.count ?? 0
+                existingMemberIds: Set(group?.members.map(\.id) ?? [])
             ) { updated in
                 group = updated
             }

@@ -1,0 +1,33 @@
+# Watchlist: add Inception from its detail page into My Watchlist, then find it under Profile > Watchlist.
+appId: com.jonathan.blnd-ios
+env: {EMAIL: maya@blnd.local, PASSWORD: Premium123!}
+---
+- runFlow: subflows/ensure_home.yaml
+- tapOn: {id: home.search}
+- tapOn: {id: search.field}
+- inputText: Inception
+- waitForAnimationToEnd
+- tapOn: "Inception, 2010"
+- extendedWaitUntil:
+    visible: Cast
+    timeout: 15000
+- tapOn: {text: Watchlist}
+# The Add-to-Watchlist sheet is not exposed in the accessibility hierarchy to Maestro, so drive it by coordinates
+# (rows: My Watchlist ~60% down; Save top-right ~51%).
+- waitForAnimationToEnd
+- takeScreenshot: 08-1-add-sheet
+- tapOn:
+    point: 30%,66%
+- tapOn:
+    point: 89%,51%
+- waitForAnimationToEnd
+- takeScreenshot: 08-2-saved
+# detail is a pushed page without the tab bar; relaunch (session persists) to get back to Home
+- runFlow: subflows/ensure_home.yaml
+- tapOn: {id: profile.tab}
+- waitForAnimationToEnd
+- takeScreenshot: 08-3-profile
+- tapOn: {text: Watchlist, index: 1}   # index 0 is the stat counter, 1 is the tab
+- waitForAnimationToEnd
+- takeScreenshot: 08-4-watchlist-tab
+# Poster tiles carry no accessible title, so persistence is asserted server-side by 08_watchlist.verify.sh

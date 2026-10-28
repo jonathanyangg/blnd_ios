@@ -5,10 +5,12 @@ struct GroupsListView: View {
     @Environment(DeepLinkState.self) private var deepLinkState
     @State private var groups: [GroupResponse] = []
     @State private var isLoading = true
-    @State private var errorMessage: String?
+    @State private var errorMessage: UserFacingError?
     @State private var showCreateGroup = false
     @State private var deepLinkGroupId: Int?
     @State private var searchQuery = ""
+    @State private var resolvedNames: [Int: [String]] = [:]
+    @State private var createdGroupId: Int?
 
     var body: some View {
         NavigationStack {
@@ -21,12 +23,18 @@ struct GroupsListView: View {
                             .foregroundStyle(.white)
                         Spacer()
                         Button {
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
                             showCreateGroup = true
                         } label: {
-                            Image(systemName: "plus")
-                                .font(.system(size: 22, weight: .medium))
-                                .foregroundStyle(.white)
+                            Label("Create a Blend", systemImage: "plus")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundStyle(.black)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 8)
+                                .background(.white, in: Capsule())
                         }
+                        .accessibilityIdentifier("blends.create")
+                        .accessibilityLabel("Create a blend")
                     }
                     .padding(.top, 20)
                     .padding(.horizontal, 24)
@@ -48,36 +56,54 @@ struct GroupsListView: View {
                         }
                         .padding(.top, 40)
                     } else if groups.isEmpty {
-                        VStack(spacing: 8) {
+                        VStack(spacing: 12) {
                             Image(systemName: "person.3")
                                 .font(.system(size: 36))
                                 .foregroundStyle(AppTheme.textDim)
                             Text("No blends yet")
                                 .font(.system(size: 17, weight: .semibold))
                                 .foregroundStyle(.white)
-                            Text("Blend your taste with friends to find movies together")
+                            Text("A blend mixes your taste with friends' to find a movie you'll all like.")
                                 .font(.system(size: 14))
                                 .foregroundStyle(AppTheme.textMuted)
+                                .multilineTextAlignment(.center)
+                            Button {
+                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                showCreateGroup = true
+                            } label: {
+                                Text("Create a Blend")
+                                    .font(.system(size: 15, weight: .semibold))
+                                    .foregroundStyle(.black)
+                                    .padding(.horizontal, 18)
+                                    .padding(.vertical, 10)
+                                    .background(.white, in: Capsule())
+                            }
+                            .padding(.top, 4)
                         }
+                        .padding(.horizontal, 40)
                         .padding(.top, 60)
                     } else {
-                        let filtered = searchQuery.trimmingCharacters(in: .whitespaces).isEmpty
+                        let query = searchQuery.trimmingCharacters(in: .whitespaces)
+                        let filtered = query.isEmpty
                             ? groups
-                            : groups.filter { $0.name.localizedCaseInsensitiveContains(searchQuery) }
+                            : groups.filter {
+                                title(for: $0).localizedCaseInsensitiveContains(query)
+                            }
                         ForEach(filtered) { group in
                             NavigationLink {
                                 GroupDetailView(groupId: group.id)
                             } label: {
-                                GroupCardRow(group: group)
+                                GroupCardRow(group: group, title: title(for: group))
                             }
                             .buttonStyle(.plain)
+                            .accessibilityIdentifier("blends.group")
                         }
                     }
                 }
             }
             .background(AppTheme.background)
             .sheet(isPresented: $showCreateGroup) {
-                CreateGroupView(onCreated: { await loadGroups() })
+                CreateGroupView(onCreated: { group in createdGroupId = group.id })
                     .presentationBackground(AppTheme.background)
             }
             .task { await loadGroups() }
@@ -85,6 +111,9 @@ struct GroupsListView: View {
             .onChange(of: showCreateGroup) {
                 if !showCreateGroup {
                     Task { await loadGroups() }
+                    // Open the new blend right away so "Find a movie for us" is one tap off.
+                    deepLinkGroupId = createdGroupId
+                    createdGroupId = nil
                 }
             }
             .navigationDestination(item: $deepLinkGroupId) { groupId in
@@ -111,14 +140,19 @@ struct GroupsListView: View {
         do {
             let result = try await GroupsAPI.listGroups()
             groups = result.groups
+            resolvedNames = await GroupsAPI.memberNamesForUnnamedGroups(groups)
         } catch is CancellationError {
             return
         } catch {
             if groups.isEmpty {
-                errorMessage = error.localizedDescription
+                errorMessage = UserFacingError.capture(error, screen: "Groups")
             }
         }
         isLoading = false
+    }
+
+    private func title(for group: GroupResponse) -> String {
+        group.displayTitle(resolvedNames: resolvedNames[group.id] ?? [])
     }
 }
 
@@ -126,14 +160,15 @@ struct GroupsListView: View {
 
 private struct GroupCardRow: View {
     let group: GroupResponse
+    let title: String
 
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text(group.name)
+                Text(title)
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(.white)
-                Text("\(group.memberCount) members")
+                Text(group.memberCount == 1 ? "1 member" : "\(group.memberCount) members")
                     .font(.system(size: 13))
                     .foregroundStyle(AppTheme.textMuted)
             }
@@ -145,7 +180,16 @@ private struct GroupCardRow: View {
                     Array(group.memberAvatars.prefix(3).enumerated()),
                     id: \.offset
                 ) { index, avatarUrl in
-                    AvatarView(url: avatarUrl, size: 28, overlap: index > 0)
+                    let names = group.memberNames ?? []
+                    AvatarView(url: avatarUrl, size: 28)
+                        .overlay {
+                            if avatarUrl == nil, index < names.count {
+                                Text(BlendDisplayName.firstName(names[index]).prefix(1).uppercased())
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundStyle(.white)
+                            }
+                        }
+                        .padding(.leading, index > 0 ? -10 : 0)
                 }
                 if group.memberCount > 3 {
                     ZStack {

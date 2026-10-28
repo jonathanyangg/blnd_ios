@@ -5,12 +5,16 @@ struct SignUpView: View {
     @Environment(AuthState.self) var authState
     @Environment(OnboardingState.self) var onboardingState
     @Binding var path: NavigationPath
+    var onAccountReady: (() -> Void)?
+    var onSignIn: (() -> Void)?
     @State private var emailError: String?
 
     var body: some View {
         VStack(spacing: 0) {
-            OnboardingProgressBar(step: 3, total: 5)
-                .padding(.top, 12)
+            if onAccountReady == nil {
+                OnboardingProgressBar(step: 3, total: 5)
+                    .padding(.top, 12)
+            }
 
             ScrollView {
                 // content must scroll when keyboard is up
@@ -35,9 +39,8 @@ struct SignUpView: View {
                         case let .success(authorization):
                             handleAppleSignIn(authorization)
                         case let .failure(error):
-                            let isCancelled = (error as? ASAuthorizationError)?.code == .canceled
-                            if !isCancelled {
-                                authState.error = error.localizedDescription
+                            if UserFacingError.displayCopy(for: error) != nil {
+                                authState.error = UserFacingError.capture(error, screen: "SignUp")
                             }
                         }
                     }
@@ -63,32 +66,37 @@ struct SignUpView: View {
                     // MARK: - Email Form
 
                     AppTextField(placeholder: "Name", text: $state.name)
+                        .accessibilityIdentifier("signup.name")
                     AppTextField(placeholder: "Username", text: $state.username)
+                        .accessibilityIdentifier("signup.username")
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
+                    fieldNote("username")
                     AppTextField(placeholder: "Email", text: $state.email)
+                        .accessibilityIdentifier("signup.email")
                         .textContentType(.emailAddress)
                         .keyboardType(.emailAddress)
                         .textInputAutocapitalization(.never)
-                    AppTextField(placeholder: "Password", text: $state.password, isSecure: true)
+                    if let emailError {
+                        InlineError(message: .client(.validation, message: emailError))
+                            .padding(.bottom, 8)
+                    }
+                    fieldNote("email")
+                    AppTextField(
+                        placeholder: "Password", text: $state.password, isSecure: true,
+                        identifier: "signup.password"
+                    )
+                    fieldNote("password")
                     PhoneNumberInputField(phoneNumber: $state.phoneNumber)
+                    fieldNote("phone_number")
 
                     if !state.password.isEmpty {
                         PasswordRequirements(password: state.password)
                             .padding(.bottom, 8)
                     }
 
-                    if let emailError {
-                        Text(emailError)
-                            .font(.system(size: 13))
-                            .foregroundStyle(AppTheme.destructive)
-                            .padding(.bottom, 8)
-                    }
-
-                    if let error = authState.error {
-                        Text(error)
-                            .font(.system(size: 13))
-                            .foregroundStyle(AppTheme.destructive)
+                    if let error = authState.error, error.fields.isEmpty {
+                        InlineError(message: error)
                             .padding(.bottom, 8)
                     }
 
@@ -119,14 +127,22 @@ struct SignUpView: View {
                                     ? nil : phone
                             )
                             if authState.error == nil {
-                                path.append(AuthRoute.onboardingComplete)
+                                if let onAccountReady {
+                                    onAccountReady()
+                                } else {
+                                    path.append(AuthRoute.onboardingComplete)
+                                }
                             }
                         }
                     }
 
                     Button {
-                        path.removeLast(path.count)
-                        path.append(AuthRoute.login)
+                        if let onSignIn {
+                            onSignIn()
+                        } else {
+                            path.removeLast(path.count)
+                            path.append(AuthRoute.login)
+                        }
                     } label: {
                         HStack(spacing: 4) {
                             Text("Already have an account?")
@@ -146,6 +162,7 @@ struct SignUpView: View {
                 .padding(.horizontal, 24)
             }
         }
+        .scrollDismissesKeyboard(.interactively)
         .background(AppTheme.background)
         .navigationBarBackButtonHidden()
         .toolbar {
@@ -155,6 +172,14 @@ struct SignUpView: View {
         }
         .task {
             Analytics.onboardingStepViewed(step: .signup)
+        }
+    }
+
+    @ViewBuilder
+    private func fieldNote(_ name: String) -> some View {
+        if let note = authState.error?.inline(for: name) {
+            InlineError(message: note)
+                .padding(.bottom, 8)
         }
     }
 
@@ -265,6 +290,8 @@ struct AppTextField: View {
     let placeholder: String
     @Binding var text: String
     var isSecure: Bool = false
+    /// Set on the secure variant so the field and its show/hide button get distinct ids ("<id>" and "<id>.toggle").
+    var identifier: String?
     @State private var showPassword = false
 
     var body: some View {
@@ -278,6 +305,7 @@ struct AppTextField: View {
             }
             .font(.system(size: 15))
             .foregroundStyle(.white)
+            .optionalIdentifier(identifier)
 
             if isSecure {
                 Button {
@@ -287,6 +315,7 @@ struct AppTextField: View {
                         .foregroundStyle(AppTheme.textMuted)
                         .font(.system(size: 14))
                 }
+                .optionalIdentifier(identifier.map { "\($0).toggle" })
             }
         }
         .padding(16)
@@ -306,5 +335,12 @@ struct AppTextField: View {
         SignUpView(path: .constant(NavigationPath()))
             .environment(AuthState())
             .environment(OnboardingState())
+    }
+}
+
+private extension View {
+    /// Applies an accessibility identifier only when one is given, so it never blanks an id set by a parent.
+    @ViewBuilder func optionalIdentifier(_ id: String?) -> some View {
+        if let id { accessibilityIdentifier(id) } else { self }
     }
 }

@@ -1,0 +1,54 @@
+# A brand-new signed-out user finishes onboarding end to end (regression for the nested-NavigationStack
+# sign-up gate that bounced Continue back to Welcome):
+# Welcome > Create Account > pitches > 5 taste picks > Continue > inline sign-up gate > Sign Up > tutorial > home feed.
+# Creates a throwaway account on the backend the build points at (use the LOCAL backend).
+appId: com.jonathan.blnd-ios
+env: {EMAIL: maya@blnd.local, PASSWORD: Premium123!}
+---
+- runFlow: 00_onboarding_partial.yaml
+- tapOn: {id: onboarding.continue}
+- waitForAnimationToEnd
+# The gate must show; the old bug jumped back to Welcome.
+- assertNotVisible: {id: auth.welcome.sign-in}
+- extendedWaitUntil: {visible: {text: "Sign Up"}, timeout: 10000}
+- takeScreenshot: 12-1-signup-gate
+- evalScript: ${output.stamp = String(new Date().getTime())}
+- tapOn: {id: signup.name}
+- inputText: Gate Tester
+- tapOn: {id: signup.username}
+- inputText: gate${output.stamp}
+- tapOn: {id: signup.email}
+- inputText: gate${output.stamp}@blnd.local
+# Reveal the password first: a plain text field avoids iOS's Strong Password cover view, which swallows typing on a fresh simulator.
+- swipe: {start: "50%,50%", end: "50%,25%"}
+- tapOn: {id: signup.password.toggle}
+- tapOn: {id: signup.password}
+- inputText: Gatepass123
+- takeScreenshot: 12-2-signup-filled
+# Scrolling the form dismisses the keyboard so the button is reachable.
+- swipe: {start: "50%,50%", end: "50%,25%"}
+- scrollUntilVisible: {element: {text: "Sign Up"}, direction: DOWN, timeout: 10000}
+- tapOn: {text: "Sign Up"}
+# Account created: the tutorial continues (swipe step) instead of Welcome.
+- extendedWaitUntil: {visible: {id: tutorial.swipe}, timeout: 30000}
+- takeScreenshot: 12-3-tutorial-swipe
+- tapOn: {text: "Interested"}
+- tapOn: {text: "Next"}
+- waitForAnimationToEnd
+- tapOn: {text: "Not for me"}
+- tapOn: {text: "Next"}
+- extendedWaitUntil: {visible: {id: tutorial.match}, timeout: 10000}
+- tapOn: {text: "Next"}
+- extendedWaitUntil: {visible: {id: tutorial.blend}, timeout: 10000}
+- tapOn: {text: "Next"}
+- waitForAnimationToEnd
+- tapOn: {text: "This one's mine"}
+- extendedWaitUntil: {visible: {text: "Not now"}, timeout: 10000}
+- tapOn: {text: "Not now"}
+- extendedWaitUntil: {visible: {id: tutorial.taste}, timeout: 10000}
+- tapOn: {text: "Next"}
+- extendedWaitUntil: {visible: {text: "See your feed"}, timeout: 10000}
+- takeScreenshot: 12-4-friends
+- tapOn: {text: "See your feed"}
+- extendedWaitUntil: {visible: {id: home.search}, timeout: 30000}
+- takeScreenshot: 12-5-home-feed

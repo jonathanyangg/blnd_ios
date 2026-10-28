@@ -1,0 +1,21 @@
+# Log/rate: rate Inception with stars on the detail page and open the Watched-with sheet.
+appId: com.jonathan.blnd-ios
+env: {EMAIL: maya@blnd.local, PASSWORD: Premium123!}
+---
+- runFlow: subflows/ensure_home.yaml
+- tapOn: {id: home.search}
+- tapOn: {id: search.field}
+- inputText: Inception
+- waitForAnimationToEnd
+- tapOn: "Inception, 2010"
+- extendedWaitUntil:
+    visible: Cast
+    timeout: 15000
+- takeScreenshot: 09-1-before-rating
+- tapOn:
+    point: 50%,78%
+- waitForAnimationToEnd
+- takeScreenshot: 09-2-rated
+- tapOn: {text: Watched with}
+- waitForAnimationToEnd
+- takeScreenshot: 09-3-watched-with-sheet

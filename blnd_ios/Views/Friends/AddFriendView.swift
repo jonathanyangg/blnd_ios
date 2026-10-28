@@ -18,7 +18,7 @@ struct AddFriendView: View {
     @State private var sendingTo: String?
     @State private var sentTo: Set<String> = []
     @State private var cancelledIds: Set<String> = []
-    @State private var errorMessage: String?
+    @State private var errorMessage: UserFacingError?
     @State private var unrequestTarget: (id: String, friendshipId: Int)?
 
     @FocusState private var isFieldFocused: Bool
@@ -36,9 +36,7 @@ struct AddFriendView: View {
             searchHeader
 
             if let errorMessage {
-                Text(errorMessage)
-                    .font(.system(size: 13))
-                    .foregroundStyle(.red)
+                InlineError(message: errorMessage)
                     .padding(.horizontal, 24)
                     .padding(.bottom, 8)
             }
@@ -56,6 +54,7 @@ struct AddFriendView: View {
         .alert("Cancel Request", isPresented: showUnrequestAlert) {
             Button("Keep", role: .cancel) { unrequestTarget = nil }
             Button("Withdraw", role: .destructive) {
+                Haptics.play(.warning)
                 if let target = unrequestTarget {
                     Task { await withdrawRequest(id: target.id, friendshipId: target.friendshipId) }
                 }
@@ -442,12 +441,11 @@ extension AddFriendView {
             )
             sentTo.insert(id)
             Analytics.friendRequestSent()
+            Haptics.play(.success)
             contactSuggestions.removeAll { $0.id == id }
             mutualSuggestions.removeAll { $0.id == id }
-        } catch let APIError.badRequest(message) {
-            errorMessage = message
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = UserFacingError.capture(error, screen: "AddFriend")
         }
         sendingTo = nil
     }
@@ -458,7 +456,7 @@ extension AddFriendView {
             sentTo.remove(id)
             cancelledIds.insert(id)
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = UserFacingError.capture(error, screen: "AddFriend")
         }
         unrequestTarget = nil
     }

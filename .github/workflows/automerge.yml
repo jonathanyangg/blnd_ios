@@ -1,0 +1,25 @@
+name: automerge
+# Merge into dev when the PR has the `automerge` label AND the local Mac QA status `blnd/local-qa` is success.
+on:
+  pull_request:
+    types: [labeled]
+  status:
+permissions:
+  contents: write
+  pull-requests: write
+  statuses: read
+jobs:
+  merge:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || github.event.context == 'blnd/local-qa'
+    steps:
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          for pr in $(gh pr list --repo "$REPO" --base dev --label automerge --state open --json number -q '.[].number'); do
+            sha=$(gh pr view "$pr" --repo "$REPO" --json headRefOid -q .headRefOid)
+            st=$(gh api "repos/$REPO/commits/$sha/statuses" -q '[.[] | select(.context=="blnd/local-qa")][0].state')
+            echo "PR #$pr local-qa: $st"
+            [ "$st" = success ] && gh pr merge "$pr" --repo "$REPO" --squash --delete-branch || true
+          done

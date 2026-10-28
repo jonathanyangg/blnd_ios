@@ -17,6 +17,14 @@ extension HomeView {
                     Task { await loadForYou() }
                 }
                 Spacer()
+            } else if fypReelMovies.isEmpty, catalogFilters.filter.media == .tv {
+                Spacer()
+                CatalogFilterNotice(title: "TV recommendations are coming soon")
+                Spacer()
+            } else if fypReelMovies.isEmpty, catalogFilters.filter.isActive {
+                Spacer()
+                CatalogFilterNotice(title: "Nothing matches this filter")
+                Spacer()
             } else {
                 ReelsFeedView(
                     movies: fypReelMovies,
@@ -24,7 +32,9 @@ extension HomeView {
                     isTabVisible: tabState.selectedTab == 0,
                     onLoadMore: { await loadMoreFYP() },
                     onRefresh: { await refreshFYP() },
-                    externalCurrentId: $fypCurrentId
+                    externalCurrentId: $fypCurrentId,
+                    tutorialNudge: tutorialNudge,
+                    showsTutorial: showReelTutorial
                 )
             }
         case .discover:

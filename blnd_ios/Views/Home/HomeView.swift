@@ -19,7 +19,7 @@ struct HomeView: View {
     @State var selectedTab: HomeTab = .forYou
     @State var showSearch = false
     @State var showPaywall = false
-    @State var viewMode: ViewMode = .reels
+    @State var viewMode: ViewMode = UITestLaunch.prefersGrid ? .grid : .reels
     @Namespace private var tabNamespace
 
     // For You
@@ -28,17 +28,31 @@ struct HomeView: View {
     @State var seenFYPIds: Set<Int> = []
     @State var isLoadingFYP = false
     @State var isLoadingMoreFYP = false
-    @State var fypError: String?
+    @State var fypError: UserFacingError?
     @State var fypCurrentId: Int?
     @State var discoverCurrentId: Int?
-    @State var toastMessage: String?
+    @State var toastMessage: UserFacingError?
+    @State var toastRetry: (() -> Void)?
     @State var toastTask: Task<Void, Never>?
     @State var showStickySearch = false
     @State var lastScrollOffset: CGFloat = 0
     @State var deepLinkTmdbId: Int?
+    @State var catalogFilters = CatalogFilterStore.shared
+    @State var deepLinkCommentsId: Int?
+    @State var gridDetailItem: MovieDetailItem?
 
-    /// Show tutorial overlay on first launch only
-    @AppStorage("hasSeenReelsTutorial") private var hasSeenTutorial = false
+    /// Show the reel coach once. The key matches `ReelTutorialStore`.
+    @AppStorage(ReelTutorialStore.seenKey) private var hasSeenTutorial = false
+    @State var tutorialNudge = ReelTutorialNudge.rest
+    @State var tutorialFrames: [ReelTutorialTarget: CGRect] = [:]
+
+    var showReelTutorial: Bool {
+        !hasSeenTutorial
+            && viewMode == .reels
+            && selectedTab == .forYou
+            && !isLoadingFYP
+            && !fypReelMovies.isEmpty
+    }
 
     var body: some View {
         NavigationStack {
@@ -47,11 +61,29 @@ struct HomeView: View {
                 if viewMode == .reels {
                     reelsFeed
                         .task { await loadForYou() }
-                        .allowsHitTesting(hasSeenTutorial || isLoadingFYP || fypReelMovies.isEmpty)
+                        .allowsHitTesting(!showReelTutorial)
+                        .coordinateSpace(name: "homeReel")
+                        .onPreferenceChange(ReelTutorialFrameKey.self) { tutorialFrames = $0 }
+                        .overlay {
+                            if showReelTutorial {
+                                ReelTutorialOverlay(
+                                    frames: tutorialFrames,
+                                    nudge: $tutorialNudge,
+                                    initialIndex: UITestLaunch.tutorialStep,
+                                    onDismiss: dismissReelTutorial
+                                )
+                            }
+                        }
                 } else {
                     gridFeed
-                        .task { await loadForYou() }
                 }
+            }
+            .task(id: catalogFilters.filter) {
+                recommendations = []
+                seenFYPIds = []
+                fypReelMovies = []
+                fypCurrentId = nil
+                await loadForYou()
             }
             .background(AppTheme.background)
             .fullScreenCover(isPresented: $showSearch) {
@@ -66,49 +98,30 @@ struct HomeView: View {
                 PaywallView(source: .aiSearch)
                     .environment(authState)
             }
-            .overlay {
-                if !hasSeenTutorial, viewMode == .reels, !isLoadingFYP, !fypReelMovies.isEmpty {
-                    ScrollHintOverlay {
-                        hasSeenTutorial = true
-                    }
-                }
-            }
             .onChange(of: tabState.homeRefreshTrigger) {
                 Task { await refreshFYP() }
             }
             .navigationDestination(item: $deepLinkTmdbId) { tmdbId in
                 MovieDetailView(tmdbId: tmdbId, source: .notification)
             }
+            .navigationDestination(item: $deepLinkCommentsId) { tmdbId in
+                MovieCommentsView(tmdbId: tmdbId, movieTitle: "Comments")
+            }
             .onChange(of: deepLinkState.pending) { _, newValue in
-                if case let .movieDetail(tmdbId) = newValue {
-                    deepLinkTmdbId = tmdbId
-                    deepLinkState.pending = nil
-                }
+                consumeHomeLink(newValue)
             }
             .onAppear {
-                if case let .movieDetail(tmdbId) = deepLinkState.pending {
-                    deepLinkTmdbId = tmdbId
-                    deepLinkState.pending = nil
-                }
+                consumeHomeLink(deepLinkState.pending)
             }
             .overlay(alignment: .top) {
                 if let toast = toastMessage {
-                    Text(toast)
-                        .font(.system(
-                            size: 13,
-                            weight: .medium
-                        ))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
-                        .background(.red.opacity(0.85))
-                        .clipShape(Capsule())
+                    ErrorToast(message: toast, retry: toastRetry, onDismiss: dismissToast)
+                        .padding(.horizontal, 24)
                         .padding(.top, 60)
                         .transition(
                             .move(edge: .top)
                                 .combined(with: .opacity)
                         )
-                        .onTapGesture { dismissToast() }
                 }
             }
             .animation(
@@ -124,22 +137,27 @@ struct HomeView: View {
         VStack(spacing: 0) {
             HStack {
                 Button {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
                     Task { await refreshCurrentTab() }
                 } label: {
                     Text("blnd")
-                        .font(.system(size: 24, weight: .bold))
+                        .font(.system(size: 24, weight: .semibold))
                         .foregroundStyle(.white)
                 }
+                .accessibilityHint("Refreshes this feed")
                 Spacer()
-                HStack(spacing: 16) {
+                HStack(spacing: 18) {
                     if !authState.isPremium {
                         Button { showPaywall = true } label: {
                             Text("+")
                                 .font(.system(size: 20, weight: .bold))
                                 .foregroundStyle(AppTheme.premiumGoldGradient)
                         }
+                        .accessibilityIdentifier("home.paywall")
+                        .accessibilityLabel("Blnd Plus")
                     }
                     Button {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
                         withAnimation(.easeInOut(duration: 0.2)) {
                             viewMode = viewMode == .reels
                                 ? .grid : .reels
@@ -153,42 +171,56 @@ struct HomeView: View {
                         .font(.system(size: 18))
                         .foregroundStyle(.white)
                     }
+                    .accessibilityIdentifier("home.viewMode")
                     Button { showSearch = true } label: {
                         Image(systemName: "magnifyingglass")
                             .font(.system(size: 20))
                             .foregroundStyle(.white)
                     }
+                    .accessibilityIdentifier("home.search")
                 }
             }
-            .padding(.top, 8)
+            .padding(.top, 4)
+            .padding(.horizontal, 20)
+            .padding(.bottom, 8)
+
+            HStack {
+                CatalogFilterButton()
+                Spacer()
+            }
             .padding(.horizontal, 24)
-            .padding(.bottom, 16)
+            .padding(.bottom, 12)
 
             homeTabPicker()
-                .padding(.horizontal, 24)
-                .padding(.bottom, 4)
-
-            Divider()
-                .overlay(AppTheme.border)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 8)
         }
         .background(AppTheme.background)
+    }
+
+    func dismissReelTutorial() {
+        tutorialNudge = .rest
+        ReelTutorialStore.markSeen()
+        hasSeenTutorial = true
     }
 
     func homeTabPicker() -> some View {
         HStack(spacing: 24) {
             ForEach(HomeTab.allCases, id: \.self) { tab in
                 Button {
+                    guard selectedTab != tab else { return }
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
                     withAnimation(.easeInOut(duration: 0.2)) {
                         selectedTab = tab
                         Analytics.tabSwitched(tab: tab.rawValue)
                     }
                 } label: {
-                    VStack(spacing: 8) {
+                    VStack(spacing: 6) {
                         Text(tab.rawValue)
                             .font(.system(
                                 size: 15,
                                 weight: selectedTab == tab
-                                    ? .bold : .medium
+                                    ? .semibold : .medium
                             ))
                             .foregroundStyle(
                                 selectedTab == tab
@@ -196,15 +228,36 @@ struct HomeView: View {
                                     : AppTheme.textMuted
                             )
 
-                        Rectangle()
-                            .fill(
-                                selectedTab == tab
-                                    ? .white : .clear
-                            )
-                            .frame(height: 2)
+                        ZStack {
+                            Capsule()
+                                .fill(.clear)
+                                .frame(height: 2)
+                            if selectedTab == tab {
+                                Capsule()
+                                    .fill(.white)
+                                    .frame(height: 2)
+                                    .matchedGeometryEffect(
+                                        id: "homeTab",
+                                        in: tabNamespace
+                                    )
+                            }
+                        }
                     }
                 }
             }
+        }
+    }
+
+    private func consumeHomeLink(_ link: DeepLink?) {
+        switch link {
+        case let .movieDetail(tmdbId):
+            deepLinkTmdbId = tmdbId
+            deepLinkState.pending = nil
+        case let .comments(tmdbId):
+            deepLinkCommentsId = tmdbId
+            deepLinkState.pending = nil
+        default:
+            break
         }
     }
 }

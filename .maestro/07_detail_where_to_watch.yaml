@@ -1,0 +1,19 @@
+# Movie detail: opens from search and shows the Where to watch providers.
+appId: com.jonathan.blnd-ios
+env: {EMAIL: maya@blnd.local, PASSWORD: Premium123!}
+---
+- runFlow: subflows/ensure_home.yaml
+- tapOn: {id: home.search}
+- tapOn: {id: search.field}
+- inputText: Inception
+- waitForAnimationToEnd
+- tapOn: "Inception, 2010"
+- extendedWaitUntil:
+    visible: Cast
+    timeout: 15000
+- takeScreenshot: 07-1-detail
+- scrollUntilVisible:
+    element:
+      text: Where to watch
+- takeScreenshot: 07-2-where-to-watch
+- assertVisible: Where to watch

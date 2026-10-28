@@ -56,7 +56,7 @@ enum NotificationAPI {
         )
     }
 
-    /// PATCH /notifications/preferences — update notification preference toggles (partial)
+    /// PATCH /notifications/preferences — partial update of share_ratings and channels.
     static func updatePreferences(
         _ prefs: UpdatePreferencesRequest
     ) async throws -> NotificationPreferences {
@@ -64,6 +64,24 @@ enum NotificationAPI {
             endpoint: "/notifications/preferences",
             method: "PATCH",
             body: prefs,
+            authenticated: true
+        )
+    }
+
+    /// POST /notifications/inbox/{id}/accept — accept the friend request on this row.
+    static func acceptInboxItem(id: Int) async throws {
+        try await APIClient.shared.requestVoid(
+            endpoint: "/notifications/inbox/\(id)/accept",
+            method: "POST",
+            authenticated: true
+        )
+    }
+
+    /// POST /notifications/inbox/{id}/decline — decline the friend request on this row.
+    static func declineInboxItem(id: Int) async throws {
+        try await APIClient.shared.requestVoid(
+            endpoint: "/notifications/inbox/\(id)/decline",
+            method: "POST",
             authenticated: true
         )
     }

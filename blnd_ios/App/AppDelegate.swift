@@ -51,31 +51,16 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
         let userInfo = response.notification.request.content.userInfo
-        let typeString = userInfo["type"] as? String
-        Analytics.pushNotificationTapped(
-            type: Analytics.PushType(rawValue: typeString ?? "") ?? .unknown
-        )
-        if let type = typeString {
-            switch type {
-            case "friend_request":
-                deepLinkState?.pending = .friendRequests
-            case "group_invite":
-                if let idStr = userInfo["group_id"] as? String, let groupId = Int(idStr) {
-                    deepLinkState?.pending = .groupDetail(groupId: groupId)
-                }
-            case "friend_activity", "friend_accepted":
-                if let idStr = userInfo["tmdb_id"] as? String, let tmdbId = Int(idStr) {
-                    deepLinkState?.pending = .movieDetail(tmdbId: tmdbId)
-                }
-            case "group_watchlist":
-                if let idStr = userInfo["group_id"] as? String, let groupId = Int(idStr) {
-                    deepLinkState?.pending = .groupDetail(groupId: groupId)
-                }
-            case "weekly_digest":
-                break
-            default:
-                break
+        var data: [String: String] = [:]
+        for (key, value) in userInfo {
+            if let key = key as? String, let value = value as? String {
+                data[key] = value
             }
+        }
+        let type = data["type"] ?? ""
+        Analytics.pushNotificationTapped(type: Analytics.PushType(rawValue: type) ?? .unknown)
+        if let link = ActivityFeed.deepLink(type: type, data: data) {
+            deepLinkState?.pending = link
         }
         completionHandler()
     }

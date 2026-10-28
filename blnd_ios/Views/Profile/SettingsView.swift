@@ -53,7 +53,8 @@ struct SettingsView: View {
                         settingsRow("Restore Purchases", icon: "arrow.clockwise") {
                             Task {
                                 isRestoring = true
-                                _ = try? await Purchases.shared.restorePurchases()
+                                let info = try? await Purchases.shared.restorePurchases()
+                                await authState.refreshRevenueCatCustomerInfo(fallingBackTo: info)
                                 await authState.fetchCurrentUser()
                                 isRestoring = false
                             }
@@ -81,7 +82,7 @@ struct SettingsView: View {
                             destination = .account
                         }
                         Divider().background(AppTheme.cardSecondary)
-                        settingsRow("Notifications", icon: "bell") {
+                        settingsRow("Notifications & Privacy", icon: "bell") {
                             destination = .notifications
                         }
                         Divider().background(AppTheme.cardSecondary)
@@ -111,6 +112,7 @@ struct SettingsView: View {
                             .background(AppTheme.card)
                             .clipShape(RoundedRectangle(cornerRadius: AppTheme.cornerRadiusLarge))
                     }
+                    .accessibilityIdentifier("profile.log-out")
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, 20)
@@ -132,6 +134,7 @@ struct SettingsView: View {
         .sheet(isPresented: $showPaywall) {
             PaywallView(source: .settings)
                 .environment(authState)
+                .presentationBackground(AppTheme.card)
         }
         .navigationDestination(item: $destination) { dest in
             switch dest {

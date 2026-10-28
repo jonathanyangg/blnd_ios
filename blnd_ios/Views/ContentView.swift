@@ -9,8 +9,52 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
+        if let screen = UITestLaunch.screen {
+            UITestHost(screen: screen)
+        } else {
+            root
+                .preferredColorScheme(.dark)
+                .onChange(of: authState.phase) { _, newPhase in
+                    if newPhase == .authenticated {
+                        requestNotificationPermission()
+                    }
+                }
+                .onChange(of: scenePhase) { _, newPhase in
+                    guard newPhase == .active else { return }
+                    guard authState.phase == .authenticated else { return }
+                    UIApplication.shared.applicationIconBadgeNumber = 0
+                    Task {
+                        try? await APIClient.shared.refreshTokens()
+                        try? await NotificationAPI.resetBadge()
+                    }
+                }
+        }
+    }
+
+    @ViewBuilder
+    private var root: some View {
+        #if DEBUG
+        if NotesImportPreviewLaunch.isEnabled {
+            NavigationStack {
+                notesImportReview(text: NotesImportPreviewLaunch.sampleText)
+            }
+        } else if ProcessInfo.processInfo.arguments.contains("-showCatalogFilter") {
+            CatalogFilterScreenshotHost()
+        } else if ProcessInfo.processInfo.arguments.contains("UI_TEST_LETTERBOXD_IMPORT") {
+            MovieImportUITestHost()
+        } else {
+            sessionRoot
+        }
+        #else
+        sessionRoot
+        #endif
+    }
+
+    private var sessionRoot: some View {
         Group {
-            if authState.isCheckingSession {
+            if showsPaywallScreenshot {
+                PaywallView(source: .manual)
+            } else if authState.isCheckingSession {
                 launchScreen
             } else {
                 switch authState.phase {
@@ -18,27 +62,13 @@ struct ContentView: View {
                     OnboardingView()
                 case .authenticated:
                     MainTabView()
+                        .modifier(PostWatchPromptHost())
                 }
             }
         }
-        .preferredColorScheme(.dark)
         .task {
             if authState.isCheckingSession {
                 await authState.checkSession()
-            }
-        }
-        .onChange(of: authState.phase) { _, newPhase in
-            if newPhase == .authenticated {
-                requestNotificationPermission()
-            }
-        }
-        .onChange(of: scenePhase) { _, newPhase in
-            if newPhase == .active, authState.phase == .authenticated {
-                UIApplication.shared.applicationIconBadgeNumber = 0
-                Task {
-                    try? await APIClient.shared.refreshTokens()
-                    try? await NotificationAPI.resetBadge()
-                }
             }
         }
     }
@@ -52,6 +82,15 @@ struct ContentView: View {
                 UIApplication.shared.registerForRemoteNotifications()
             }
         }
+    }
+
+    /// Debug-only. Launch with `-PaywallScreenshot` to capture the paywall.
+    private var showsPaywallScreenshot: Bool {
+        #if DEBUG
+        ProcessInfo.processInfo.arguments.contains("-PaywallScreenshot")
+        #else
+        false
+        #endif
     }
 
     /// Splash screen shown during cold-launch session resolution.
@@ -79,6 +118,7 @@ private struct LaunchLogo: View {
     let state = AuthState()
     ContentView()
         .environment(state)
+        .environment(DeepLinkState())
         .onAppear { state.phase = .authenticated }
 }
 
@@ -86,5 +126,6 @@ private struct LaunchLogo: View {
     let state = AuthState()
     ContentView()
         .environment(state)
+        .environment(DeepLinkState())
         .onAppear { state.phase = .unauthenticated }
 }
