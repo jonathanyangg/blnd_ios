@@ -3,6 +3,8 @@
 <dict>
 	<key>API_BASE_URL</key>
 	<string>$(API_BASE_URL)</string>
+	<key>SUPABASE_PROJECT_URL</key>
+	<string>$(SUPABASE_PROJECT_URL)</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>blnd needs access to your photo library to set a profile picture.</string>
 	<key>NSContactsUsageDescription</key>
